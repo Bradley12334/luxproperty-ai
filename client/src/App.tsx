@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import BriefPage from "@/pages/brief";
 import PricingPage from "@/pages/pricing";
+import PortfolioPage from "@/pages/portfolio";
 
 function AppRouter() {
   return (
@@ -16,6 +17,7 @@ function AppRouter() {
       <Route path="/" component={Home} />
       <Route path="/brief/:id" component={BriefPage} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/portfolio" component={PortfolioPage} />
       <Route component={NotFound} />
     </Switch>
   );

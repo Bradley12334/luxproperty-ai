@@ -6,7 +6,12 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Link } from "wouter";
+import { PriceAlerts } from "@/components/price-alerts";
+import { addToPortfolio, isInPortfolio } from "@/lib/portfolioStore";
+import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
   MapPin,
@@ -19,6 +24,8 @@ import {
   Footprints,
   FileText,
   Download,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -133,7 +140,11 @@ function KpiValue({ label, value }: { label: string; value: string | number }) {
 }
 
 
-function exportToPDF(report: BriefReport) {
+function exportToPDF(
+  report: BriefReport,
+  companyName?: string,
+  preparedBy?: string,
+) {
   const { areaIntelligence: ai, propertyDeepDive: pd } = report;
   const isProperty = report.queryType === "address" && pd;
   const date = new Date(report.generatedAt).toLocaleDateString("en-GB", {
@@ -161,11 +172,24 @@ function exportToPDF(report: BriefReport) {
   const riskFlags = ai.investmentOutlook.riskFlags.map(f => `
     <li style="margin-bottom:4px;padding-left:16px;position:relative"><span style="position:absolute;left:0;color:#9ca3af">–</span>${f}</li>`).join("");
 
+  // Masthead branding
+  const mastheadLogoHtml = companyName
+    ? `<div>
+        <div class="logo">${companyName}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">Powered by Lux<span style="color:#B8860B">Property</span>.ai</div>
+      </div>`
+    : `<div class="logo">Lux<span>Property</span>.ai</div>`;
+
+  // Meta section with optional "Prepared by"
+  const preparedByLine = preparedBy
+    ? `<br>Prepared by ${preparedBy}`
+    : "";
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>LuxProperty.ai — ${isProperty ? "Property" : "Area"} Intelligence Brief</title>
+<title>${companyName || "LuxProperty.ai"} — ${isProperty ? "Property" : "Area"} Intelligence Brief</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, 'Helvetica Neue', sans-serif; font-size: 13px; color: #1a1612; background: #fff; }
@@ -198,10 +222,10 @@ function exportToPDF(report: BriefReport) {
 <body>
 <div class="page">
   <div class="masthead">
-    <div class="logo">Lux<span>Property</span>.ai</div>
+    ${mastheadLogoHtml}
     <div class="meta">
       Intelligence Brief<br>
-      Generated ${date}<br>
+      Generated ${date}${preparedByLine}<br>
       Data: HM Land Registry · Postcodes.io
     </div>
   </div>
@@ -271,7 +295,7 @@ function exportToPDF(report: BriefReport) {
   </div>
 
   <div class="footer">
-    <span>LuxProperty.ai — Confidential Intelligence Brief</span>
+    <span>${companyName || "LuxProperty.ai"} — Confidential Intelligence Brief</span>
     <span>Data sourced from HM Land Registry Price Paid &amp; Postcodes.io. For informational purposes only.</span>
   </div>
 </div>
@@ -292,14 +316,36 @@ export default function BriefPage() {
   const [report, setReport] = useState<BriefReport | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Feature 1: Custom branding state
+  const [companyName, setCompanyName] = useState("");
+  const [preparedBy, setPreparedBy] = useState("");
+
+  // Feature 3: Portfolio state
+  const [savedToPortfolio, setSavedToPortfolio] = useState(false);
+
+  const { toast } = useToast();
+
   useEffect(() => {
     if (briefId) {
       const id = parseInt(briefId);
       const found = getBrief(id);
       setReport(found);
+      if (found) {
+        setSavedToPortfolio(isInPortfolio(found.id));
+      }
       setIsLoading(false);
     }
   }, [briefId]);
+
+  function handleSaveToPortfolio() {
+    if (!report) return;
+    addToPortfolio(report);
+    setSavedToPortfolio(true);
+    toast({
+      title: "Saved to Portfolio",
+      description: `${report.areaIntelligence.area || report.areaIntelligence.location} has been added to your portfolio.`,
+    });
+  }
 
   if (isLoading) {
     return <LoadingState />;
@@ -541,25 +587,81 @@ export default function BriefPage() {
                 {ai.verdict}
               </p>
             </Card>
+
+            {/* Feature 2: Price Alerts — after verdict, before bottom CTA */}
+            <PriceAlerts />
           </div>
 
           {/* Bottom CTA */}
           <div className="mt-10 pt-8 border-t border-border/40">
+            {/* Feature 1: Custom Report Branding */}
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Custom Report Branding
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="company-name" className="text-xs text-muted-foreground">
+                    Company name <span className="font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    id="company-name"
+                    type="text"
+                    placeholder="Acme Property Advisors"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="h-8 text-sm"
+                    data-testid="input-company-name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prepared-by" className="text-xs text-muted-foreground">
+                    Your name <span className="font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    id="prepared-by"
+                    type="text"
+                    placeholder="Jane Smith"
+                    value={preparedBy}
+                    onChange={(e) => setPreparedBy(e.target.value)}
+                    className="h-8 text-sm"
+                    data-testid="input-prepared-by"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
                 This brief was generated using AI-assisted analysis of public market data.<br />
                 Data sourced from HM Land Registry Price Paid &amp; Postcodes.io.
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap justify-end">
                 <Link href="/">
                   <Button variant="outline" size="sm" data-testid="button-new-search">
                     Generate another brief
                   </Button>
                 </Link>
+                {/* Feature 3: Save to Portfolio button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`gap-1.5 font-semibold ${savedToPortfolio ? "border-amber-600/60 text-amber-700 dark:text-amber-400" : ""}`}
+                  onClick={handleSaveToPortfolio}
+                  disabled={savedToPortfolio}
+                  data-testid="button-save-portfolio"
+                >
+                  {savedToPortfolio ? (
+                    <BookmarkCheck className="h-3.5 w-3.5" />
+                  ) : (
+                    <Bookmark className="h-3.5 w-3.5" />
+                  )}
+                  {savedToPortfolio ? "Saved" : "Save to Portfolio"}
+                </Button>
                 <Button
                   size="sm"
                   className="gap-1.5 font-semibold"
-                  onClick={() => report && exportToPDF(report)}
+                  onClick={() => report && exportToPDF(report, companyName || undefined, preparedBy || undefined)}
                   data-testid="button-export-pdf"
                 >
                   <Download className="h-3.5 w-3.5" />

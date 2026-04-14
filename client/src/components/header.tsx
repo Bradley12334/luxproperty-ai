@@ -16,6 +16,16 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-1">
+          <Link href="/portfolio">
+            <Button
+              variant={location === "/portfolio" ? "secondary" : "ghost"}
+              size="sm"
+              className="text-sm font-medium"
+              data-testid="link-portfolio"
+            >
+              Portfolio
+            </Button>
+          </Link>
           <Link href="/pricing">
             <Button
               variant={location === "/pricing" ? "secondary" : "ghost"}
