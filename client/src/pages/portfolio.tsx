@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 }
 
 export default function PortfolioPage() {
+  useDocumentTitle("Portfolio");
   // Use state to force re-renders when portfolio changes
   const [items, setItems] = useState<PortfolioItem[]>(() => [...portfolioItems]);
   const [dialogOpen, setDialogOpen] = useState(false);

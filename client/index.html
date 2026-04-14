@@ -3,9 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>LuxProperty.ai — Property Intelligence. Instantly.</title>
-    <meta name="description" content="AI-powered property intelligence for UK luxury buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds." />
+
+    <!-- Primary SEO -->
+    <title>LuxProperty.ai — UK Property Intelligence. Instantly.</title>
+    <meta name="description" content="AI-powered property intelligence for UK buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data." />
+    <meta name="keywords" content="UK property intelligence, property market analysis, house price data, land registry, buyer intelligence brief, property investment, postcode analysis" />
+    <meta name="author" content="LuxProperty AI Ltd" />
+    <link rel="canonical" href="https://luxproperty.ai/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://luxproperty.ai/" />
+    <meta property="og:title" content="LuxProperty.ai — UK Property Intelligence. Instantly." />
+    <meta property="og:description" content="Enter any UK postcode or address. Get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data." />
+    <meta property="og:site_name" content="LuxProperty.ai" />
+    <meta property="og:locale" content="en_GB" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LuxProperty.ai — UK Property Intelligence. Instantly." />
+    <meta name="twitter:description" content="Enter any UK postcode or address. Get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data." />
+
+    <!-- Robots -->
+    <meta name="robots" content="index, follow" />
+
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
     <!-- Instrument Serif from Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,6 +43,59 @@
       href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Structured Data: Organisation -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "LuxProperty AI Ltd",
+      "url": "https://luxproperty.ai",
+      "description": "AI-powered UK property intelligence platform. Instant buyer briefs built on HM Land Registry data.",
+      "foundingDate": "2026",
+      "legalName": "LuxProperty AI Ltd",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "GB"
+      }
+    }
+    </script>
+
+    <!-- Structured Data: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "LuxProperty.ai",
+      "url": "https://luxproperty.ai",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "description": "Generate professional UK property intelligence briefs instantly from any postcode or address. Built on HM Land Registry data.",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Explorer",
+          "price": "0",
+          "priceCurrency": "GBP",
+          "description": "3 free briefs per month"
+        },
+        {
+          "@type": "Offer",
+          "name": "Professional",
+          "price": "59",
+          "priceCurrency": "GBP",
+          "description": "Unlimited briefs with deep dive analysis"
+        },
+        {
+          "@type": "Offer",
+          "name": "Investor",
+          "price": "149",
+          "priceCurrency": "GBP",
+          "description": "Full portfolio management and advanced analytics"
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

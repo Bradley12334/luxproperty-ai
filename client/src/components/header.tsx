@@ -16,6 +16,16 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-1">
+          <Link href="/about">
+            <Button
+              variant={location === "/about" ? "secondary" : "ghost"}
+              size="sm"
+              className="text-sm font-medium hidden sm:inline-flex"
+              data-testid="link-about"
+            >
+              About
+            </Button>
+          </Link>
           <Link href="/portfolio">
             <Button
               variant={location === "/portfolio" ? "secondary" : "ghost"}

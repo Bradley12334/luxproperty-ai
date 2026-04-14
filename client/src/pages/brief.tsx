@@ -26,6 +26,8 @@ import {
   Download,
   Bookmark,
   BookmarkCheck,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -555,41 +557,70 @@ export default function BriefPage() {
               </>
             )}
 
-            {/* Investment Outlook */}
-            <Card className="p-5 sm:p-6" data-testid="section-investment">
-              <SectionHeading>Investment Outlook</SectionHeading>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                <KpiValue label="Growth Forecast" value={ai.investmentOutlook.growthForecast} />
-                <KpiValue label="Rental Yield" value={ai.investmentOutlook.rentalYieldEstimate} />
+            {/* === PAYWALL WRAPPER — Investment Outlook, Verdict, Price Alerts === */}
+            <div className="relative">
+              {/* Blurred content */}
+              <div className="space-y-6 blur-sm opacity-50 select-none pointer-events-none" aria-hidden="true">
+                {/* Investment Outlook */}
+                <Card className="p-5 sm:p-6">
+                  <SectionHeading>Investment Outlook</SectionHeading>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                    <KpiValue label="Growth Forecast" value={ai.investmentOutlook.growthForecast} />
+                    <KpiValue label="Rental Yield" value={ai.investmentOutlook.rentalYieldEstimate} />
+                  </div>
+                  {ai.investmentOutlook.riskFlags.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                        <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                        Risk Flags
+                      </p>
+                      <ul className="space-y-1.5">
+                        {ai.investmentOutlook.riskFlags.map((flag, i) => (
+                          <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
+                            {flag}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </Card>
+
+                {/* Verdict */}
+                <Card className="p-5 sm:p-6 border-primary/20">
+                  <SectionHeading>Verdict</SectionHeading>
+                  <p className="text-sm leading-relaxed text-foreground/90 italic">
+                    {ai.verdict}
+                  </p>
+                </Card>
               </div>
 
-              {ai.investmentOutlook.riskFlags.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                    <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                    Risk Flags
+              {/* Paywall overlay */}
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <Card className="max-w-sm w-full mx-4 p-6 text-center shadow-lg border-primary/20 bg-card">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Lock className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-serif text-lg tracking-tight mb-2">
+                    Upgrade to see the full picture
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+                    Investment outlook, risk flags, verdict, and PDF export are included in
+                    Professional and Investor plans.
                   </p>
-                  <ul className="space-y-1.5">
-                    {ai.investmentOutlook.riskFlags.map((flag, i) => (
-                      <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
-                        {flag}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Card>
-
-            {/* Verdict */}
-            <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
-              <SectionHeading>Verdict</SectionHeading>
-              <p className="text-sm leading-relaxed text-foreground/90 italic">
-                {ai.verdict}
-              </p>
-            </Card>
-
-            {/* Feature 2: Price Alerts — after verdict, before bottom CTA */}
-            <PriceAlerts />
+                  <div className="space-y-2">
+                    <a href="/#/pricing">
+                      <Button className="w-full font-semibold" data-testid="button-paywall-upgrade">
+                        View plans — from £59/month
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </a>
+                    <p className="text-xs text-muted-foreground">
+                      Executive summary, market overview &amp; price trend are always free
+                    </p>
+                  </div>
+                </Card>
+              </div>
+            </div>
           </div>
 
           {/* Bottom CTA */}

@@ -3,6 +3,7 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Check, Minus, Star } from "lucide-react";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 const tiers = [
   {
@@ -81,6 +82,7 @@ function CellValue({ value, col }: { value: boolean | string; col: string }) {
 }
 
 export default function PricingPage() {
+  useDocumentTitle("Pricing");
   return (
     <div className="flex min-h-screen flex-col">
       <Header />

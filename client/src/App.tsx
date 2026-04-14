@@ -10,6 +10,9 @@ import Home from "@/pages/home";
 import BriefPage from "@/pages/brief";
 import PricingPage from "@/pages/pricing";
 import PortfolioPage from "@/pages/portfolio";
+import AboutPage from "@/pages/about";
+import PrivacyPage from "@/pages/privacy";
+import TermsPage from "@/pages/terms";
 
 function AppRouter() {
   return (
@@ -18,6 +21,9 @@ function AppRouter() {
       <Route path="/brief/:id" component={BriefPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/portfolio" component={PortfolioPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/terms" component={TermsPage} />
       <Route component={NotFound} />
     </Switch>
   );
