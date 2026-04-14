@@ -190,13 +190,18 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   const yearData = [year0, year1, year2, year3, year4];
 
-  // Calculate average price per year
-  function avg(prices: number[]): number {
-    if (!prices.length) return 0;
-    return Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+  // Calculate median price per year (resistant to outliers)
+  // Require at least 5 transactions for a reliable figure
+  function median(prices: number[]): number {
+    if (prices.length < 5) return 0;
+    const sorted = [...prices].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0
+      ? sorted[mid]
+      : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
   }
 
-  const yearAvgs = yearData.map(avg);
+  const yearAvgs = yearData.map(median);
 
   // Build 5-year price trend
   const priceTrend = years.map((year, i) => {
