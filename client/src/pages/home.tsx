@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { generateBrief } from "@/lib/mockEngine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -14,10 +14,9 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [, navigate] = useLocation();
 
-  const generateBrief = useMutation({
+  const generateBriefMutation = useMutation({
     mutationFn: async (q: string) => {
-      const res = await apiRequest("POST", "/api/briefs/generate", { query: q });
-      return (await res.json()) as BriefReport;
+      return await generateBrief(q) as BriefReport;
     },
     onSuccess: (data) => {
       navigate(`/brief/${data.id}`);
@@ -27,7 +26,7 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      generateBrief.mutate(query.trim());
+      generateBriefMutation.mutate(query.trim());
     }
   };
 
@@ -136,11 +135,11 @@ export default function Home() {
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={!query.trim() || generateBrief.isPending}
+                  disabled={!query.trim() || generateBriefMutation.isPending}
                   className="h-12 px-6 text-sm font-semibold tracking-wide"
                   data-testid="button-generate"
                 >
-                  {generateBrief.isPending ? (
+                  {generateBriefMutation.isPending ? (
                     <span className="flex items-center gap-2">
                       <span className="flex gap-1">
                         <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
@@ -158,7 +157,7 @@ export default function Home() {
                 </Button>
               </form>
 
-              {generateBrief.isError && (
+              {generateBriefMutation.isError && (
                 <p className="mt-3 text-sm text-destructive" data-testid="text-error">
                   Something went wrong. Please try again.
                 </p>

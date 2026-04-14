@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { useParams } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { getBrief } from "@/lib/mockEngine";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -134,17 +134,23 @@ function KpiValue({ label, value }: { label: string; value: string | number }) {
 export default function BriefPage() {
   const params = useParams<{ id: string }>();
   const briefId = params.id;
+  const [report, setReport] = useState<BriefReport | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: report, isLoading, isError } = useQuery<BriefReport>({
-    queryKey: ["/api/briefs", briefId],
-    enabled: !!briefId,
-  });
+  useEffect(() => {
+    if (briefId) {
+      const id = parseInt(briefId);
+      const found = getBrief(id);
+      setReport(found);
+      setIsLoading(false);
+    }
+  }, [briefId]);
 
-  if (isLoading || !report) {
+  if (isLoading) {
     return <LoadingState />;
   }
 
-  if (isError) {
+  if (!report) {
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
