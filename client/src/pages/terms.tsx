@@ -29,7 +29,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-xs text-muted-foreground mb-10">
-            Last updated: 14 April 2026 · LuxProperty AI Ltd (Company No. 17158079)
+            Last updated: 14 April 2026 · LuxProperty AI Ltd
           </p>
 
           <Section title="1. Acceptance of terms">
@@ -40,7 +40,7 @@ export default function TermsPage() {
             </p>
             <p>
               The Service is operated by <strong className="text-foreground">LuxProperty AI Ltd</strong>, a company
-              registered in England and Wales (Company No. 17158079).
+              registered in England and Wales.
             </p>
           </Section>
 
@@ -176,7 +176,7 @@ export default function TermsPage() {
             </p>
             <p>
               LuxProperty AI Ltd<br />
-              Company No. 17158079<br />
+              
               Registered in England and Wales
             </p>
           </Section>

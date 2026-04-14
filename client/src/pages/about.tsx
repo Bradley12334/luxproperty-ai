@@ -138,7 +138,6 @@ export default function AboutPage() {
               <div className="space-y-3">
                 {[
                   { label: "Legal name", value: "LuxProperty AI Ltd" },
-                  { label: "Companies House number", value: "17158079" },
                   { label: "Incorporated", value: "14 April 2026" },
                   { label: "SIC code", value: "62012 — Business and domestic software development" },
                   { label: "Registered in", value: "England and Wales" },

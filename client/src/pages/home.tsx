@@ -440,14 +440,6 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-sm text-muted-foreground">
-                  LuxProperty AI Ltd — Companies House{" "}
-                  <span className="text-foreground font-medium">#17158079</span>
-                </span>
-              </div>
-              <div className="hidden sm:block w-px h-4 bg-border" />
-              <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">
                   Registered UK company · Based in England
                 </span>
               </div>

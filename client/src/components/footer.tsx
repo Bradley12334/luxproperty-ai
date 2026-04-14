@@ -14,9 +14,7 @@ export function Footer() {
             <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
               AI-powered UK property intelligence. Built on HM Land Registry data.
             </p>
-            <p className="text-xs text-muted-foreground">
-              LuxProperty AI Ltd · Company No. 17158079
-            </p>
+
           </div>
 
           {/* Links */}

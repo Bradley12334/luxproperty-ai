@@ -29,14 +29,14 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-xs text-muted-foreground mb-10">
-            Last updated: 14 April 2026 · LuxProperty AI Ltd (Company No. 17158079)
+            Last updated: 14 April 2026 · LuxProperty AI Ltd
           </p>
 
           <div className="prose-like">
             <Section title="1. Who we are">
               <p>
                 LuxProperty.ai is a trading name of <strong className="text-foreground">LuxProperty AI Ltd</strong>, a company
-                registered in England and Wales (Company No. 17158079). When this policy
+                registered in England and Wales. When this policy
                 refers to "we", "us", or "our", it means LuxProperty AI Ltd.
               </p>
               <p>
@@ -193,7 +193,7 @@ export default function PrivacyPage() {
             <Section title="11. Contact">
               <p>
                 LuxProperty AI Ltd<br />
-                Company No. 17158079<br />
+                
                 Registered in England and Wales<br />
                 Email:{" "}
                 <a href="mailto:privacy@luxproperty.ai" className="text-primary underline-offset-2 hover:underline">
