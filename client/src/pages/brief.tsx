@@ -18,6 +18,7 @@ import {
   Shield,
   Footprints,
   FileText,
+  Download,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -129,6 +130,160 @@ function KpiValue({ label, value }: { label: string; value: string | number }) {
       </p>
     </div>
   );
+}
+
+
+function exportToPDF(report: BriefReport) {
+  const { areaIntelligence: ai, propertyDeepDive: pd } = report;
+  const isProperty = report.queryType === "address" && pd;
+  const date = new Date(report.generatedAt).toLocaleDateString("en-GB", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+
+  const priceTrendRows = ai.priceTrend.map(row => `
+    <tr>
+      <td>${row.year}</td>
+      <td style="font-family:Georgia,serif;font-size:15px">${row.averagePrice}</td>
+      <td style="text-align:right;color:${row.change.startsWith("+") ? "#166534" : row.change === "—" ? "#6b7280" : "#991b1b"}">${row.change}</td>
+    </tr>`).join("");
+
+  const comparableRows = isProperty && pd ? pd.comparableSales.map(s => `
+    <tr>
+      <td>${s.address}</td>
+      <td style="color:#6b7280">${s.type}</td>
+      <td style="font-family:Georgia,serif;font-size:15px">${s.price}</td>
+      <td style="text-align:right;color:#6b7280">${s.date}</td>
+    </tr>`).join("") : "";
+
+  const leveragePoints = isProperty && pd ? pd.negotiationBrief.leveragePoints.map((p, i) => `
+    <li style="margin-bottom:6px"><span style="color:#B8860B;font-family:Georgia,serif">${i+1}.</span> ${p}</li>`).join("") : "";
+
+  const riskFlags = ai.investmentOutlook.riskFlags.map(f => `
+    <li style="margin-bottom:4px;padding-left:16px;position:relative"><span style="position:absolute;left:0;color:#9ca3af">–</span>${f}</li>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LuxProperty.ai — ${isProperty ? "Property" : "Area"} Intelligence Brief</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', sans-serif; font-size: 13px; color: #1a1612; background: #fff; }
+  .page { max-width: 780px; margin: 0 auto; padding: 52px 48px; }
+  .masthead { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 24px; border-bottom: 2px solid #B8860B; margin-bottom: 32px; }
+  .logo { font-family: Georgia, serif; font-size: 20px; font-weight: normal; letter-spacing: -0.5px; }
+  .logo span { color: #B8860B; }
+  .meta { text-align: right; font-size: 11px; color: #6b7280; line-height: 1.6; }
+  .badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; background: #f3f4f6; color: #374151; padding: 3px 8px; border-radius: 3px; margin-bottom: 10px; }
+  h1 { font-family: Georgia, serif; font-size: 26px; font-weight: normal; letter-spacing: -0.5px; line-height: 1.25; margin-bottom: 6px; }
+  .subtitle { font-size: 12px; color: #6b7280; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .section { margin-bottom: 28px; }
+  .section-label { font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #B8860B; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; }
+  .body-text { font-size: 13px; line-height: 1.7; color: #374151; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi { }
+  .kpi-label { font-size: 10px; color: #9ca3af; margin-bottom: 4px; }
+  .kpi-value { font-family: Georgia, serif; font-size: 20px; color: #1a1612; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: #9ca3af; padding: 8px 12px 8px 0; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 8px 12px 8px 0; border-bottom: 1px solid #f3f4f6; color: #374151; }
+  .verdict { background: #faf8f4; border-left: 3px solid #B8860B; padding: 16px 20px; font-style: italic; font-size: 13px; line-height: 1.7; color: #374151; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .offer { font-family: Georgia, serif; font-size: 22px; color: #B8860B; margin-bottom: 12px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af; }
+  ul { list-style: none; padding: 0; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="masthead">
+    <div class="logo">Lux<span>Property</span>.ai</div>
+    <div class="meta">
+      Intelligence Brief<br>
+      Generated ${date}<br>
+      Data: HM Land Registry · Postcodes.io
+    </div>
+  </div>
+
+  <div style="margin-bottom:28px">
+    <div class="badge">${isProperty ? "Property Brief" : "Area Brief"}</div>
+    <h1>${isProperty ? "Property Intelligence Brief" : `Area Intelligence Brief — ${ai.location}, ${ai.area}`}</h1>
+    ${isProperty ? `<div class="subtitle">📍 ${report.query}</div>` : ""}
+  </div>
+
+  <div class="section">
+    <div class="section-label">Executive Summary</div>
+    <p class="body-text">${ai.executiveSummary}</p>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Market Overview</div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Average Price</div><div class="kpi-value">${ai.marketOverview.averagePrice}</div></div>
+      <div class="kpi"><div class="kpi-label">Price Change YoY</div><div class="kpi-value">${ai.marketOverview.priceChangeYoY}</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Days on Market</div><div class="kpi-value">${ai.marketOverview.avgDaysOnMarket}</div></div>
+      <div class="kpi"><div class="kpi-label">Supply Level</div><div class="kpi-value">${ai.marketOverview.supplyLevel}</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">5-Year Price Trend</div>
+    <table><thead><tr><th>Year</th><th>Median Price</th><th style="text-align:right">Change</th></tr></thead>
+    <tbody>${priceTrendRows}</tbody></table>
+  </div>
+
+  ${isProperty && pd ? `
+  <div class="section">
+    <div class="section-label">Property Valuation Assessment</div>
+    <div class="two-col">
+      <div class="kpi"><div class="kpi-label">Estimated Range</div><div class="kpi-value" style="font-size:16px">${pd.valuationAssessment.estimatedRange}</div></div>
+      <div class="kpi"><div class="kpi-label">vs Area Average</div><div class="kpi-value" style="font-size:16px">${pd.valuationAssessment.priceVsAreaAverage}</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Comparable Sales</div>
+    <table><thead><tr><th>Address</th><th>Type</th><th>Price</th><th style="text-align:right">Date</th></tr></thead>
+    <tbody>${comparableRows}</tbody></table>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Negotiation Brief</div>
+    <div class="offer">${pd.negotiationBrief.suggestedOfferRange}</div>
+    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Key Leverage Points</p>
+    <ul>${leveragePoints}</ul>
+  </div>` : ""}
+
+  <div class="section">
+    <div class="section-label">Investment Outlook</div>
+    <div class="two-col" style="margin-bottom:16px">
+      <div class="kpi"><div class="kpi-label">Growth Forecast</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
+      <div class="kpi"><div class="kpi-label">Rental Yield Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
+    </div>
+    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Risk Flags</p>
+    <ul>${riskFlags}</ul>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Verdict</div>
+    <div class="verdict">${ai.verdict}</div>
+  </div>
+
+  <div class="footer">
+    <span>LuxProperty.ai — Confidential Intelligence Brief</span>
+    <span>Data sourced from HM Land Registry Price Paid &amp; Postcodes.io. For informational purposes only.</span>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 500);
 }
 
 export default function BriefPage() {
@@ -389,15 +544,29 @@ export default function BriefPage() {
           </div>
 
           {/* Bottom CTA */}
-          <div className="mt-10 pt-8 border-t border-border/40 text-center">
-            <p className="text-xs text-muted-foreground mb-3">
-              This brief was generated using AI-assisted analysis of public market data.
-            </p>
-            <Link href="/">
-              <Button variant="outline" size="sm" data-testid="button-new-search">
-                Generate another brief
-              </Button>
-            </Link>
+          <div className="mt-10 pt-8 border-t border-border/40">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs text-muted-foreground">
+                This brief was generated using AI-assisted analysis of public market data.<br />
+                Data sourced from HM Land Registry Price Paid &amp; Postcodes.io.
+              </p>
+              <div className="flex items-center gap-3">
+                <Link href="/">
+                  <Button variant="outline" size="sm" data-testid="button-new-search">
+                    Generate another brief
+                  </Button>
+                </Link>
+                <Button
+                  size="sm"
+                  className="gap-1.5 font-semibold"
+                  onClick={() => report && exportToPDF(report)}
+                  data-testid="button-export-pdf"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export PDF
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </main>
