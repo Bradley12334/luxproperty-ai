@@ -7,9 +7,7 @@ function detectQueryType(query: string): "postcode" | "address" {
   const postcodePattern = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
   const partialPostcode = /^[A-Z]{1,2}\d[A-Z\d]?$/i;
   const trimmed = query.trim();
-  if (postcodePattern.test(trimmed) || partialPostcode.test(trimmed)) {
-    return "postcode";
-  }
+  if (postcodePattern.test(trimmed) || partialPostcode.test(trimmed)) return "postcode";
   return "address";
 }
 
@@ -30,26 +28,55 @@ function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr);
     return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
+  } catch { return dateStr; }
 }
 
-// Cache to avoid repeat API calls in the same session
-const outcodeDistrictCache: Record<string, string> = {};
-const outcodePostcodeDataCache: Record<string, any> = {};
+// ─── District name fixes ──────────────────────────────────────────────────────
+// Postcodes.io sometimes returns district names that don't match Land Registry
+const districtNormalise: Record<string, string> = {
+  "WESTMINSTER":                   "CITY OF WESTMINSTER",
+  "BRISTOL, CITY OF":              "BRISTOL",
+  "KINGSTON UPON HULL, CITY OF":   "KINGSTON UPON HULL",
+  "HEREFORDSHIRE, COUNTY OF":      "HEREFORDSHIRE",
+  "DURHAM":                        "COUNTY DURHAM",
+};
 
-// Get admin district for any UK outcode via Postcodes.io
+// Manual overrides where one outcode spans multiple boroughs
+const outcodeDistrictOverride: Record<string, string> = {
+  "NW3": "CAMDEN", "NW1": "CAMDEN", "NW5": "CAMDEN", "NW6": "CAMDEN",
+  "NW8": "CITY OF WESTMINSTER",
+  "SW1": "CITY OF WESTMINSTER",
+  "W1":  "CITY OF WESTMINSTER",
+  "WC1": "CAMDEN", "WC2": "CITY OF WESTMINSTER",
+  "EC1": "ISLINGTON", "EC2": "CITY OF LONDON", "EC3": "CITY OF LONDON", "EC4": "CITY OF LONDON",
+};
+
+// Land Registry only covers England & Wales — these prefixes are Scotland or NI
+const nonEnglandWalesPrefixes = ["EH","G","AB","DD","KY","FK","PH","HS","IV","KA","KW","ML","PA","TD","ZE","BT"];
+function isOutsideEnglandWales(outcode: string): boolean {
+  return nonEnglandWalesPrefixes.some(p => outcode.startsWith(p));
+}
+
+// ─── Caches ───────────────────────────────────────────────────────────────────
+const outcodeDistrictCache: Record<string, string> = {};
+const outcodeMetaCache: Record<string, any> = {};
+
+// ─── Postcodes.io: get district name ─────────────────────────────────────────
 async function getDistrict(postcode: string): Promise<string> {
   const outcode = getOutcode(postcode);
   if (outcodeDistrictCache[outcode]) return outcodeDistrictCache[outcode];
+  if (outcodeDistrictOverride[outcode]) {
+    outcodeDistrictCache[outcode] = outcodeDistrictOverride[outcode];
+    return outcodeDistrictOverride[outcode];
+  }
   try {
     const res = await fetch(`https://api.postcodes.io/outcodes/${outcode}`);
     if (res.ok) {
       const d = await res.json();
       const districts: string[] = d?.result?.admin_district || [];
       if (districts.length > 0) {
-        const district = districts[0].toUpperCase();
+        let district = districts[0].toUpperCase();
+        district = districtNormalise[district] || district;
         outcodeDistrictCache[outcode] = district;
         return district;
       }
@@ -58,20 +85,14 @@ async function getDistrict(postcode: string): Promise<string> {
   return "";
 }
 
-// Fetch postcode metadata
-async function fetchPostcodeData(postcode: string): Promise<{
-  area: string;
-  district: string;
-  region: string;
-  constituency: string;
-  ward: string;
-  latitude: number;
-  longitude: number;
+// ─── Postcodes.io: get full metadata ─────────────────────────────────────────
+async function fetchPostcodeMeta(postcode: string): Promise<{
+  area: string; district: string; region: string;
+  constituency: string; ward: string; country: string;
 } | null> {
   const outcode = getOutcode(postcode);
-  if (outcodePostcodeDataCache[outcode]) return outcodePostcodeDataCache[outcode];
+  if (outcodeMetaCache[outcode]) return outcodeMetaCache[outcode];
   try {
-    // Try full postcode first
     const clean = postcode.trim().replace(/\s+/g, "");
     const res = await fetch(`https://api.postcodes.io/postcodes/${clean}`);
     if (res.ok) {
@@ -79,16 +100,15 @@ async function fetchPostcodeData(postcode: string): Promise<{
       const result = {
         area: d.result?.outcode || outcode,
         district: d.result?.admin_district || "",
-        region: d.result?.region || "London",
+        region: d.result?.region || "England",
         constituency: d.result?.parliamentary_constituency || "",
         ward: d.result?.admin_ward || "",
-        latitude: d.result?.latitude || 51.5,
-        longitude: d.result?.longitude || -0.1,
+        country: d.result?.country || "England",
       };
-      outcodePostcodeDataCache[outcode] = result;
+      outcodeMetaCache[outcode] = result;
       return result;
     }
-    // Fall back to outcode
+    // Fall back to outcode lookup
     const res2 = await fetch(`https://api.postcodes.io/outcodes/${outcode}`);
     if (res2.ok) {
       const d = await res2.json();
@@ -98,45 +118,40 @@ async function fetchPostcodeData(postcode: string): Promise<{
         region: (d.result?.admin_county || [])[0] || (d.result?.country || [])[0] || "England",
         constituency: (d.result?.parliamentary_constituency || [])[0] || "",
         ward: (d.result?.admin_ward || [])[0] || "",
-        latitude: d.result?.latitude || 51.5,
-        longitude: d.result?.longitude || -0.1,
+        country: (d.result?.country || [])[0] || "England",
       };
-      outcodePostcodeDataCache[outcode] = result;
+      outcodeMetaCache[outcode] = result;
       return result;
     }
   } catch {}
   return null;
 }
 
-// Fetch Land Registry transactions for a district + year range
+// ─── Land Registry: prices for a district + year ─────────────────────────────
 async function fetchLandRegistryYear(district: string, year: number): Promise<number[]> {
+  if (!district) return [];
   try {
     const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=100&propertyAddress.district=${encodeURIComponent(district)}&min-transactionDate=${year}-01-01&max-transactionDate=${year}-12-31&_sort=-transactionDate`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
     const items = data?.result?.items || [];
-    return items.map((item: any) => item.pricePaid).filter((p: number) => p > 0);
-  } catch {
-    return [];
-  }
+    return items.map((item: any) => item.pricePaid as number).filter((p: number) => p > 0);
+  } catch { return []; }
 }
 
-// Fetch recent transactions for comparables
+// ─── Land Registry: recent transactions for comparables ──────────────────────
 async function fetchRecentTransactions(district: string, outcode: string): Promise<Array<{
-  address: string;
-  price: number;
-  date: string;
-  type: string;
+  address: string; price: number; date: string; type: string;
 }>> {
+  if (!district) return [];
   try {
     const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=50&propertyAddress.district=${encodeURIComponent(district)}&_sort=-transactionDate`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
-    const items = data?.result?.items || [];
+    const items: any[] = data?.result?.items || [];
 
-    // Prefer items matching outcode, fall back to all
     const filtered = items.filter((item: any) =>
       (item?.propertyAddress?.postcode || "").startsWith(outcode)
     );
@@ -145,95 +160,108 @@ async function fetchRecentTransactions(district: string, outcode: string): Promi
     return used.slice(0, 6).map((item: any) => {
       const addr = item.propertyAddress || {};
       const parts = [addr.saon, addr.paon, addr.street, addr.town].filter(Boolean);
-      const addressStr = parts.join(", ");
       const propType = item.propertyType?.prefLabel?.[0]?._value || "Property";
       return {
-        address: addressStr || "Address withheld",
+        address: parts.join(", ") || "Address withheld",
         price: item.pricePaid,
         date: item.transactionDate || "",
         type: propType.charAt(0).toUpperCase() + propType.slice(1).toLowerCase(),
       };
     });
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
+// ─── Median helper ────────────────────────────────────────────────────────────
+function median(prices: number[]): number {
+  if (prices.length < 5) return 0; // need at least 5 for reliability
+  const sorted = [...prices].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
 export async function generateBrief(query: string): Promise<BriefReport> {
   const queryType = detectQueryType(query);
-  const postcode = queryType === "address" ? (extractPostcode(query) || query) : query.trim().toUpperCase();
+  const postcode = queryType === "address"
+    ? (extractPostcode(query) || query)
+    : query.trim().toUpperCase();
   const outcode = getOutcode(postcode);
 
-  // Fetch postcode metadata + district in parallel
-  const [postcodeData, district] = await Promise.all([
-    fetchPostcodeData(postcode),
+  // Scotland / NI — Land Registry doesn't cover these
+  const outsideEnglandWales = isOutsideEnglandWales(outcode);
+
+  // Fetch metadata + district in parallel
+  const [meta, district] = await Promise.all([
+    fetchPostcodeMeta(postcode),
     getDistrict(postcode),
   ]);
 
-  const areaName = postcodeData?.district || district || outcode;
-  const region = postcodeData?.region || "England";
-  const ward = postcodeData?.ward || "";
-  const constituency = postcodeData?.constituency || "";
+  const areaName = meta?.district || district || outcode;
+  const region = meta?.region || "England";
+  const ward = meta?.ward || "";
+  const constituency = meta?.constituency || "";
+  const country = meta?.country || "England";
 
-  // Fetch 5-year price data + recent transactions in parallel
+  // If Scotland/NI, skip Land Registry
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 4, currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
 
-  const [year0, year1, year2, year3, year4, recentTxns] = await Promise.all([
-    fetchLandRegistryYear(district || areaName, years[0]),
-    fetchLandRegistryYear(district || areaName, years[1]),
-    fetchLandRegistryYear(district || areaName, years[2]),
-    fetchLandRegistryYear(district || areaName, years[3]),
-    fetchLandRegistryYear(district || areaName, years[4]),
-    fetchRecentTransactions(district || areaName, outcode),
-  ]);
+  let yearData: number[][] = [[], [], [], [], []];
+  let recentTxns: Array<{ address: string; price: number; date: string; type: string }> = [];
 
-  const yearData = [year0, year1, year2, year3, year4];
-
-  // Calculate median price per year (resistant to outliers)
-  // Require at least 5 transactions for a reliable figure
-  function median(prices: number[]): number {
-    if (prices.length < 5) return 0;
-    const sorted = [...prices].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 !== 0
-      ? sorted[mid]
-      : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+  if (!outsideEnglandWales && district) {
+    [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns] =
+      await Promise.all([
+        fetchLandRegistryYear(district, years[0]),
+        fetchLandRegistryYear(district, years[1]),
+        fetchLandRegistryYear(district, years[2]),
+        fetchLandRegistryYear(district, years[3]),
+        fetchLandRegistryYear(district, years[4]),
+        fetchRecentTransactions(district, outcode),
+      ]) as any;
   }
 
-  const yearAvgs = yearData.map(median);
+  const yearMedians = yearData.map(median);
+  const latestMedian = [...yearMedians].reverse().find(p => p > 0) || 0;
+  const prevMedian = yearMedians.filter(p => p > 0).slice(-2)[0] || 0;
+  const hasData = latestMedian > 0;
 
-  // Build 5-year price trend
+  // YoY change
+  const yoyChange = latestMedian > 0 && prevMedian > 0
+    ? `${((latestMedian - prevMedian) / prevMedian * 100) >= 0 ? "+" : ""}${((latestMedian - prevMedian) / prevMedian * 100).toFixed(1)}%`
+    : "—";
+
+  // 5-year trend
   const priceTrend = years.map((year, i) => {
-    const avgP = yearAvgs[i];
+    const med = yearMedians[i];
     let change = "—";
-    if (i > 0 && yearAvgs[i - 1] > 0 && avgP > 0) {
-      const pct = ((avgP - yearAvgs[i - 1]) / yearAvgs[i - 1]) * 100;
+    if (i > 0 && yearMedians[i - 1] > 0 && med > 0) {
+      const pct = ((med - yearMedians[i - 1]) / yearMedians[i - 1]) * 100;
       change = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
     }
     return {
       year,
-      averagePrice: avgP > 0 ? fmt(avgP) : "Insufficient data",
+      averagePrice: med > 0 ? fmt(med) : "Insufficient data",
       change,
     };
   });
 
-  // Current average = most recent year with data
-  const latestAvg = [...yearAvgs].reverse().find(p => p > 0) || 0;
-  const prevAvg = yearAvgs[yearAvgs.length - 2] || 0;
-  const yoyChange = latestAvg > 0 && prevAvg > 0
-    ? `${((latestAvg - prevAvg) / prevAvg * 100) >= 0 ? "+" : ""}${((latestAvg - prevAvg) / prevAvg * 100).toFixed(1)}%`
-    : "Calculating...";
-
-  // Transaction volume across all years
-  const totalTxns = yearData.reduce((sum, yr) => sum + yr.length, 0);
-
   // Market tier
-  const tier = latestAvg > 1500000 ? "prime" : latestAvg > 700000 ? "premium" : latestAvg > 400000 ? "mid-market" : "emerging";
+  const tier = latestMedian > 1500000 ? "prime"
+    : latestMedian > 700000 ? "premium"
+    : latestMedian > 350000 ? "mid-market"
+    : latestMedian > 0 ? "emerging" : "unknown";
 
-  const hasData = latestAvg > 0;
+  const totalTxns = yearData.reduce((s, yr) => s + yr.length, 0);
+  const avgDaysOnMarket = tier === "prime" ? 54 : tier === "premium" ? 44 : tier === "mid-market" ? 38 : 32;
+  const rentalYield = tier === "prime" ? "2.5% – 3.2% gross" : tier === "premium" ? "3.0% – 3.8% gross" : "3.8% – 5.0% gross";
+  const growthForecast = yoyChange.startsWith("+") ? "+3.0% – 5.5% p.a. (2026–2029)" : "+1.5% – 3.5% p.a. (2026–2029)";
+  const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
+  const transportRating = isLondon ? 9.1 : country === "Wales" ? 7.0 : 7.4;
 
-  // Comparables for report
+  // Comparables
   const comparables = recentTxns.slice(0, 4).map(t => ({
     address: t.address,
     price: fmt(t.price),
@@ -241,27 +269,21 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     type: t.type,
   }));
 
-  // Avg days on market estimate based on tier
-  const avgDaysOnMarket = tier === "prime" ? 54 : tier === "premium" ? 44 : tier === "mid-market" ? 38 : 32;
-
-  // Rental yield estimate
-  const rentalYield = tier === "prime" ? "2.5% – 3.2% gross" : tier === "premium" ? "3.0% – 3.8% gross" : "3.8% – 5.0% gross";
-
-  // Growth forecast
-  const growthForecast = yoyChange.startsWith("+") ? "+3.0% – 5.5% p.a. (2025–2028)" : "+1.5% – 3.5% p.a. (2025–2028)";
-
-  // Transport rating based on region
-  const isLondon = region === "London" || outcode.match(/^(SW|SE|EC|WC|E|N|NW|W)[0-9]/);
-  const transportRating = isLondon ? 9.1 : region === "England" ? 7.2 : 7.5;
+  // Scotland/NI message
+  const scotlandNote = outsideEnglandWales
+    ? `${outcode} is in ${country}. HM Land Registry Price Paid data only covers England and Wales — price trend data is unavailable for this region. The analysis below is based on available postcode metadata.`
+    : "";
 
   const areaIntelligence: AreaIntelligence = {
     location: outcode,
     area: areaName,
-    executiveSummary: hasData
-      ? `${areaName} (${outcode}) is a ${tier} residential market with ${fmt(latestAvg)} average transaction value based on ${totalTxns} Land Registry records over five years. ${ward ? `The ${ward} ward` : "This area"} falls within ${constituency || region}. Year-on-year price movement is ${yoyChange}, ${yoyChange.startsWith("+") ? "indicating sustained buyer demand and constrained supply." : "reflecting broader market conditions and an opportunity for negotiation."}`
-      : `${areaName} (${outcode}) is located in ${region}. Live transaction data was limited for this area — results below are based on available district-level records.`,
+    executiveSummary: outsideEnglandWales
+      ? scotlandNote
+      : hasData
+        ? `${areaName} (${outcode}) is a ${tier} residential market with ${fmt(latestMedian)} median transaction value drawn from ${totalTxns} Land Registry records over five years. ${ward ? `The ${ward} ward` : "This area"} sits within ${constituency || region}. Year-on-year price movement stands at ${yoyChange}, ${yoyChange.startsWith("+") ? "indicating continued buyer demand." : "reflecting current market conditions."}`
+        : `${areaName} (${outcode}) is in ${region}. Detailed transaction data was limited for this area — the analysis below is based on available district-level Land Registry records.`,
     marketOverview: {
-      averagePrice: hasData ? fmt(latestAvg) : "Insufficient data",
+      averagePrice: hasData ? fmt(latestMedian) : outsideEnglandWales ? "Scotland/NI — see note" : "Insufficient data",
       priceChangeYoY: yoyChange,
       avgDaysOnMarket,
       supplyLevel: tier === "prime" ? "Constrained" : tier === "premium" ? "Below average" : "Moderate",
@@ -284,36 +306,39 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ],
     },
     verdict: hasData
-      ? `${areaName} presents a ${yoyChange.startsWith("+") ? "compelling" : "measured"} investment case. With ${fmt(latestAvg)} average transaction value and ${yoyChange} year-on-year movement, the area ${yoyChange.startsWith("+") ? "demonstrates resilient demand." : "offers selective opportunity for well-priced acquisitions."} We recommend targeting properties with modernisation potential where 15–25% value uplift is achievable. Engage a RICS surveyor before exchange and obtain full Land Registry title information prior to offer.`
-      : `${areaName} is an established area. Engage a local agent for current off-market intelligence and request recent comparables before proceeding.`,
+      ? `${areaName} presents a ${yoyChange.startsWith("+") ? "compelling" : "measured"} investment case. With ${fmt(latestMedian)} median transaction value and ${yoyChange} year-on-year movement, the area ${yoyChange.startsWith("+") ? "demonstrates resilient demand." : "offers selective opportunity for well-priced acquisitions."} Target properties with modernisation potential where 15–25% value uplift is achievable. Instruct a RICS surveyor before exchange.`
+      : outsideEnglandWales
+        ? `${areaName} is outside England and Wales. Engage a local solicitor and surveyor familiar with ${country} property law, as conveyancing differs significantly from English practice.`
+        : `${areaName} is an established area. Engage a local agent for current off-market intelligence and request recent comparables before proceeding.`,
   };
 
-  // Property deep dive for address queries
   let propertyDeepDive: PropertyDeepDive | undefined;
   if (queryType === "address") {
     propertyDeepDive = {
       valuationAssessment: {
         estimatedRange: hasData
-          ? `${fmt(latestAvg * 0.9)} – ${fmt(latestAvg * 1.15)}`
-          : "Requires local agent appraisal",
+          ? `${fmt(latestMedian * 0.9)} – ${fmt(latestMedian * 1.15)}`
+          : "Requires independent RICS appraisal",
         priceVsAreaAverage: hasData
-          ? `Based on ${fmt(latestAvg)} area average (Land Registry)`
-          : "Insufficient comparable data",
-        valueScore: hasData ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : "7.4"} / 10` : "Pending survey",
+          ? `Based on ${fmt(latestMedian)} district median (Land Registry)`
+          : outsideEnglandWales ? "Land Registry data unavailable for this region" : "Insufficient comparable data",
+        valueScore: hasData
+          ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : tier === "mid-market" ? "7.4" : "7.0"} / 10`
+          : "Pending survey",
       },
       comparableSales: comparables.length > 0 ? comparables : [
-        { address: "No recent comparables found in district", price: "—", date: "—", type: "—" },
+        { address: "No recent comparables in postcode area", price: "—", date: "—", type: "—" },
       ],
       negotiationBrief: {
         suggestedOfferRange: hasData
-          ? `${fmt(latestAvg * 0.88)} – ${fmt(latestAvg * 0.97)} (3–12% below area average)`
+          ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)} (3–12% below area median)`
           : "Obtain independent RICS valuation before offering",
         leveragePoints: [
           "Request full transaction history via gov.uk/search-property-information",
           "Commission a RICS HomeBuyer Report before exchange",
           "Check local planning portal for nearby development applications",
           "Verify EPC rating — factor any upgrade costs into your offer",
-          "Ask selling agent for days on market — properties listed 60+ days carry stronger negotiating position",
+          "Ask agent for days on market — 60+ days signals stronger negotiating position",
           "Review service charge and ground rent history for leasehold properties",
         ],
       },
@@ -322,14 +347,11 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   const id = briefIdCounter++;
   const report: BriefReport = {
-    id,
-    query,
-    queryType,
+    id, query, queryType,
     generatedAt: new Date().toISOString(),
     areaIntelligence,
     propertyDeepDive,
   };
-
   briefStore[id] = report;
   return report;
 }
