@@ -14,7 +14,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/brief" component={BriefPage} />
+      <Route path="/brief/:id" component={BriefPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route component={NotFound} />
     </Switch>

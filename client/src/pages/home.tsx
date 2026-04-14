@@ -20,7 +20,7 @@ export default function Home() {
       return (await res.json()) as BriefReport;
     },
     onSuccess: (data) => {
-      navigate(`/brief?id=${data.id}`);
+      navigate(`/brief/${data.id}`);
     },
   });
 

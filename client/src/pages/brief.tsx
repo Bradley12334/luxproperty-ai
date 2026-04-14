@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useSearch } from "wouter";
+import { useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -132,9 +132,8 @@ function KpiValue({ label, value }: { label: string; value: string | number }) {
 }
 
 export default function BriefPage() {
-  const searchString = useSearch();
-  const params = new URLSearchParams(searchString);
-  const briefId = params.get("id");
+  const params = useParams<{ id: string }>();
+  const briefId = params.id;
 
   const { data: report, isLoading, isError } = useQuery<BriefReport>({
     queryKey: ["/api/briefs", briefId],
