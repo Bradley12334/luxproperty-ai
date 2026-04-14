@@ -19,37 +19,28 @@ function extractPostcode(address: string): string | null {
   return match ? match[1].trim().toUpperCase() : null;
 }
 
-// Get district name from postcode outcode for Land Registry
-const outcodeToDistrict: Record<string, string> = {
-  "SW1": "WESTMINSTER",
-  "SW3": "KENSINGTON AND CHELSEA",
-  "SW7": "KENSINGTON AND CHELSEA",
-  "W1":  "WESTMINSTER",
-  "W8":  "KENSINGTON AND CHELSEA",
-  "W11": "KENSINGTON AND CHELSEA",
-  "NW3": "CAMDEN",
-  "NW8": "WESTMINSTER",
-  "EC1": "ISLINGTON",
-  "EC2": "CITY OF LONDON",
-  "N1":  "ISLINGTON",
-  "SE1": "SOUTHWARK",
-  "E1":  "TOWER HAMLETS",
-  "WC1": "CAMDEN",
-  "WC2": "WESTMINSTER",
-};
-
 function getOutcode(postcode: string): string {
   return postcode.trim().toUpperCase().split(" ")[0].replace(/\d[A-Z]{2}$/, "").trim();
 }
 
-function getDistrict(postcode: string): string {
+// Cache outcode → district lookups to avoid repeat API calls
+const outcodeDistrictCache: Record<string, string> = {};
+
+async function getDistrict(postcode: string): Promise<string> {
   const outcode = getOutcode(postcode);
-  // Try exact match first, then prefix
-  if (outcodeToDistrict[outcode]) return outcodeToDistrict[outcode];
-  const prefix = outcode.match(/^([A-Z]{1,2})/)?.[1] || "";
-  for (const key of Object.keys(outcodeToDistrict)) {
-    if (key.startsWith(prefix)) return outcodeToDistrict[key];
-  }
+  if (outcodeDistrictCache[outcode]) return outcodeDistrictCache[outcode];
+  try {
+    const res = await fetch(`https://api.postcodes.io/outcodes/${outcode}`);
+    if (res.ok) {
+      const d = await res.json();
+      const districts: string[] = d?.result?.admin_district || [];
+      if (districts.length > 0) {
+        const district = districts[0].toUpperCase();
+        outcodeDistrictCache[outcode] = district;
+        return district;
+      }
+    }
+  } catch {}
   return "GREATER LONDON";
 }
 
@@ -60,7 +51,7 @@ async function fetchLandRegistryData(postcode: string): Promise<{
   totalTransactions: number;
 }> {
   try {
-    const district = getDistrict(postcode);
+    const district = await getDistrict(postcode);
     const outcode = getOutcode(postcode);
 
     // Fetch recent transactions for the district
