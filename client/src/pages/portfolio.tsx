@@ -1,13 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -18,9 +19,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { generateBrief } from "@/lib/mockEngine";
 import {
-  portfolioItems,
+  loadPortfolio,
   addToPortfolio,
   removeFromPortfolio,
   getPortfolioStats,
@@ -35,6 +37,7 @@ import {
   BarChart3,
   Search,
   Loader2,
+  Lock,
 } from "lucide-react";
 
 function StatCard({
@@ -66,7 +69,7 @@ function PropertyCard({
   onRemove,
 }: {
   item: PortfolioItem;
-  onRemove: (id: number) => void;
+  onRemove: (id: string) => void;
 }) {
   const savedDate = new Date(item.savedAt).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -152,24 +155,55 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+function LoadingCards() {
+  return (
+    <>
+      {[1, 2, 3].map((i) => (
+        <Card key={i} className="p-5 flex flex-col gap-4">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-5 w-40" />
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        </Card>
+      ))}
+    </>
+  );
+}
+
 export default function PortfolioPage() {
   useDocumentTitle("Portfolio");
-  // Use state to force re-renders when portfolio changes
-  const [items, setItems] = useState<PortfolioItem[]>(() => [...portfolioItems]);
+  const { user, isSignedIn } = useAuth();
+  const [items, setItems] = useState<PortfolioItem[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
-  const stats = getPortfolioStats();
-
-  const refreshItems = useCallback(() => {
-    setItems([...portfolioItems]);
+  // Load portfolio from Supabase when user is available
+  const refreshItems = useCallback(async () => {
+    setIsLoadingItems(true);
+    const loaded = await loadPortfolio();
+    setItems(loaded);
+    setIsLoadingItems(false);
   }, []);
 
-  function handleRemove(id: number) {
-    removeFromPortfolio(id);
-    refreshItems();
+  useEffect(() => {
+    if (isSignedIn) {
+      refreshItems();
+    } else {
+      setItems([]);
+      setIsLoadingItems(false);
+    }
+  }, [isSignedIn, refreshItems]);
+
+  const stats = getPortfolioStats(items);
+
+  async function handleRemove(id: string) {
+    await removeFromPortfolio(id);
+    setItems((prev) => prev.filter((i) => i.id !== id));
     toast({
       title: "Removed from portfolio",
       description: "The property has been removed.",
@@ -184,14 +218,26 @@ export default function PortfolioPage() {
     setIsGenerating(true);
     try {
       const report = await generateBrief(query);
-      addToPortfolio(report);
-      refreshItems();
-      setDialogOpen(false);
-      setSearchQuery("");
-      toast({
-        title: "Added to portfolio",
-        description: `Brief generated for "${query}" and saved to your portfolio.`,
-      });
+      const { ok, item } = await addToPortfolio(report);
+      if (ok && item) {
+        setItems((prev) => {
+          // Avoid duplicates
+          if (prev.find((i) => i.id === item.id)) return prev;
+          return [item, ...prev];
+        });
+        setDialogOpen(false);
+        setSearchQuery("");
+        toast({
+          title: "Added to portfolio",
+          description: `Brief generated for "${query}" and saved to your portfolio.`,
+        });
+      } else {
+        toast({
+          title: "Already in portfolio",
+          description: `A brief for "${query}" is already saved.`,
+        });
+        setDialogOpen(false);
+      }
     } catch {
       toast({
         title: "Failed to generate brief",
@@ -203,22 +249,55 @@ export default function PortfolioPage() {
     }
   }
 
-  // Compute stats from current items to stay reactive
-  const totalProperties = items.length;
-  const prices = items
-    .map((item) => {
-      const raw = item.averagePrice.replace(/[£,]/g, "");
-      return parseInt(raw, 10);
-    })
-    .filter((p) => !isNaN(p));
-  const totalValue =
-    prices.length > 0
-      ? `£${prices.reduce((s, p) => s + p, 0).toLocaleString("en-GB")}`
-      : "—";
-  const avgValue =
-    prices.length > 0
-      ? `£${Math.round(prices.reduce((s, p) => s + p, 0) / prices.length).toLocaleString("en-GB")}`
-      : "—";
+  // Not signed in
+  if (!isSignedIn) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center px-4">
+            <div className="rounded-full bg-muted p-4 mx-auto mb-4 w-fit">
+              <Lock className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h2 className="font-serif text-xl mb-2">Sign in to access your portfolio</h2>
+            <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
+              Your saved properties and intelligence briefs are stored in your account.
+            </p>
+            <Link href="/">
+              <Button size="sm">Go to homepage</Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Investor-only gating
+  const isInvestor = user?.plan === "investor";
+
+  if (!isInvestor) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center px-4">
+            <div className="rounded-full bg-amber-50 dark:bg-amber-950/30 p-4 mx-auto mb-4 w-fit">
+              <BarChart3 className="h-8 w-8 text-amber-600" />
+            </div>
+            <h2 className="font-serif text-xl mb-2">Portfolio is an Investor feature</h2>
+            <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
+              Upgrade to the Investor plan to save properties, track values, and build your intelligence portfolio.
+            </p>
+            <Link href="/pricing">
+              <Button size="sm" className="font-semibold">View Investor plan — £39.99/month</Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -316,23 +395,25 @@ export default function PortfolioPage() {
             <StatCard
               icon={Building2}
               label="Total Properties"
-              value={totalProperties}
+              value={stats.totalProperties}
             />
             <StatCard
               icon={BarChart3}
               label="Average Portfolio Value"
-              value={avgValue}
+              value={stats.averagePortfolioValue}
             />
             <StatCard
               icon={TrendingUp}
               label="Total Value"
-              value={totalValue}
+              value={stats.totalValue}
             />
           </div>
 
           {/* Properties Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {items.length === 0 ? (
+            {isLoadingItems ? (
+              <LoadingCards />
+            ) : items.length === 0 ? (
               <EmptyState onAdd={() => setDialogOpen(true)} />
             ) : (
               items.map((item) => (

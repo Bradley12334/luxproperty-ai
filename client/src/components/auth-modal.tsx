@@ -41,7 +41,7 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
     await new Promise(r => setTimeout(r, 400));
 
     if (tab === "signup") {
-      const result = signUp(name, email, password);
+      const result = await signUp(name, email, password);
       if (!result.ok) {
         setError(result.error || "Sign up failed.");
         setLoading(false);
@@ -49,7 +49,7 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
       }
       toast({ title: "Welcome to LuxProperty.ai", description: "Your account has been created." });
     } else {
-      const result = signIn(email, password);
+      const result = await signIn(email, password);
       if (!result.ok) {
         setError(result.error || "Sign in failed.");
         setLoading(false);

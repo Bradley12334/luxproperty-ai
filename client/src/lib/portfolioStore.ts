@@ -1,57 +1,148 @@
+// Supabase-backed portfolio store — saved briefs persist across sessions
+// Uses public.saved_briefs table; queries are scoped by user_id
+
+import { supabase } from "./supabase";
+import { getUser } from "./authStore";
 import type { BriefReport } from "@shared/schema";
 
 export interface PortfolioItem {
-  id: number;
+  id: string;          // uuid from Supabase
   query: string;
   areaName: string;
   averagePrice: string;
   savedAt: string;
-  briefId: number;
+  briefId: number;     // report.id (local)
   report: BriefReport;
 }
 
-// In-memory portfolio store
-export const portfolioItems: PortfolioItem[] = [];
+// ─── Load portfolio from Supabase ────────────────────────────────────────────
+export async function loadPortfolio(): Promise<PortfolioItem[]> {
+  const user = getUser();
+  if (!user) return [];
 
-let itemIdCounter = 1;
+  const { data, error } = await supabase
+    .from("saved_briefs")
+    .select("id, postcode, area_name, report_json, saved_at")
+    .eq("user_id", user.id)
+    .order("saved_at", { ascending: false });
 
-export function addToPortfolio(report: BriefReport): PortfolioItem {
-  const existing = portfolioItems.find((item) => item.briefId === report.id);
-  if (existing) return existing;
+  if (error) {
+    console.error("loadPortfolio error:", error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => {
+    let report: BriefReport;
+    try {
+      report = JSON.parse(row.report_json);
+    } catch {
+      return null;
+    }
+    return {
+      id: row.id,
+      query: row.postcode,
+      areaName: row.area_name,
+      averagePrice: report.areaIntelligence?.marketOverview?.averagePrice ?? "—",
+      savedAt: row.saved_at,
+      briefId: report.id,
+      report,
+    };
+  }).filter(Boolean) as PortfolioItem[];
+}
+
+// ─── Add to portfolio ────────────────────────────────────────────────────────
+export async function addToPortfolio(report: BriefReport): Promise<{ ok: boolean; item?: PortfolioItem }> {
+  const user = getUser();
+  if (!user) return { ok: false };
+
+  // Check if already saved (by postcode + user)
+  const { data: existing } = await supabase
+    .from("saved_briefs")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("postcode", report.query.toUpperCase())
+    .maybeSingle();
+
+  if (existing) {
+    // Already in portfolio — return it
+    const items = await loadPortfolio();
+    const found = items.find((i) => i.id === existing.id);
+    return { ok: true, item: found };
+  }
+
+  const areaName =
+    report.areaIntelligence?.area || report.areaIntelligence?.location || report.query;
+
+  const { data, error } = await supabase
+    .from("saved_briefs")
+    .insert({
+      user_id: user.id,
+      postcode: report.query.toUpperCase(),
+      area_name: areaName,
+      report_json: JSON.stringify(report),
+    })
+    .select("id, postcode, area_name, saved_at")
+    .single();
+
+  if (error || !data) {
+    console.error("addToPortfolio error:", error);
+    return { ok: false };
+  }
 
   const item: PortfolioItem = {
-    id: itemIdCounter++,
-    query: report.query,
-    areaName: report.areaIntelligence.area || report.areaIntelligence.location,
-    averagePrice: report.areaIntelligence.marketOverview.averagePrice,
-    savedAt: new Date().toISOString(),
+    id: data.id,
+    query: data.postcode,
+    areaName: data.area_name,
+    averagePrice: report.areaIntelligence?.marketOverview?.averagePrice ?? "—",
+    savedAt: data.saved_at,
     briefId: report.id,
     report,
   };
-  portfolioItems.push(item);
-  return item;
+
+  return { ok: true, item };
 }
 
-export function removeFromPortfolio(id: number): void {
-  const idx = portfolioItems.findIndex((item) => item.id === id);
-  if (idx !== -1) portfolioItems.splice(idx, 1);
+// ─── Remove from portfolio ────────────────────────────────────────────────────
+export async function removeFromPortfolio(id: string): Promise<void> {
+  const user = getUser();
+  if (!user) return;
+
+  const { error } = await supabase
+    .from("saved_briefs")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id); // safety check
+
+  if (error) console.error("removeFromPortfolio error:", error);
 }
 
-export function isInPortfolio(briefId: number): boolean {
-  return portfolioItems.some((item) => item.briefId === briefId);
+// ─── Check if saved ─────────────────────────────────────────────────────────
+export async function isInPortfolio(postcode: string): Promise<boolean> {
+  const user = getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from("saved_briefs")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("postcode", postcode.toUpperCase())
+    .maybeSingle();
+
+  return !!data;
 }
 
-export function getPortfolioStats(): {
+// ─── Portfolio stats ─────────────────────────────────────────────────────────
+export function getPortfolioStats(items: PortfolioItem[]): {
   totalProperties: number;
   averagePortfolioValue: string;
   totalValue: string;
 } {
-  const count = portfolioItems.length;
+  const count = items.length;
   if (count === 0) {
     return { totalProperties: 0, averagePortfolioValue: "—", totalValue: "—" };
   }
 
-  const prices = portfolioItems
+  const prices = items
     .map((item) => {
       const raw = item.averagePrice.replace(/[£,]/g, "");
       return parseInt(raw, 10);
@@ -64,9 +155,7 @@ export function getPortfolioStats(): {
 
   const total = prices.reduce((s, p) => s + p, 0);
   const avg = Math.round(total / prices.length);
-
-  const fmt = (n: number) =>
-    `£${Math.round(n).toLocaleString("en-GB")}`;
+  const fmt = (n: number) => `£${Math.round(n).toLocaleString("en-GB")}`;
 
   return {
     totalProperties: count,

@@ -366,20 +366,25 @@ export default function BriefPage() {
       const found = getBrief(id);
       setReport(found);
       if (found) {
-        setSavedToPortfolio(isInPortfolio(found.id));
+        // Async check — update state once resolved
+        isInPortfolio(found.query.toUpperCase()).then((saved) => {
+          setSavedToPortfolio(saved);
+        });
       }
       setIsLoading(false);
     }
   }, [briefId]);
 
-  function handleSaveToPortfolio() {
+  async function handleSaveToPortfolio() {
     if (!report) return;
-    addToPortfolio(report);
-    setSavedToPortfolio(true);
-    toast({
-      title: "Saved to Portfolio",
-      description: `${report.areaIntelligence.area || report.areaIntelligence.location} has been added to your portfolio.`,
-    });
+    const { ok } = await addToPortfolio(report);
+    if (ok) {
+      setSavedToPortfolio(true);
+      toast({
+        title: "Saved to Portfolio",
+        description: `${report.areaIntelligence.area || report.areaIntelligence.location} has been added to your portfolio.`,
+      });
+    }
   }
 
   if (isLoading) {
