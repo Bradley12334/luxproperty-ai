@@ -81,7 +81,7 @@ export default function Home() {
     },
     {
       name: "Professional",
-      price: "£59",
+      price: "£4.99",
       period: "/month",
       description: "For serious buyers and property professionals",
       features: [
@@ -93,11 +93,11 @@ export default function Home() {
       ],
       cta: "Start Professional",
       highlighted: true,
-      stripeUrl: "https://buy.stripe.com/test_8x2eV67tS1wz2SydbJ1gs00",
+      stripeUrl: "https://buy.stripe.com/test_4gM5kw7tS0sv0Kq4Fd1gs02",
     },
     {
       name: "Investor",
-      price: "£149",
+      price: "£39.99",
       period: "/month",
       description: "Portfolio management and advanced analytics",
       features: [
@@ -110,7 +110,7 @@ export default function Home() {
       ],
       cta: "Start Investor",
       highlighted: false,
-      stripeUrl: "https://buy.stripe.com/test_3cIeV67tS2ADbp41t11gs01",
+      stripeUrl: "https://buy.stripe.com/test_28EbIU8xWfnp0Kq6Nl1gs03",
     },
   ];
 

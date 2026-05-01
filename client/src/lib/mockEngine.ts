@@ -274,42 +274,82 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     ? `${outcode} is in ${country}. HM Land Registry Price Paid data only covers England and Wales — price trend data is unavailable for this region. The analysis below is based on available postcode metadata.`
     : "";
 
+  // ── Derived analytics ──────────────────────────────────────────────────────
+  const firstValidMedian = yearMedians.find(p => p > 0) || 0;
+  const fiveYearGrowth = (firstValidMedian > 0 && latestMedian > 0)
+    ? `${(((latestMedian - firstValidMedian) / firstValidMedian) * 100).toFixed(1)}%`
+    : "—";
+
+  const totalSalesThisYear = yearData[4]?.length || 0;
+  const demandSignal = totalSalesThisYear > 40 ? "High" : totalSalesThisYear > 15 ? "Moderate" : "Low";
+
+  const pricePerSqmEstimate = latestMedian > 0
+    ? tier === "prime" ? `${fmt(Math.round(latestMedian / 75))} per m²`
+    : tier === "premium" ? `${fmt(Math.round(latestMedian / 85))} per m²`
+    : `${fmt(Math.round(latestMedian / 95))} per m²`
+    : "—";
+
+  const buyerType = tier === "prime"
+    ? "Internationally driven — HNW individuals, family offices, and relocating executives"
+    : tier === "premium"
+    ? "Professional buyers — equity-rich upsizers and buy-to-let investors"
+    : tier === "mid-market"
+    ? "Owner-occupiers and first-time buyers, with growing investor interest"
+    : "First-time buyers, housing association, and value investors";
+
+  const marketMomentum = yoyChange.startsWith("+")
+    ? `Upward — ${yoyChange} YoY with ${demandSignal.toLowerCase()} recorded transaction volume`
+    : yoyChange === "—"
+    ? "Insufficient data to determine current momentum"
+    : `Softening — ${yoyChange} YoY. Buyer leverage is above average in this cycle`;
+
+  const schoolsRating = isLondon ? 8.4 : region.includes("South East") ? 8.1 : 7.8;
+  const safetyRating  = tier === "prime" ? 8.9 : tier === "premium" ? 8.3 : 7.7;
+  const walkability   = isLondon ? 9.1 : region.includes("South") ? 7.6 : 7.1;
+
+  const sdltEstimate = latestMedian > 500000
+    ? fmt((latestMedian - 500000) * 0.1 + 500000 * 0.05)
+    : fmt(latestMedian * 0.05);
+  const stampDutyNote = `Estimated SDLT on ${fmt(latestMedian)} median: ~${sdltEstimate} for primary residence`;
+
   const areaIntelligence: AreaIntelligence = {
     location: outcode,
     area: areaName,
     executiveSummary: outsideEnglandWales
       ? scotlandNote
       : hasData
-        ? `${areaName} (${outcode}) is a ${tier} residential market with ${fmt(latestMedian)} median transaction value drawn from ${totalTxns} Land Registry records over five years. ${ward ? `The ${ward} ward` : "This area"} sits within ${constituency || region}. Year-on-year price movement stands at ${yoyChange}, ${yoyChange.startsWith("+") ? "indicating continued buyer demand." : "reflecting current market conditions."}`
-        : `${areaName} (${outcode}) is in ${region}. Detailed transaction data was limited for this area — the analysis below is based on available district-level Land Registry records.`,
+        ? `${areaName} (${outcode}) is classified as a ${tier} residential market. Median transaction value stands at ${fmt(latestMedian)}, based on ${totalTxns} Land Registry records across five years. The 5-year price trajectory is ${fiveYearGrowth !== "—" ? `+${fiveYearGrowth}` : "—"}, with year-on-year movement of ${yoyChange}. ${ward ? `Ward: ${ward}.` : ""} ${constituency ? `Parliamentary constituency: ${constituency}.` : ""} Demand is currently ${demandSignal.toLowerCase()}, with ${totalSalesThisYear} registered transactions in the most recent year on record. ${marketMomentum}.`
+        : `${areaName} (${outcode}) is in ${region}. Transaction volume was below the threshold for full statistical analysis — the report draws on available district-level Land Registry records. Manual verification via Rightmove and Zoopla sold data is advised.`,
     marketOverview: {
       averagePrice: hasData ? fmt(latestMedian) : outsideEnglandWales ? "Scotland/NI — see note" : "Insufficient data",
       priceChangeYoY: yoyChange,
       avgDaysOnMarket,
-      supplyLevel: tier === "prime" ? "Constrained" : tier === "premium" ? "Below average" : "Moderate",
+      supplyLevel: tier === "prime" ? "Constrained" : tier === "premium" ? "Below average" : demandSignal === "High" ? "Tight" : "Moderate",
     },
     priceTrend,
     neighbourhoodProfile: {
-      schoolsRating: 8.2,
+      schoolsRating,
       transportRating,
-      safetyRating: 8.0,
-      walkability: isLondon ? 9.1 : 7.4,
+      safetyRating,
+      walkability,
     },
     investmentOutlook: {
       growthForecast,
       rentalYieldEstimate: rentalYield,
       riskFlags: [
-        "Stamp duty surcharge applies for additional properties",
-        "Interest rate sensitivity on leveraged purchases",
-        "Monitor local planning applications for new supply",
-        "Capital gains tax changes may affect net returns",
+        stampDutyNote,
+        "Interest rate sensitivity: stress-test mortgage payments at base rate +2%",
+        "Monitor local planning portal for nearby development — new supply can soften values",
+        "Capital gains tax on investment properties has increased — model net returns accordingly",
+        `Leasehold properties in ${areaName}: verify remaining lease, ground rent, and service charge before offering`,
+        "EPC requirements tightening — properties below C rating may require upgrade spend",
       ],
     },
     verdict: hasData
-      ? `${areaName} presents a ${yoyChange.startsWith("+") ? "compelling" : "measured"} investment case. With ${fmt(latestMedian)} median transaction value and ${yoyChange} year-on-year movement, the area ${yoyChange.startsWith("+") ? "demonstrates resilient demand." : "offers selective opportunity for well-priced acquisitions."} Target properties with modernisation potential where 15–25% value uplift is achievable. Instruct a RICS surveyor before exchange.`
+      ? `${areaName} is a ${tier} market with ${yoyChange.startsWith("+") ? "positive momentum" : "stable conditions"}. Five-year appreciation of ${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"} and ${yoyChange} year-on-year movement ${yoyChange.startsWith("+") ? "supports a buy stance for long-term holders" : "suggests patience is rewarded — pricing power currently sits with informed buyers"}. Estimated price per m² is ${pricePerSqmEstimate}. Buyer profile: ${buyerType}. Strategy: ${tier === "prime" || tier === "premium" ? "target off-market or chain-free properties for best leverage. Instruct a RICS Level 2 or 3 survey." : "look for properties with modernisation potential — 10–20% value uplift typically achievable with cosmetic refurbishment. Use comparables to anchor your offer below asking."}`
       : outsideEnglandWales
-        ? `${areaName} is outside England and Wales. Engage a local solicitor and surveyor familiar with ${country} property law, as conveyancing differs significantly from English practice.`
-        : `${areaName} is an established area. Engage a local agent for current off-market intelligence and request recent comparables before proceeding.`,
+        ? `${areaName} is outside England and Wales. HM Land Registry data does not apply. Engage a local solicitor and RICS-accredited surveyor familiar with ${country} conveyancing law.`
+        : `${areaName} is an established residential area. Low transaction volume limits statistical confidence — supplement this report with local agent intelligence and Rightmove sold prices before committing.`,
   };
 
   let propertyDeepDive: PropertyDeepDive | undefined;
@@ -317,10 +357,10 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     propertyDeepDive = {
       valuationAssessment: {
         estimatedRange: hasData
-          ? `${fmt(latestMedian * 0.9)} – ${fmt(latestMedian * 1.15)}`
+          ? `${fmt(latestMedian * 0.9)} – ${fmt(latestMedian * 1.15)} (90–115% of ${areaName} median)`
           : "Requires independent RICS appraisal",
         priceVsAreaAverage: hasData
-          ? `Based on ${fmt(latestMedian)} district median (Land Registry)`
+          ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · 5-yr: +${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"}`
           : outsideEnglandWales ? "Land Registry data unavailable for this region" : "Insufficient comparable data",
         valueScore: hasData
           ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : tier === "mid-market" ? "7.4" : "7.0"} / 10`
@@ -331,15 +371,19 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ],
       negotiationBrief: {
         suggestedOfferRange: hasData
-          ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)} (3–12% below area median)`
+          ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)} (3–12% below ${areaName} median)`
           : "Obtain independent RICS valuation before offering",
         leveragePoints: [
-          "Request full transaction history via gov.uk/search-property-information",
-          "Commission a RICS HomeBuyer Report before exchange",
-          "Check local planning portal for nearby development applications",
-          "Verify EPC rating — factor any upgrade costs into your offer",
-          "Ask agent for days on market — 60+ days signals stronger negotiating position",
-          "Review service charge and ground rent history for leasehold properties",
+          `Area median is ${fmt(latestMedian)} — use this as your anchor. Any asking price above this requires justification from the agent`,
+          `Market momentum is ${yoyChange.startsWith("+") ? "positive but not exceptional" : "softening"} — ${yoyChange.startsWith("+") ? "avoid overpaying by anchoring 5–8% below asking" : "buyers currently have leverage. Push for 8–12% below asking with survey findings as additional justification"}`,
+          `Demand in ${areaName} is ${demandSignal.toLowerCase()} (${totalSalesThisYear} sales last year) — ${demandSignal === "High" ? "move quickly but don't skip due diligence" : "no urgency pressure. Take time to negotiate"}`,
+          `Request the seller's purchase price via gov.uk/search-property-information to check their equity position and margin for negotiation`,
+          `Estimated SDLT: ~${sdltEstimate} — factor this into your total acquisition cost when setting your maximum offer`,
+          "Commission a RICS Level 2 HomeBuyer Report (£400–£600) or Level 3 Full Structural Survey (£600–£1,200) before exchange — defects found can reduce your offer further",
+          "Verify EPC rating — properties rated D, E, F or G carry upgrade liability. Budget £5,000–20,000 for heat pump or insulation works and use this in negotiation",
+          "For leasehold: demand at least 80 years remaining or budget for lease extension (£10,000–30,000+). Ground rent above £250/year (£1,000 in London) is a mortgage risk",
+          "Check the local planning portal for nearby applications — approved high-density development within 500m typically softens residential values by 3–8%",
+          "If the property has been on the market 60+ days, the seller has already been rejected at current pricing. Open at 10–15% below asking",
         ],
       },
     };
