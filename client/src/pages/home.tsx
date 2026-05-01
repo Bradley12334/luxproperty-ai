@@ -77,6 +77,7 @@ export default function Home() {
       features: ["3 briefs per month", "Area intelligence reports", "Basic market data"],
       cta: "Start Free",
       highlighted: false,
+      stripeUrl: null,
     },
     {
       name: "Professional",
@@ -92,6 +93,7 @@ export default function Home() {
       ],
       cta: "Start Professional",
       highlighted: true,
+      stripeUrl: "https://buy.stripe.com/test_8x2eV67tS1wz2SydbJ1gs00",
     },
     {
       name: "Investor",
@@ -108,6 +110,7 @@ export default function Home() {
       ],
       cta: "Start Investor",
       highlighted: false,
+      stripeUrl: "https://buy.stripe.com/test_3cIeV67tS2ADbp41t11gs01",
     },
   ];
 
@@ -494,6 +497,15 @@ export default function Home() {
                     variant={tier.highlighted ? "default" : "outline"}
                     className="w-full text-sm"
                     data-testid={`button-pricing-${tier.name.toLowerCase()}`}
+                    onClick={() => {
+                      if (tier.stripeUrl) {
+                        window.open(tier.stripeUrl, "_blank", "noopener,noreferrer");
+                      } else {
+                        const el = document.querySelector("[data-testid='input-search']") as HTMLInputElement | null;
+                        el?.focus();
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                    }}
                   >
                     {tier.cta}
                   </Button>

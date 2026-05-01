@@ -15,6 +15,7 @@ const tiers = [
     style: "default",
     cta: "Start Free",
     ctaVariant: "outline" as const,
+    stripeUrl: null,
   },
   {
     name: "Professional",
@@ -25,6 +26,7 @@ const tiers = [
     style: "professional",
     cta: "Start Professional",
     ctaVariant: "default" as const,
+    stripeUrl: "https://buy.stripe.com/test_8x2eV67tS1wz2SydbJ1gs00",
   },
   {
     name: "Investor",
@@ -35,6 +37,7 @@ const tiers = [
     style: "investor",
     cta: "Start Investor",
     ctaVariant: "default" as const,
+    stripeUrl: "https://buy.stripe.com/test_3cIeV67tS2ADbp41t11gs01",
   },
 ];
 
@@ -169,6 +172,13 @@ export default function PricingPage() {
                           : ""
                       }`}
                       data-testid={`button-pricing-${tier.name.toLowerCase()}`}
+                      onClick={() => {
+                        if (tier.stripeUrl) {
+                          window.open(tier.stripeUrl, "_blank", "noopener,noreferrer");
+                        } else {
+                          window.location.hash = "/";
+                        }
+                      }}
                     >
                       {tier.cta}
                     </Button>
