@@ -12,7 +12,15 @@ export interface User {
 type Listener = () => void;
 
 // In-memory "database" of registered users for this session
-const registeredUsers: Record<string, { name: string; email: string; password: string; plan: "explorer" }> = {};
+// Pre-seeded admin account — always Investor access
+const registeredUsers: Record<string, { name: string; email: string; password: string; plan: "explorer" | "professional" | "investor" }> = {
+  "bradleyskana@hotmail.com": {
+    name: "Bradley Skana",
+    email: "bradleyskana@hotmail.com",
+    password: "lux2026!",
+    plan: "investor",
+  },
+};
 
 let currentUser: User | null = null;
 const listeners: Set<Listener> = new Set();
@@ -37,7 +45,7 @@ export function signUp(name: string, email: string, password: string): { ok: boo
   if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
   if (registeredUsers[key]) return { ok: false, error: "An account with this email already exists." };
 
-  registeredUsers[key] = { name: name.trim(), email: key, password, plan: "explorer" };
+  registeredUsers[key] = { name: name.trim(), email: key, password, plan: "explorer" as const };
 
   currentUser = {
     id: Math.random().toString(36).slice(2),
