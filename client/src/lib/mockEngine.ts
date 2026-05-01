@@ -89,6 +89,7 @@ async function getDistrict(postcode: string): Promise<string> {
 async function fetchPostcodeMeta(postcode: string): Promise<{
   area: string; district: string; region: string;
   constituency: string; ward: string; country: string;
+  lat?: number; lng?: number;
 } | null> {
   const outcode = getOutcode(postcode);
   if (outcodeMetaCache[outcode]) return outcodeMetaCache[outcode];
@@ -104,6 +105,8 @@ async function fetchPostcodeMeta(postcode: string): Promise<{
         constituency: d.result?.parliamentary_constituency || "",
         ward: d.result?.admin_ward || "",
         country: d.result?.country || "England",
+        lat: d.result?.latitude ?? undefined,
+        lng: d.result?.longitude ?? undefined,
       };
       outcodeMetaCache[outcode] = result;
       return result;
@@ -119,6 +122,8 @@ async function fetchPostcodeMeta(postcode: string): Promise<{
         constituency: (d.result?.parliamentary_constituency || [])[0] || "",
         ward: (d.result?.admin_ward || [])[0] || "",
         country: (d.result?.country || [])[0] || "England",
+        lat: d.result?.latitude ?? undefined,
+        lng: d.result?.longitude ?? undefined,
       };
       outcodeMetaCache[outcode] = result;
       return result;
@@ -496,6 +501,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     generatedAt: new Date().toISOString(),
     areaIntelligence,
     propertyDeepDive,
+    lat: meta?.lat,
+    lng: meta?.lng,
   };
   briefStore[id] = report;
   return report;

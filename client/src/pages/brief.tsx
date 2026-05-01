@@ -34,9 +34,11 @@ import {
   Moon,
   Lightbulb,
   Home,
+  ChevronDown,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { PostcodeMap } from "@/components/postcode-map";
 
 function SkeletonReport() {
   return (
@@ -134,6 +136,28 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
     <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-primary mb-4">
       {children}
     </h3>
+  );
+}
+
+function CollapsibleSection({ title, children, defaultOpen = true, testId }: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  testId?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card className="overflow-hidden" data-testid={testId}>
+      <button
+        className="w-full flex items-center justify-between p-5 sm:p-6 text-left hover:bg-muted/30 transition-colors"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <span className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">{title}</span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="px-5 sm:px-6 pb-5 sm:pb-6">{children}</div>}
+    </Card>
   );
 }
 
@@ -455,6 +479,22 @@ export default function BriefPage() {
               </div>
             </Card>
 
+            {/* Map — shown when coords available */}
+            {(report.lat && report.lng) && (
+              <Card className="p-5 sm:p-6" data-testid="section-map">
+                <SectionHeading>Location Map</SectionHeading>
+                <PostcodeMap
+                  postcode={ai.location}
+                  lat={report.lat}
+                  lng={report.lng}
+                  areaName={ai.area}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">OpenStreetMap</a> contributors
+                </p>
+              </Card>
+            )}
+
             {/* Price Trend */}
             <Card className="p-5 sm:p-6" data-testid="section-price-trend">
               <SectionHeading>5-Year Price Trend</SectionHeading>
@@ -484,10 +524,8 @@ export default function BriefPage() {
               </div>
             </Card>
 
-            {/* Neighbourhood Profile */}
-            <Card className="p-5 sm:p-6" data-testid="section-neighbourhood">
-              <SectionHeading>Neighbourhood Profile</SectionHeading>
-
+            {/* Neighbourhood Profile — collapsible */}
+            <CollapsibleSection title="Neighbourhood Profile" testId="section-neighbourhood">
               {/* Ratings strip */}
               <div className="space-y-3 mb-6 pb-6 border-b border-border/40">
                 {[
@@ -527,7 +565,7 @@ export default function BriefPage() {
                   </div>
                 ))}
               </div>
-            </Card>
+            </CollapsibleSection>
 
             {/* Property Valuation — only for address searches */}
             {isPropertyReport && pd && (

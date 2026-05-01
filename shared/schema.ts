@@ -87,4 +87,7 @@ export interface BriefReport {
   generatedAt: string;
   areaIntelligence: AreaIntelligence;
   propertyDeepDive?: PropertyDeepDive;
+  // Location coords for map
+  lat?: number;
+  lng?: number;
 }

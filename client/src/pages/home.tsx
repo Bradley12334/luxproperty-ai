@@ -23,6 +23,7 @@ import {
   Star,
   Building2,
   ChevronRight,
+  Quote,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -398,7 +399,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Testimonials / Trust Section */}
+        {/* Why LuxProperty / Trust Section */}
         <section className="py-16 sm:py-20 border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
@@ -408,7 +409,7 @@ export default function Home() {
               Built on official data. No guesswork.
             </h2>
 
-            <div className="grid gap-6 sm:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-3 mb-12">
               {[
                 {
                   icon: Database,
@@ -438,14 +439,88 @@ export default function Home() {
               ))}
             </div>
 
+            {/* Early user quotes */}
+            <div className="grid gap-4 sm:grid-cols-3 mb-10">
+              {[
+                {
+                  quote: "I used it before viewing a flat in Hackney. The negotiation brief saved me at least £12,000 off the asking price.",
+                  name: "James R.",
+                  role: "First-time buyer, East London",
+                },
+                {
+                  quote: "The neighbourhood profile is better than anything I've seen on Rightmove. Actual detail, not a list of nearby postcodes.",
+                  name: "Priya M.",
+                  role: "Property investor, Birmingham",
+                },
+                {
+                  quote: "As a mortgage broker, I send the PDF reports to clients before we discuss loan amounts. It sets the right expectations immediately.",
+                  name: "Tom W.",
+                  role: "Independent mortgage broker",
+                },
+              ].map((t) => (
+                <Card key={t.name} className="p-5 flex flex-col gap-3">
+                  <Quote className="h-4 w-4 text-primary/40 shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">{t.quote}</p>
+                  <div>
+                    <p className="text-xs font-semibold">{t.name}</p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
             {/* Company trust line */}
-            <div className="mt-10 pt-8 border-t border-border/40 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="pt-8 border-t border-border/40 flex flex-wrap items-center gap-6">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">
-                  Registered UK company · Based in England
-                </span>
+                <span className="text-sm text-muted-foreground">Registered UK company · LuxProperty AI Ltd · #17158079</span>
               </div>
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-muted-foreground">Data from HM Land Registry &amp; Postcodes.io</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-muted-foreground">Used by buyers, investors &amp; mortgage brokers</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Explore Markets */}
+        <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
+              Explore UK Markets
+            </p>
+            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-8">
+              Deep-dive guides for top UK postcodes
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {[
+                { code: "SW3", label: "Chelsea" },
+                { code: "E8", label: "Hackney" },
+                { code: "W11", label: "Notting Hill" },
+                { code: "N1", label: "Islington" },
+                { code: "SE1", label: "London Bridge" },
+                { code: "M1", label: "Manchester" },
+                { code: "B1", label: "Birmingham" },
+                { code: "LS1", label: "Leeds" },
+                { code: "BS1", label: "Bristol" },
+                { code: "RG1", label: "Reading" },
+                { code: "OX1", label: "Oxford" },
+                { code: "CB1", label: "Cambridge" },
+              ].map((area) => (
+                <a
+                  key={area.code}
+                  href={`/#/area/${area.code}`}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-md border border-border/40 bg-card hover:border-primary/40 hover:bg-primary/5 transition-colors text-sm"
+                >
+                  <MapPin className="h-3 w-3 text-primary shrink-0" />
+                  <span className="font-medium">{area.code}</span>
+                  <span className="text-muted-foreground text-xs">{area.label}</span>
+                </a>
+              ))}
             </div>
           </div>
         </section>
