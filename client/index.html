@@ -44,6 +44,17 @@
       rel="stylesheet"
     />
 
+    <!-- Google Analytics GA4 — consent-gated -->
+    <script>
+      // Default to denied until user accepts cookie banner
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', { analytics_storage: 'denied' });
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX'); // Replace G-XXXXXXXXXX with your GA4 Measurement ID
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+
     <!-- Structured Data: Organisation -->
     <script type="application/ld+json">
     {

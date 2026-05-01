@@ -155,6 +155,24 @@ export default function AccountPage() {
                   </p>
                 </div>
               )}
+
+              {(user.plan === "professional" || user.plan === "investor") && (
+                <div className="pt-4 border-t border-border/40">
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Manage or cancel your subscription
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-sm"
+                    onClick={() => window.open("https://billing.stripe.com/p/login/test_00g14n4MU7tN9XW000", "_blank", "noopener,noreferrer")}
+                    data-testid="button-manage-subscription"
+                  >
+                    Manage Subscription
+                    <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
             </Card>
 
             {/* Quick links */}

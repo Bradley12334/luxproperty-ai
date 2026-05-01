@@ -1,5 +1,5 @@
 // Supabase-backed auth store — accounts persist across sessions
-// Uses public.users table; no Supabase Auth SDK (we manage passwords ourselves)
+// Uses public.users table; session persisted via localStorage on luxproperty.ai
 
 import { supabase } from "./supabase";
 
@@ -13,8 +13,33 @@ export interface User {
 
 type Listener = () => void;
 
-// In-memory session (survives re-renders; lost on page reload — user must sign in again)
-let currentUser: User | null = null;
+const SESSION_KEY = "lux_session";
+
+// ─── Session helpers ─────────────────────────────────────────────────────────
+function saveSession(user: User) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  } catch {}
+}
+
+function loadSession(): User | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as User;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {}
+}
+
+// ─── In-memory state ─────────────────────────────────────────────────────────
+let currentUser: User | null = loadSession(); // restore from localStorage on load
 const listeners: Set<Listener> = new Set();
 
 function notify() {
@@ -30,6 +55,37 @@ export function getUser(): User | null {
   return currentUser;
 }
 
+// Re-validate session against Supabase on app load (plan may have changed)
+export async function restoreSession(): Promise<void> {
+  const cached = loadSession();
+  if (!cached) return;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, email, plan, created_at")
+    .eq("id", cached.id)
+    .maybeSingle();
+
+  if (error || !data) {
+    // Session invalid — clear it
+    clearSession();
+    currentUser = null;
+    notify();
+    return;
+  }
+
+  // Update with latest plan from DB (catches Stripe-triggered upgrades)
+  currentUser = {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    plan: data.plan as User["plan"],
+    joinedAt: data.created_at,
+  };
+  saveSession(currentUser);
+  notify();
+}
+
 // ─── Sign Up ────────────────────────────────────────────────────────────────
 export async function signUp(
   name: string,
@@ -41,7 +97,6 @@ export async function signUp(
   if (!key.includes("@")) return { ok: false, error: "Please enter a valid email address." };
   if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
 
-  // Check if email already taken
   const { data: existing } = await supabase
     .from("users")
     .select("id")
@@ -50,7 +105,6 @@ export async function signUp(
 
   if (existing) return { ok: false, error: "An account with this email already exists." };
 
-  // Insert new user
   const { data, error } = await supabase
     .from("users")
     .insert({ name: name.trim(), email: key, password_hash: password, plan: "explorer" })
@@ -69,6 +123,7 @@ export async function signUp(
     plan: data.plan as User["plan"],
     joinedAt: data.created_at,
   };
+  saveSession(currentUser);
   notify();
   return { ok: true };
 }
@@ -100,6 +155,7 @@ export async function signIn(
     plan: data.plan as User["plan"],
     joinedAt: data.created_at,
   };
+  saveSession(currentUser);
   notify();
   return { ok: true };
 }
@@ -107,5 +163,6 @@ export async function signIn(
 // ─── Sign Out ────────────────────────────────────────────────────────────────
 export function signOut() {
   currentUser = null;
+  clearSession();
   notify();
 }
