@@ -307,6 +307,99 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const safetyRating  = tier === "prime" ? 8.9 : tier === "premium" ? 8.3 : 7.7;
   const walkability   = isLondon ? 9.1 : region.includes("South") ? 7.6 : 7.1;
 
+  // ── Rich neighbourhood descriptions ───────────────────────────────────────
+  const isWales = country === "Wales";
+  const isMidlands = region.includes("Midlands");
+  const isNorth = region.includes("North") || region.includes("Yorkshire") || region.includes("Humber");
+  const isSouthEast = region.includes("South East");
+  const isSouthWest = region.includes("South West");
+  const isEastEngland = region.includes("East");
+
+  const characterMap: Record<string, string> = {
+    prime: `${areaName} has an unmistakable sense of prestige. Streets are lined with period architecture, independent boutiques, and art galleries. The pace is unhurried — this is a neighbourhood where residents invest in quality of life as much as property. Expect a strong sense of community among long-term residents and a quietly international flavour.`,
+    premium: `${areaName} sits in a comfortable sweet spot between accessibility and aspiration. The area attracts professionals and families who want the feel of an established neighbourhood without prime-zone price tags. A mix of period conversions and newer builds creates a varied streetscape, with a distinctly residential character beyond the main high street.`,
+    "mid-market": `${areaName} is a practical, well-connected area with a genuine community feel. It draws a broad mix of residents — first-time buyers, young families, and long-term locals — giving it an unpretentious energy. Regeneration activity in recent years has brought new cafes, co-working spaces, and independent shops alongside existing amenities.`,
+    emerging: `${areaName} is in a period of visible transition. Pockets of regeneration sit alongside original residential streets, and independent businesses are beginning to establish themselves. Early buyers here are typically drawn by value relative to surrounding areas and the upside potential that comes with neighbourhood evolution.`,
+    unknown: `${areaName} has an established residential character. The area offers a stable community environment with convenient access to local amenities and transport connections.`,
+  };
+
+  const amenitiesMap: Record<string, string> = {
+    prime: `Supermarkets include Waitrose and M&S Food. The high street features independent delicatessens, wine merchants, and award-winning restaurants. Specialist food markets, artisan bakeries, and premium gym studios are well represented. Healthcare is served by private clinics and GP surgeries with short wait times.`,
+    premium: `A strong mix of high-street staples and independents. Supermarkets (typically Sainsbury's or Tesco), plus a growing selection of independent cafes and restaurants. Leisure options include gyms, yoga studios, and a local cinema or arts centre. Retail parks within easy driving distance for larger shops.`,
+    "mid-market": `Day-to-day amenities are well covered — supermarkets, pharmacies, post offices, and takeaways are all within walking distance. The high street has a mix of national chains and independent businesses. A local market (weekly or monthly) typically operates nearby. Leisure centres and community facilities are readily available.`,
+    emerging: `Core amenities are in place — convenience stores, takeaways, and pharmacies are close by. The neighbourhood is seeing new hospitality openings as the area gentrifies. Larger retail and leisure options are available via public transport or a short drive.`,
+    unknown: `Standard residential amenities are accessible. Local shops, supermarkets, and community services are within reasonable distance, with more extensive retail available in the nearest town centre.`,
+  };
+
+  const greenSpaceMap: Record<string, string> = {
+    prime: isLondon
+      ? `Access to premium green space is excellent. Royal Parks, private gardens, and well-maintained public parks are within walking distance. Many properties on garden squares or adjacent to communal private gardens.`
+      : `${areaName} benefits from mature parkland, countryside access, and well-kept public gardens. The green infrastructure is a key quality-of-life asset for residents.`,
+    premium: isLondon
+      ? `Good park provision within the borough. Local recreation grounds, lido facilities, and riverside or canal paths in many parts of the area.`
+      : `Parks and recreation grounds are well distributed. Countryside is accessible by car or public transport, making the area popular with dog owners and families.`,
+    "mid-market": `Local parks and recreation grounds provide green relief. Playing fields and allotment sites are common. ${isNorth || isMidlands ? "The surrounding countryside is easily accessible from the area" : "Weekend green space is typically a short bus or drive away"}.`,
+    emerging: `Green space provision is adequate with local parks and open land nearby. ${isSouthWest || isSouthEast ? "Proximity to countryside and coastal areas is a major draw for buyers" : "Larger parks are a short distance away by public transport"}.`,
+    unknown: `Local green space is available in the area, including parks and recreation grounds.`,
+  };
+
+  const transportDescMap: Record<string, string> = {
+    prime: isLondon
+      ? `Exceptional connectivity. Multiple Underground lines (including at least one Zone 1–2 station), bus routes, and Overground access. Journey times to central London are typically under 20 minutes. Cycle infrastructure is well maintained.`
+      : `${areaName} is served by a mainline rail station with frequent services to major cities. Road connections via the M-road network are strong. Airports are within 45–90 minutes.`,
+    premium: isLondon
+      ? `Strong transport links. Underground, Overground, or Elizabeth line access within 0.5 miles. Multiple bus routes. Typical central London journey time: 20–35 minutes. Good cycling infrastructure.`
+      : `Regular rail services to regional centres and London. Road connections are good, with easy motorway access. Buses serve local routes, though a car remains useful for suburban journeys.`,
+    "mid-market": isLondon
+      ? `Reliable public transport. Bus and Overground connections to central zones. Underground access may require one interchange. Journey time to central London: 30–45 minutes. Bike lanes are improving.`
+      : `${areaName} has bus connections to the nearest town centre and rail station. Driving is the primary mode for many residents. Commuter rail services are available ${region.includes("South East") ? "with direct services into London" : "to regional employment hubs"}.`,
+    emerging: isLondon
+      ? `Bus-dependent area with improving connectivity. Overground or Underground access is within 0.75–1 mile. TfL investment in the area is ongoing. Car ownership common among residents.`
+      : `Bus services connect the area to local centres. A car is recommended for most residents. Rail access is available at the nearest town station.`,
+    unknown: `Public transport connects the area to local town centres and rail stations. A car is useful for wider connectivity.`,
+  };
+
+  const schoolsDescMap: Record<string, string> = {
+    prime: `School provision is a significant draw. Several Outstanding-rated primaries and secondaries are within the catchment, including both state and independent options. Independent school fees in the area range from £15,000–£25,000+ per year. Competition for catchment places is high — verify current boundaries before purchasing.`,
+    premium: `A mix of Good and Outstanding-rated state schools serves the area, with independent alternatives available locally. Catchment boundaries are competitive for the most sought-after schools. Several well-regarded grammar schools operate ${isSouthEast ? "across the county" : "in the wider region"}.`,
+    "mid-market": `State schooling is rated Good by Ofsted in most local schools, with some Outstanding primaries. A local secondary school serves most of the catchment. Independent options are available within a short drive. Free school or academy choices have expanded provision in recent years.`,
+    emerging: `State schools in the area are rated Requires Improvement to Good. The local authority has invested in improvement plans. Families with specific school requirements should verify current Ofsted ratings and catchment boundaries independently at ofsted.gov.uk.`,
+    unknown: `State schools serve the local area. Check current Ofsted ratings and catchment boundaries at ofsted.gov.uk before purchasing.`,
+  };
+
+  const demographicsMap: Record<string, string> = {
+    prime: `Predominantly affluent professionals, senior executives, established families, and retirees with significant assets. A notable international contingent, particularly from Europe, North America, and the Middle East. Long average tenure — residents tend to stay for decades. Strong owner-occupier ratio.`,
+    premium: `Professional couples and families aged 30–55 make up the core demographic. High proportion of homeowners with equity to spend. A growing cohort of remote-working buyers drawn by space and connectivity. Limited transient population — the area has a settled, community-minded character.`,
+    "mid-market": `A genuinely mixed demographic — young professionals, families with school-age children, established locals, and buy-to-let investors attracted by rental yields. Average household income is near the national median. Active local community groups and residents' associations.`,
+    emerging: `A shifting demographic as younger buyers and renters move in alongside long-term residents. Creative professionals, first-time buyers, and students often lead gentrification. Rental demand is high, supporting investor interest. Expect the demographic profile to continue evolving over the next 5–10 years.`,
+    unknown: `The area has an established residential population with a mix of owner-occupiers and renters.`,
+  };
+
+  const nightlifeMap: Record<string, string> = {
+    prime: `The evening offer is sophisticated rather than loud — Michelin-starred and well-reviewed restaurants, wine bars, private members' clubs, and boutique hotels dominate. The area is animated but not rowdy, attracting residents who value quality over volume.`,
+    premium: `A solid dining and bar scene anchored by independent restaurants and gastropubs. Cocktail bars and wine bars are well represented. The area quietens after 11pm — it skews more dinner-and-theatre than late-night club.`,
+    "mid-market": `A mix of chain pubs, independent bars, and takeaway options. The high street comes alive on Friday and Saturday evenings. A local cinema, bowling alley, or live music venue is often within reach. Family-friendly dining options are well served.`,
+    emerging: `A growing independent bar and cafe culture, with new openings arriving as the area gentrifies. Some legacy pubs remain alongside newer arrivals. The nighttime economy is evolving — expect more choice within 3–5 years.`,
+    unknown: `Local pubs and restaurants provide an evening out. More extensive entertainment options are available in the nearest town centre.`,
+  };
+
+  const marketCommentMap: Record<string, string> = {
+    prime: `Buyers here are typically competing for a finite pool of properties — supply is structurally limited. Off-market transactions are common; cultivate relationships with local agents and solicitors to access them. Chain-free purchases and cash buyers move significantly faster in this market. Do not expect significant discounts — pricing is resilient.`,
+    premium: `${areaName} rewards preparation. The best properties go quickly — often within two weeks of listing. Get a mortgage agreement in principle before viewing. Survey findings (particularly on older stock) can legitimately support a revised offer. Freehold houses outperform leasehold flats in this market over a 10-year horizon.`,
+    "mid-market": `${areaName} is a buyer's market in relative terms — properties at the right price sell in 4–8 weeks. Overpriced stock sits for 60+ days, which is your negotiating window. Focus on properties needing cosmetic work rather than structural issues. The rental market is active, making the area viable for buy-to-let alongside owner-occupation.`,
+    emerging: `This is a speculative-to-value play. The upside is real but the timeline is uncertain — plan for a 5–10 year hold. Focus on streets closest to regeneration activity and transport links. Avoid leasehold where the ground rent and service charge can erode yield. New-build discount on resale typically 10–15% — factor this in.`,
+    unknown: `Research comparable sold prices via Rightmove and Zoopla before making an offer. Instruct a RICS-accredited surveyor before exchange.`,
+  };
+
+  const neighCharacter   = characterMap[tier] || characterMap["unknown"];
+  const neighAmenities   = amenitiesMap[tier] || amenitiesMap["unknown"];
+  const neighGreenSpace  = greenSpaceMap[tier] || greenSpaceMap["unknown"];
+  const neighTransport   = transportDescMap[tier] || transportDescMap["unknown"];
+  const neighSchools     = schoolsDescMap[tier] || schoolsDescMap["unknown"];
+  const neighDemographics = demographicsMap[tier] || demographicsMap["unknown"];
+  const neighNightlife   = nightlifeMap[tier] || nightlifeMap["unknown"];
+  const neighMarketComment = marketCommentMap[tier] || marketCommentMap["unknown"];
+
   const sdltEstimate = latestMedian > 500000
     ? fmt((latestMedian - 500000) * 0.1 + 500000 * 0.05)
     : fmt(latestMedian * 0.05);
@@ -332,6 +425,14 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       transportRating,
       safetyRating,
       walkability,
+      character: neighCharacter,
+      amenities: neighAmenities,
+      greenSpace: neighGreenSpace,
+      transport: neighTransport,
+      schools: neighSchools,
+      demographics: neighDemographics,
+      nightlife: neighNightlife,
+      marketComment: neighMarketComment,
     },
     investmentOutlook: {
       growthForecast,

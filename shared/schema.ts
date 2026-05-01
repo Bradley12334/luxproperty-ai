@@ -44,6 +44,15 @@ export interface AreaIntelligence {
     transportRating: number;
     safetyRating: number;
     walkability: number;
+    // Rich descriptions
+    character: string;          // Area personality / vibe
+    amenities: string;          // Shops, restaurants, leisure
+    greenSpace: string;         // Parks, nature, outdoor
+    transport: string;          // Specific transport links
+    schools: string;            // School info
+    demographics: string;       // Who lives here
+    nightlife: string;          // Evening / social scene
+    marketComment: string;      // What buyers should know
   };
   investmentOutlook: {
     growthForecast: string;

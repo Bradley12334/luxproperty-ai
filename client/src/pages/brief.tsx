@@ -28,6 +28,12 @@ import {
   BookmarkCheck,
   Lock,
   ArrowRight,
+  Trees,
+  UtensilsCrossed,
+  Users,
+  Moon,
+  Lightbulb,
+  Home,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -478,7 +484,9 @@ export default function BriefPage() {
             {/* Neighbourhood Profile */}
             <Card className="p-5 sm:p-6" data-testid="section-neighbourhood">
               <SectionHeading>Neighbourhood Profile</SectionHeading>
-              <div className="space-y-4">
+
+              {/* Ratings strip */}
+              <div className="space-y-3 mb-6 pb-6 border-b border-border/40">
                 {[
                   { icon: GraduationCap, label: "Schools", value: ai.neighbourhoodProfile.schoolsRating },
                   { icon: Train, label: "Transport", value: ai.neighbourhoodProfile.transportRating },
@@ -491,6 +499,28 @@ export default function BriefPage() {
                     <div className="flex-1">
                       <RatingBar value={item.value} />
                     </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Rich descriptions grid */}
+              <div className="grid gap-5 sm:grid-cols-2">
+                {[
+                  { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
+                  { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities },
+                  { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport },
+                  { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace },
+                  { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
+                  { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics },
+                  { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife },
+                  { icon: Lightbulb, label: "Buyer Intelligence", text: ai.neighbourhoodProfile.marketComment },
+                ].map((item) => (
+                  <div key={item.label} className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <item.icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
                   </div>
                 ))}
               </div>
@@ -610,7 +640,7 @@ export default function BriefPage() {
                   <div className="space-y-2">
                     <a href="/#/pricing">
                       <Button className="w-full font-semibold" data-testid="button-paywall-upgrade">
-                        View plans — from £59/month
+                        View plans — from £4.99/month
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </a>
