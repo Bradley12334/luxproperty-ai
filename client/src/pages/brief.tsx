@@ -36,6 +36,7 @@ import {
   Home,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 
 function SkeletonReport() {
   return (
@@ -331,6 +332,8 @@ export default function BriefPage() {
   // Feature 3: Portfolio state
   const [savedToPortfolio, setSavedToPortfolio] = useState(false);
 
+  const { user } = useAuth();
+  const isPaid = user?.plan === "professional" || user?.plan === "investor";
   const { toast } = useToast();
 
   useEffect(() => {
@@ -587,12 +590,11 @@ export default function BriefPage() {
               </>
             )}
 
-            {/* === PAYWALL WRAPPER — Investment Outlook, Verdict, Price Alerts === */}
-            <div className="relative">
-              {/* Blurred content */}
-              <div className="space-y-6 blur-sm opacity-50 select-none pointer-events-none" aria-hidden="true">
-                {/* Investment Outlook */}
-                <Card className="p-5 sm:p-6">
+            {/* === INVESTMENT OUTLOOK + VERDICT — gated for paid plans === */}
+            {isPaid ? (
+              <div className="space-y-6">
+                {/* Investment Outlook — unlocked */}
+                <Card className="p-5 sm:p-6" data-testid="section-investment-outlook">
                   <SectionHeading>Investment Outlook</SectionHeading>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                     <KpiValue label="Growth Forecast" value={ai.investmentOutlook.growthForecast} />
@@ -615,82 +617,112 @@ export default function BriefPage() {
                   )}
                 </Card>
 
-                {/* Verdict */}
-                <Card className="p-5 sm:p-6 border-primary/20">
+                {/* Verdict — unlocked */}
+                <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
                   <SectionHeading>Verdict</SectionHeading>
                   <p className="text-sm leading-relaxed text-foreground/90 italic">
                     {ai.verdict}
                   </p>
                 </Card>
-              </div>
 
-              {/* Paywall overlay */}
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <Card className="max-w-sm w-full mx-4 p-6 text-center shadow-lg border-primary/20 bg-card">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <Lock className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="font-serif text-lg tracking-tight mb-2">
-                    Upgrade to see the full picture
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                    Investment outlook, risk flags, verdict, and PDF export are included in
-                    Professional and Investor plans.
-                  </p>
-                  <div className="space-y-2">
-                    <a href="/#/pricing">
-                      <Button className="w-full font-semibold" data-testid="button-paywall-upgrade">
-                        View plans — from £4.99/month
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </a>
-                    <p className="text-xs text-muted-foreground">
-                      Executive summary, market overview &amp; price trend are always free
-                    </p>
-                  </div>
-                </Card>
+                {/* Price Alerts — investor only */}
+                {user?.plan === "investor" && <PriceAlerts postcode={ai.location} />}
               </div>
-            </div>
+            ) : (
+              /* Paywall — free / not signed in */
+              <div className="relative">
+                {/* Blurred preview */}
+                <div className="space-y-6 blur-sm opacity-50 select-none pointer-events-none" aria-hidden="true">
+                  <Card className="p-5 sm:p-6">
+                    <SectionHeading>Investment Outlook</SectionHeading>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                      <KpiValue label="Growth Forecast" value={ai.investmentOutlook.growthForecast} />
+                      <KpiValue label="Rental Yield" value={ai.investmentOutlook.rentalYieldEstimate} />
+                    </div>
+                    {ai.investmentOutlook.riskFlags.length > 0 && (
+                      <ul className="space-y-1.5">
+                        {ai.investmentOutlook.riskFlags.map((flag, i) => (
+                          <li key={i} className="text-sm text-foreground/80 pl-5">{flag}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                  <Card className="p-5 sm:p-6 border-primary/20">
+                    <SectionHeading>Verdict</SectionHeading>
+                    <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
+                  </Card>
+                </div>
+
+                {/* Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <Card className="max-w-sm w-full mx-4 p-6 text-center shadow-lg border-primary/20 bg-card">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                      <Lock className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-serif text-lg tracking-tight mb-2">
+                      Upgrade to see the full picture
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+                      Investment outlook, risk flags, verdict, and PDF export are included in
+                      Professional and Investor plans.
+                    </p>
+                    <div className="space-y-2">
+                      <a href="/#/pricing">
+                        <Button className="w-full font-semibold" data-testid="button-paywall-upgrade">
+                          View plans — from £4.99/month
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </a>
+                      <p className="text-xs text-muted-foreground">
+                        Executive summary, market overview &amp; price trend are always free
+                      </p>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bottom CTA */}
           <div className="mt-10 pt-8 border-t border-border/40">
-            {/* Feature 1: Custom Report Branding */}
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Custom Report Branding
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="company-name" className="text-xs text-muted-foreground">
-                    Company name <span className="font-normal">(optional)</span>
-                  </Label>
-                  <Input
-                    id="company-name"
-                    type="text"
-                    placeholder="Acme Property Advisors"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="h-8 text-sm"
-                    data-testid="input-company-name"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prepared-by" className="text-xs text-muted-foreground">
-                    Your name <span className="font-normal">(optional)</span>
-                  </Label>
-                  <Input
-                    id="prepared-by"
-                    type="text"
-                    placeholder="Jane Smith"
-                    value={preparedBy}
-                    onChange={(e) => setPreparedBy(e.target.value)}
-                    className="h-8 text-sm"
-                    data-testid="input-prepared-by"
-                  />
+            {/* Custom Report Branding — Investor only */}
+            {user?.plan === "investor" && (
+              <div className="mb-6">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Custom Report Branding
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="company-name" className="text-xs text-muted-foreground">
+                      Company name <span className="font-normal">(optional)</span>
+                    </Label>
+                    <Input
+                      id="company-name"
+                      type="text"
+                      placeholder="Acme Property Advisors"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="h-8 text-sm"
+                      data-testid="input-company-name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prepared-by" className="text-xs text-muted-foreground">
+                      Your name <span className="font-normal">(optional)</span>
+                    </Label>
+                    <Input
+                      id="prepared-by"
+                      type="text"
+                      placeholder="Jane Smith"
+                      value={preparedBy}
+                      onChange={(e) => setPreparedBy(e.target.value)}
+                      className="h-8 text-sm"
+                      data-testid="input-prepared-by"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
@@ -703,31 +735,43 @@ export default function BriefPage() {
                     Generate another brief
                   </Button>
                 </Link>
-                {/* Feature 3: Save to Portfolio button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`gap-1.5 font-semibold ${savedToPortfolio ? "border-amber-600/60 text-amber-700 dark:text-amber-400" : ""}`}
-                  onClick={handleSaveToPortfolio}
-                  disabled={savedToPortfolio}
-                  data-testid="button-save-portfolio"
-                >
-                  {savedToPortfolio ? (
-                    <BookmarkCheck className="h-3.5 w-3.5" />
-                  ) : (
-                    <Bookmark className="h-3.5 w-3.5" />
-                  )}
-                  {savedToPortfolio ? "Saved" : "Save to Portfolio"}
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-1.5 font-semibold"
-                  onClick={() => report && exportToPDF(report, companyName || undefined, preparedBy || undefined)}
-                  data-testid="button-export-pdf"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Export PDF
-                </Button>
+                {/* Save to Portfolio — paid plans only */}
+                {isPaid && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`gap-1.5 font-semibold ${savedToPortfolio ? "border-amber-600/60 text-amber-700 dark:text-amber-400" : ""}`}
+                    onClick={handleSaveToPortfolio}
+                    disabled={savedToPortfolio}
+                    data-testid="button-save-portfolio"
+                  >
+                    {savedToPortfolio ? (
+                      <BookmarkCheck className="h-3.5 w-3.5" />
+                    ) : (
+                      <Bookmark className="h-3.5 w-3.5" />
+                    )}
+                    {savedToPortfolio ? "Saved" : "Save to Portfolio"}
+                  </Button>
+                )}
+                {/* Export PDF — paid plans only */}
+                {isPaid ? (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 font-semibold"
+                    onClick={() => report && exportToPDF(report, companyName || undefined, preparedBy || undefined)}
+                    data-testid="button-export-pdf"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export PDF
+                  </Button>
+                ) : (
+                  <a href="/#/pricing">
+                    <Button size="sm" variant="outline" className="gap-1.5 font-semibold" data-testid="button-export-pdf-locked">
+                      <Lock className="h-3.5 w-3.5" />
+                      Export PDF
+                    </Button>
+                  </a>
+                )}
               </div>
             </div>
           </div>
