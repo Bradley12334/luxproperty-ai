@@ -125,6 +125,14 @@ export async function signUp(
   };
   saveSession(currentUser);
   notify();
+
+  // Send welcome email (fire and forget — don't block sign-up)
+  fetch("/api/send-welcome", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.trim(), email: key }),
+  }).catch(() => {});
+
   return { ok: true };
 }
 
