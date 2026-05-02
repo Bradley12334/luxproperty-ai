@@ -308,6 +308,32 @@ async function fetchSoldPricesWithCoords(district: string, outcode: string): Pro
   } catch { return []; }
 }
 
+
+// ─── Live EPC Data (via /api/epc serverless proxy) ───────────────────────────
+async function fetchEpcData(outcode: string): Promise<{
+  mostCommonRating: string;
+  avgEfficiencyScore: number | null;
+  pctRatedCOrAbove: number | null;
+  mostCommonPropertyType: string;
+  mostCommonConstructionEra: string;
+  totalRecords: number;
+} | null> {
+  try {
+    const res = await fetch(`/api/epc?postcode=${encodeURIComponent(outcode)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.totalRecords || data.totalRecords === 0) return null;
+    return {
+      mostCommonRating: data.mostCommonRating || "D",
+      avgEfficiencyScore: data.avgEfficiencyScore ?? null,
+      pctRatedCOrAbove: data.pctRatedCOrAbove ?? null,
+      mostCommonPropertyType: data.mostCommonPropertyType || "Flat",
+      mostCommonConstructionEra: data.mostCommonConstructionEra || "",
+      totalRecords: data.totalRecords,
+    };
+  } catch { return null; }
+}
+
 // ─── Median helper ────────────────────────────────────────────────────────────
 function median(prices: number[]): number {
   if (prices.length < 5) return 0; // need at least 5 for reliability
@@ -349,6 +375,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   let recentTxns: Array<{ address: string; price: number; date: string; type: string }> = [];
   let liveSoldPrices: Array<{ address: string; price: string; date: string; type: string; lat: number; lng: number }> = [];
   let liveFloodRisk: Awaited<ReturnType<typeof fetchFloodRisk>> = null;
+  let liveEpc: Awaited<ReturnType<typeof fetchEpcData>> = null;
 
   if (!outsideEnglandWales && district) {
     [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
@@ -363,10 +390,11 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ]) as any;
   }
 
-  // Fetch live flood risk using lat/lng from postcode meta
-  if (meta?.lat && meta?.lng) {
-    liveFloodRisk = await fetchFloodRisk(meta.lat, meta.lng);
-  }
+  // Fetch live flood risk + EPC data in parallel
+  [liveFloodRisk, liveEpc] = await Promise.all([
+    (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
+    fetchEpcData(outcode),
+  ]);
 
   const yearMedians = yearData.map(median);
   const latestMedian = [...yearMedians].reverse().find(p => p > 0) || 0;
@@ -997,7 +1025,9 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       no2Level: isLondon ? "30–40 µg/m³ (est.)" : "15–25 µg/m³ (est.)",
       pm25Level: isLondon ? "12–16 µg/m³ (est.)" : "8–12 µg/m³ (est.)",
       rating: isLondon ? "Moderate" as const : "Good" as const,
-      note: `Air quality data for ${areaName} is estimated based on urban density. Check DEFRA's UK-AIR portal (uk-air.defra.gov.uk) for measured readings from the nearest monitoring station.`,
+      note: liveEpc
+        ? `Air quality data is estimated. EPC data for ${areaName} (${liveEpc.totalRecords} certificates): most common energy rating ${liveEpc.mostCommonRating}${liveEpc.avgEfficiencyScore ? ` (avg efficiency score ${liveEpc.avgEfficiencyScore}/100)` : ""}${liveEpc.pctRatedCOrAbove !== null ? `, ${liveEpc.pctRatedCOrAbove}% rated C or above` : ""}. ${liveEpc.mostCommonConstructionEra ? `Most common construction era: ${liveEpc.mostCommonConstructionEra}.` : ""} Source: EPC Register (epc.opendatacommunities.org).`
+        : `Air quality data for ${areaName} is estimated based on urban density. Check DEFRA's UK-AIR portal (uk-air.defra.gov.uk) for measured readings from the nearest monitoring station.`,
     },
     rentalDemand: enrichmentProfile?.rentalDemand ?? {
       avgDaysToLet: tier === "prime" ? 14 : tier === "premium" ? 21 : 28,
