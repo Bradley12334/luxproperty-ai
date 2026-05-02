@@ -49,16 +49,32 @@ interface FeatureRow {
 }
 
 const features: FeatureRow[] = [
+  // ── Core ──────────────────────────────────────────────────────────────────
   { feature: "Monthly briefs", explorer: "3", professional: "Unlimited", investor: "Unlimited" },
   { feature: "Area intelligence reports", explorer: true, professional: true, investor: true },
   { feature: "Market overview data", explorer: true, professional: true, investor: true },
   { feature: "Neighbourhood profile", explorer: true, professional: true, investor: true },
+  { feature: "What residents say", explorer: true, professional: true, investor: true },
   { feature: "Price trend analysis", explorer: "1 year", professional: "5 years", investor: "10 years" },
+  // ── Free enrichment ───────────────────────────────────────────────────────
+  { feature: "Flood & climate risk", explorer: true, professional: true, investor: true },
+  { feature: "Council tax data", explorer: true, professional: true, investor: true },
+  { feature: "Property type split", explorer: true, professional: true, investor: true },
+  { feature: "Commute calculator", explorer: true, professional: true, investor: true },
+  // ── Professional ──────────────────────────────────────────────────────────
   { feature: "Property deep dive", explorer: false, professional: true, investor: true },
   { feature: "Valuation assessment", explorer: false, professional: true, investor: true },
   { feature: "Comparable sales data", explorer: false, professional: true, investor: true },
   { feature: "Negotiation brief", explorer: false, professional: true, investor: true },
+  { feature: "Planning activity", explorer: false, professional: true, investor: true },
+  { feature: "Rental market snapshot", explorer: false, professional: true, investor: true },
+  { feature: "Broadband & infrastructure", explorer: false, professional: true, investor: true },
+  { feature: "Air quality index", explorer: false, professional: true, investor: true },
   { feature: "Export to PDF", explorer: false, professional: true, investor: true },
+  // ── Investor ──────────────────────────────────────────────────────────────
+  { feature: "Rental demand score", explorer: false, professional: false, investor: true },
+  { feature: "Development tracker", explorer: false, professional: false, investor: true },
+  { feature: "Sold prices map", explorer: false, professional: false, investor: true },
   { feature: "Portfolio dashboard", explorer: false, professional: false, investor: true },
   { feature: "Automated price alerts", explorer: false, professional: false, investor: true },
   { feature: "API access", explorer: false, professional: false, investor: true },
