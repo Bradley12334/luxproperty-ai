@@ -1,4 +1,5 @@
 import type { BriefReport, AreaIntelligence, PropertyDeepDive } from "../../../shared/schema";
+import { enrichmentProfiles } from "./enrichment_data";
 
 let briefIdCounter = 1;
 const briefStore: Record<number, BriefReport> = {};
@@ -649,6 +650,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   // Lookup postcode-specific profile — exact outcode match preferred
   const specificProfile = postcodeProfiles[outcode] || null;
+  const enrichmentProfile = enrichmentProfiles[outcode] || null;
 
   // Numeric ratings — use specific profile or fall back to tier/region-based
   const schoolsRating = specificProfile?.schoolsRating ?? (isLondon ? 8.4 : region.includes("South East") ? 8.1 : 7.8);
@@ -805,6 +807,69 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       : outsideEnglandWales
         ? `${areaName} is outside England and Wales. HM Land Registry data does not apply. Engage a local solicitor and RICS-accredited surveyor familiar with ${country} conveyancing law.`
         : `${areaName} is an established residential area. Low transaction volume limits statistical confidence — supplement this report with local agent intelligence and Rightmove sold prices before committing.`,
+
+    // ── Enrichment Data ─────────────────────────────────────────────────────
+    floodRisk: enrichmentProfile?.floodRisk ?? {
+      zone: isLondon ? "Zone 1 (Low)" : "Zone 1 (Low)",
+      surfaceWater: "Low",
+      riskBadge: "Low" as const,
+      detail: `Flood risk data is not yet available for ${areaName}. Check the Environment Agency flood map at flood-map-for-planning.service.gov.uk for property-level risk, or SEPA maps (sepa.org.uk) if in Scotland.`,
+    },
+    councilTax: enrichmentProfile?.councilTax ?? {
+      mostCommonBand: tier === "prime" ? "Band G" : tier === "premium" ? "Band F" : "Band D",
+      annualCost: tier === "prime" ? "£2,400–£3,000/yr (estimate)" : tier === "premium" ? "£1,800–£2,200/yr (estimate)" : "£1,400–£1,800/yr (estimate)",
+      borough: areaName,
+      note: `Exact council tax band depends on the individual property's valuation band and the local authority rate. Check gov.uk/council-tax-bands for the precise figure for any specific address.`,
+    },
+    propertyTypeSplit: enrichmentProfile?.propertyTypeSplit ?? {
+      flats: isLondon ? 62 : 48,
+      terraced: isLondon ? 22 : 28,
+      semiDetached: isLondon ? 10 : 16,
+      detached: isLondon ? 4 : 6,
+      other: 2,
+      dominantType: `Property type split data is not yet available for ${areaName}. Check Rightmove or Zoopla for the local stock breakdown.`,
+    },
+    commuteTable: enrichmentProfile?.commuteTable ?? [
+      { destination: "City / Town Centre", time: "Varies by address", mode: "Road / Rail", via: "Check Google Maps or Trainline for exact journey times from your target address" },
+    ],
+    planningActivity: enrichmentProfile?.planningActivity ?? {
+      recentApplications: 0,
+      majorDevelopments: `Detailed planning data for ${areaName} is not yet available. Check the local council planning portal for recent applications in this postcode.`,
+      councilPortalUrl: `https://www.google.com/search?q=${encodeURIComponent(areaName + " council planning applications portal")}`,
+      note: "Monitor the local planning portal regularly — major nearby developments can significantly affect property values.",
+    },
+    rentalMarket: enrichmentProfile?.rentalMarket ?? {
+      oneBedAskingRent: tier === "prime" ? "£2,500–£4,000+ pcm" : tier === "premium" ? "£1,500–£2,500 pcm" : "£900–£1,500 pcm",
+      twoBedAskingRent: tier === "prime" ? "£4,000–£7,000+ pcm" : tier === "premium" ? "£2,200–£3,500 pcm" : "£1,200–£2,000 pcm",
+      threeBedAskingRent: tier === "prime" ? "£6,000–£12,000+ pcm" : tier === "premium" ? "£3,000–£5,000 pcm" : "£1,500–£2,800 pcm",
+      oneBedYield: tier === "prime" ? "2.8–3.5%" : tier === "premium" ? "3.5–4.5%" : "4.5–6.5%",
+      twoBedYield: tier === "prime" ? "2.5–3.2%" : tier === "premium" ? "3.2–4.2%" : "4.2–6.0%",
+      demandLevel: tier === "prime" ? "Very High" : tier === "premium" ? "High" : "Moderate",
+      note: `Rental market estimates for ${areaName} are based on comparable postcode tier data. Check Rightmove and Zoopla rental listings for current asking rents in this specific area.`,
+    },
+    broadband: enrichmentProfile?.broadband ?? {
+      avgDownloadSpeed: "Unknown — check Ofcom",
+      fullFibreAvailability: "Unknown",
+      rating: "Good" as const,
+      providers: "Openreach, Virgin Media (check availability at address level)",
+      note: `Check broadband availability at your specific address via Ofcom's broadband checker (ofcom.org.uk/phones-and-broadband/advice/broadband-checker) before committing.`,
+    },
+    airQuality: enrichmentProfile?.airQuality ?? {
+      no2Level: isLondon ? "30–40 µg/m³ (est.)" : "15–25 µg/m³ (est.)",
+      pm25Level: isLondon ? "12–16 µg/m³ (est.)" : "8–12 µg/m³ (est.)",
+      rating: isLondon ? "Moderate" as const : "Good" as const,
+      note: `Air quality data for ${areaName} is estimated based on urban density. Check DEFRA's UK-AIR portal (uk-air.defra.gov.uk) for measured readings from the nearest monitoring station.`,
+    },
+    rentalDemand: enrichmentProfile?.rentalDemand ?? {
+      avgDaysToLet: tier === "prime" ? 14 : tier === "premium" ? 21 : 28,
+      vsNationalAvg: tier === "prime" ? "3× faster than national average (42 days)" : tier === "premium" ? "2× faster than national average (42 days)" : "Broadly in line with national average (42 days)",
+      score: tier === "prime" ? 8 : tier === "premium" ? 7 : 6,
+      note: `Rental demand score is estimated based on area tier and market conditions. Specific days-to-let data for ${areaName} is not yet in our database.`,
+    },
+    nearbyDevelopments: enrichmentProfile?.nearbyDevelopments ?? [
+      { name: "Data not yet available", type: "—", status: "—", impact: "Neutral" as const, detail: `Check ${areaName}'s local council planning portal for major consented developments within 1km of your target property.` },
+    ],
+    recentSoldPrices: enrichmentProfile?.recentSoldPrices ?? [],
   };
 
   let propertyDeepDive: PropertyDeepDive | undefined;

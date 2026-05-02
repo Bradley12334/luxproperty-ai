@@ -61,6 +61,105 @@ export interface AreaIntelligence {
     riskFlags: string[];
   };
   verdict: string;
+
+  // ── Enrichment Data (Phase 2) ─────────────────────────────────────────────
+
+  /** Flood & Climate Risk — EA flood zone + surface water */
+  floodRisk: {
+    zone: string;           // "Zone 1 (Low)", "Zone 2 (Medium)", "Zone 3 (High)"
+    surfaceWater: string;   // "Low", "Medium", "High"
+    riskBadge: "Low" | "Medium" | "High";
+    detail: string;         // 1–2 sentence description
+  };
+
+  /** Council Tax — most common band + annual cost */
+  councilTax: {
+    mostCommonBand: string; // "Band D"
+    annualCost: string;     // "£1,842"
+    borough: string;        // "Royal Borough of Kensington & Chelsea"
+    note: string;           // Context sentence
+  };
+
+  /** Property Type Split — % breakdown */
+  propertyTypeSplit: {
+    flats: number;
+    terraced: number;
+    semiDetached: number;
+    detached: number;
+    other: number;
+    dominantType: string;   // "Flats dominate at 71%"
+  };
+
+  /** Commute Calculator — key destinations */
+  commuteTable: Array<{
+    destination: string;
+    time: string;
+    mode: string;
+    via: string;
+  }>;
+
+  /** Planning Activity — Professional+ */
+  planningActivity: {
+    recentApplications: number; // last 12 months
+    majorDevelopments: string;  // Notable schemes
+    councilPortalUrl: string;
+    note: string;
+  };
+
+  /** Rental Market Snapshot — Professional+ */
+  rentalMarket: {
+    oneBedAskingRent: string;   // "£1,850 pcm"
+    twoBedAskingRent: string;   // "£2,600 pcm"
+    threeBedAskingRent: string;
+    oneBedYield: string;        // "3.8%"
+    twoBedYield: string;
+    demandLevel: string;        // "Very High", "High", "Moderate"
+    note: string;
+  };
+
+  /** Broadband & Infrastructure — Professional+ */
+  broadband: {
+    avgDownloadSpeed: string;   // "220 Mbps"
+    fullFibreAvailability: string; // "89%"
+    rating: "Excellent" | "Good" | "Fair" | "Poor";
+    providers: string;          // "Openreach, Virgin Media, Hyperoptic"
+    note: string;
+  };
+
+  /** Air Quality — Professional+ */
+  airQuality: {
+    no2Level: string;           // "28 µg/m³"
+    pm25Level: string;          // "12 µg/m³"
+    rating: "Good" | "Moderate" | "Poor" | "Very Poor";
+    note: string;
+  };
+
+  /** Rental Demand Score — Investor */
+  rentalDemand: {
+    avgDaysToLet: number;
+    vsNationalAvg: string;      // "4x faster than national average"
+    score: number;              // 1–10
+    note: string;
+  };
+
+  /** Nearby Development Tracker — Investor */
+  nearbyDevelopments: Array<{
+    name: string;
+    type: string;               // "Residential", "Transport", "Commercial", "Mixed-use"
+    status: string;             // "Under construction", "Planning approved", "Proposed"
+    impact: "Positive" | "Neutral" | "Monitor";
+    detail: string;
+  }>;
+
+  /** Sold Prices Map data — Investor */
+  recentSoldPrices: Array<{
+    address: string;
+    price: string;
+    date: string;
+    type: string;
+    lat: number;
+    lng: number;
+  }>;
 }
 
 export interface PropertyDeepDive {
