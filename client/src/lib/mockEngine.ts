@@ -177,6 +177,137 @@ async function fetchRecentTransactions(district: string, outcode: string): Promi
   } catch { return []; }
 }
 
+
+// ─── Live Flood Risk (Environment Agency) ────────────────────────────────────
+async function fetchFloodRisk(lat: number, lng: number): Promise<{
+  zone: string; surfaceWater: string; riskBadge: "Low" | "Medium" | "High" | "Very High"; detail: string;
+} | null> {
+  try {
+    const url = `https://environment.data.gov.uk/flood-monitoring/id/floodAreas?lat=${lat}&long=${lng}&dist=1.5`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const areas: any[] = data?.items || [];
+    const count = areas.length;
+
+    // Also check for active warnings
+    const warnUrl = `https://environment.data.gov.uk/flood-monitoring/id/floods?lat=${lat}&long=${lng}&dist=2`;
+    const warnRes = await fetch(warnUrl);
+    const warnData = warnRes.ok ? await warnRes.json() : { items: [] };
+    const activeWarnings: any[] = warnData?.items || [];
+    const hasActiveWarning = activeWarnings.some((w: any) => w.severityLevel <= 2);
+    const hasSevereWarning = activeWarnings.some((w: any) => w.severityLevel === 1);
+
+    let zone: string;
+    let riskBadge: "Low" | "Medium" | "High" | "Very High";
+    let surfaceWater: string;
+
+    if (hasSevereWarning) {
+      zone = "Flood Warning Area (Active)";
+      riskBadge = "Very High";
+      surfaceWater = "High";
+    } else if (hasActiveWarning) {
+      zone = "Flood Alert Area (Active)";
+      riskBadge = "High";
+      surfaceWater = "High";
+    } else if (count >= 4) {
+      zone = "Zone 3 (High Probability)";
+      riskBadge = "High";
+      surfaceWater = "Medium";
+    } else if (count >= 2) {
+      zone = "Zone 2 (Medium Probability)";
+      riskBadge = "Medium";
+      surfaceWater = "Low";
+    } else if (count === 1) {
+      zone = "Zone 2 (Low-Medium)";
+      riskBadge = "Low";
+      surfaceWater = "Low";
+    } else {
+      zone = "Zone 1 (Low Probability)";
+      riskBadge = "Low";
+      surfaceWater = "Low";
+    }
+
+    const riverNames = [...new Set(areas.slice(0, 3).map((a: any) => a.riverOrSea).filter(Boolean))];
+    const detail = count > 0
+      ? `${count} Environment Agency flood area${count > 1 ? "s" : ""} identified within 1.5km. ${riverNames.length > 0 ? `Watercourses: ${riverNames.join(", ")}.` : ""} ${hasActiveWarning ? "Active flood alert in effect — check gov.uk/check-flood-risk." : "No active warnings at time of report. Always verify at flood-map-for-planning.service.gov.uk."}`
+      : `No Environment Agency flood areas identified within 1.5km. Low flood probability at area level — verify at flood-map-for-planning.service.gov.uk for property-specific risk.`;
+
+    return { zone, surfaceWater, riskBadge, detail };
+  } catch { return null; }
+}
+
+// ─── Live Sold Prices with Geocoding (Land Registry + postcodes.io) ───────────
+async function fetchSoldPricesWithCoords(district: string, outcode: string): Promise<Array<{
+  address: string; price: string; date: string; type: string; lat: number; lng: number;
+}>> {
+  if (!district) return [];
+  try {
+    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=50&propertyAddress.district=${encodeURIComponent(district)}&_sort=-transactionDate`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items: any[] = data?.result?.items || [];
+
+    const filtered = items.filter((item: any) =>
+      (item?.propertyAddress?.postcode || "").startsWith(outcode)
+    );
+    const used = (filtered.length >= 4 ? filtered : items).slice(0, 12);
+
+    // Collect unique postcodes for batch geocoding
+    const postcodes = [...new Set(used.map((item: any) => item?.propertyAddress?.postcode).filter(Boolean))] as string[];
+
+    let coordsMap: Record<string, { lat: number; lng: number }> = {};
+    if (postcodes.length > 0) {
+      try {
+        const geoRes = await fetch("https://api.postcodes.io/postcodes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postcodes: postcodes.slice(0, 100) }),
+        });
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          for (const r of geoData?.result || []) {
+            if (r?.result?.latitude && r?.result?.longitude) {
+              // Jitter slightly so pins don't stack perfectly on same postcode
+              coordsMap[r.query] = {
+                lat: r.result.latitude + (Math.random() - 0.5) * 0.002,
+                lng: r.result.longitude + (Math.random() - 0.5) * 0.002,
+              };
+            }
+          }
+        }
+      } catch {}
+    }
+
+    const fmt2 = (n: number) => "£" + n.toLocaleString("en-GB");
+    const fmtDate = (d: string) => {
+      if (!d) return "";
+      const dt = new Date(d);
+      return dt.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+    };
+
+    const results: Array<{ address: string; price: string; date: string; type: string; lat: number; lng: number }> = [];
+    for (const item of used) {
+      const addr = item.propertyAddress || {};
+      const pc = addr.postcode || "";
+      const coords = coordsMap[pc];
+      if (!coords) continue; // skip if no coords — map pins need lat/lng
+      const parts = [addr.saon, addr.paon, addr.street].filter(Boolean);
+      const propType = item.propertyType?.prefLabel?.[0]?._value || "Property";
+      results.push({
+        address: parts.join(", ") || pc || "Address withheld",
+        price: fmt2(item.pricePaid),
+        date: fmtDate(item.transactionDate || ""),
+        type: propType.charAt(0).toUpperCase() + propType.slice(1).toLowerCase(),
+        lat: coords.lat,
+        lng: coords.lng,
+      });
+    }
+    return results;
+  } catch { return []; }
+}
+
 // ─── Median helper ────────────────────────────────────────────────────────────
 function median(prices: number[]): number {
   if (prices.length < 5) return 0; // need at least 5 for reliability
@@ -216,9 +347,11 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   let yearData: number[][] = [[], [], [], [], []];
   let recentTxns: Array<{ address: string; price: number; date: string; type: string }> = [];
+  let liveSoldPrices: Array<{ address: string; price: string; date: string; type: string; lat: number; lng: number }> = [];
+  let liveFloodRisk: Awaited<ReturnType<typeof fetchFloodRisk>> = null;
 
   if (!outsideEnglandWales && district) {
-    [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns] =
+    [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
       await Promise.all([
         fetchLandRegistryYear(district, years[0]),
         fetchLandRegistryYear(district, years[1]),
@@ -226,7 +359,13 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         fetchLandRegistryYear(district, years[3]),
         fetchLandRegistryYear(district, years[4]),
         fetchRecentTransactions(district, outcode),
+        fetchSoldPricesWithCoords(district, outcode),
       ]) as any;
+  }
+
+  // Fetch live flood risk using lat/lng from postcode meta
+  if (meta?.lat && meta?.lng) {
+    liveFloodRisk = await fetchFloodRisk(meta.lat, meta.lng);
   }
 
   const yearMedians = yearData.map(median);
@@ -809,7 +948,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         : `${areaName} is an established residential area. Low transaction volume limits statistical confidence — supplement this report with local agent intelligence and Rightmove sold prices before committing.`,
 
     // ── Enrichment Data ─────────────────────────────────────────────────────
-    floodRisk: enrichmentProfile?.floodRisk ?? {
+    floodRisk: liveFloodRisk ?? enrichmentProfile?.floodRisk ?? {
       zone: isLondon ? "Zone 1 (Low)" : "Zone 1 (Low)",
       surfaceWater: "Low",
       riskBadge: "Low" as const,
@@ -869,7 +1008,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     nearbyDevelopments: enrichmentProfile?.nearbyDevelopments ?? [
       { name: "Data not yet available", type: "—", status: "—", impact: "Neutral" as const, detail: `Check ${areaName}'s local council planning portal for major consented developments within 1km of your target property.` },
     ],
-    recentSoldPrices: enrichmentProfile?.recentSoldPrices ?? [],
+    recentSoldPrices: liveSoldPrices.length > 0 ? liveSoldPrices : (enrichmentProfile?.recentSoldPrices ?? []),
   };
 
   let propertyDeepDive: PropertyDeepDive | undefined;
