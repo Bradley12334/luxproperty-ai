@@ -26,7 +26,7 @@ const tiers = [
     style: "professional",
     cta: "Start Professional",
     ctaVariant: "default" as const,
-    stripeUrl: "https://buy.stripe.com/test_4gM5kw7tS0sv0Kq4Fd1gs02",
+    stripeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00",
   },
   {
     name: "Investor",
@@ -37,7 +37,7 @@ const tiers = [
     style: "investor",
     cta: "Start Investor",
     ctaVariant: "default" as const,
-    stripeUrl: "https://buy.stripe.com/test_28EbIU8xWfnp0Kq6Nl1gs03",
+    stripeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
   },
 ];
 
