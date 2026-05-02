@@ -77,7 +77,7 @@ const features: FeatureRow[] = [
   { feature: "Sold prices map", explorer: false, professional: false, investor: true },
   { feature: "Portfolio dashboard", explorer: false, professional: false, investor: true },
   { feature: "Automated price alerts", explorer: false, professional: false, investor: true },
-  { feature: "API access", explorer: false, professional: false, investor: true },
+  { feature: "API access", explorer: false, professional: false, investor: "Coming Soon" },
   { feature: "Custom report branding", explorer: false, professional: false, investor: true },
   { feature: "Priority support", explorer: false, professional: false, investor: true },
   { feature: "Dedicated account manager", explorer: false, professional: false, investor: true },
