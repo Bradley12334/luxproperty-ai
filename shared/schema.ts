@@ -53,6 +53,7 @@ export interface AreaIntelligence {
     demographics: string;       // Who lives here
     nightlife: string;          // Evening / social scene
     marketComment: string;      // What buyers should know
+    residentSentiment: string;  // What residents & buyers say
   };
   investmentOutlook: {
     growthForecast: string;

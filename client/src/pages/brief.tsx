@@ -35,6 +35,7 @@ import {
   Lightbulb,
   Home,
   ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
@@ -560,6 +561,7 @@ export default function BriefPage() {
                   { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics },
                   { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife },
                   { icon: Lightbulb, label: "Buyer Intelligence", text: ai.neighbourhoodProfile.marketComment },
+                  { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment },
                 ].map((item) => (
                   <div key={item.label} className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-1.5">
