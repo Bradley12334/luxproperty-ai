@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { signIn, signUp } from "@/lib/authStore";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, User, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, User, Mail, Lock, Loader2 } from "lucide-react";
 
 interface AuthModalProps {
   open: boolean;
@@ -21,10 +21,33 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const { toast } = useToast();
 
   function reset() {
     setName(""); setEmail(""); setPassword(""); setError(""); setShowPassword(false);
+    setForgotMode(false); setForgotEmail(""); setForgotSent(false);
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotLoading(true);
+    try {
+      await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+      setForgotSent(true);
+    } catch {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setForgotLoading(false);
+    }
   }
 
   function switchTab(t: "signin" | "signup") {
@@ -91,6 +114,46 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
           ))}
         </div>
 
+        {/* Forgot password mode */}
+        {forgotMode ? (
+          <div className="mt-2">
+            {forgotSent ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  If an account exists for that email, we've sent a reset link. Check your inbox.
+                </p>
+                <Button size="sm" variant="outline" onClick={() => { setForgotMode(false); setForgotSent(false); }}>
+                  Back to sign in
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <p className="text-sm text-muted-foreground">Enter your email and we'll send you a reset link.</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="forgot-email" className="text-xs text-muted-foreground">Email address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="pl-9"
+                      data-testid="input-forgot-email"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full font-semibold" disabled={forgotLoading || !forgotEmail.trim()} data-testid="button-send-reset">
+                  {forgotLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sending…</> : "Send Reset Link"}
+                </Button>
+                <button type="button" onClick={() => setForgotMode(false)} className="w-full text-xs text-muted-foreground hover:text-foreground text-center">
+                  Back to sign in
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {tab === "signup" && (
             <div className="space-y-1.5">
@@ -178,6 +241,17 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
               : "Create Account"}
           </Button>
 
+          {tab === "signin" && (
+            <button
+              type="button"
+              onClick={() => setForgotMode(true)}
+              className="w-full text-xs text-muted-foreground hover:text-foreground text-center"
+              data-testid="button-forgot-password"
+            >
+              Forgot your password?
+            </button>
+          )}
+
           {tab === "signup" && (
             <p className="text-xs text-muted-foreground text-center leading-relaxed">
               By creating an account you agree to our{" "}
@@ -192,6 +266,7 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
             </p>
           )}
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

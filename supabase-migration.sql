@@ -29,6 +29,18 @@ alter table public.saved_briefs disable row level security;
 -- Index for fast user lookups
 create index if not exists saved_briefs_user_id_idx on public.saved_briefs(user_id);
 
+-- ─── Password reset tokens ──────────────────────────────────────────────────
+create table if not exists public.password_reset_tokens (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.users(id) on delete cascade,
+  token      text not null unique,
+  expires_at timestamptz not null,
+  used       boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table public.password_reset_tokens disable row level security;
+
 -- ─── Seed Bradley's admin account ────────────────────────────────────────────
 insert into public.users (email, name, password_hash, plan)
 values ('bradleyskana@hotmail.com', 'Bradley Skana', 'lux2026!', 'investor')

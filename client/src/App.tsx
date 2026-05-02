@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CookieBanner } from "@/components/cookie-banner";
 import NotFound from "@/pages/not-found";
+import ResetPasswordPage from "@/pages/reset-password";
 import Home from "@/pages/home";
 import BriefPage from "@/pages/brief";
 import PricingPage from "@/pages/pricing";
@@ -29,6 +30,7 @@ function AppRouter() {
       <Route path="/terms" component={TermsPage} />
       <Route path="/account" component={AccountPage} />
       <Route path="/area/:postcode" component={AreaPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route component={NotFound} />
     </Switch>
   );
