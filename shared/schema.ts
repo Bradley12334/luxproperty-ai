@@ -102,6 +102,7 @@ export interface AreaIntelligence {
   planningActivity: {
     recentApplications: number; // last 12 months
     majorDevelopments: string;  // Notable schemes
+    developments?: Array<{ name: string; type: string; status: string; impact: string; detail: string }>;
     councilPortalUrl: string;
     note: string;
   };
