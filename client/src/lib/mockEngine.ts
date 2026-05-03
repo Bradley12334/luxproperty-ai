@@ -334,6 +334,41 @@ async function fetchEpcData(outcode: string): Promise<{
   } catch { return null; }
 }
 
+
+// ─── Live Air Quality (DEFRA ERG via /api/air-quality) ───────────────────────
+async function fetchAirQuality(lat: number, lng: number): Promise<{
+  siteName: string; localAuthority: string; no2Level: string; pm25Level: string;
+  rating: "Good" | "Moderate" | "High" | "Very High"; maxIndex: number;
+} | null> {
+  try {
+    const res = await fetch(`/api/air-quality?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return {
+      siteName: data.siteName,
+      localAuthority: data.localAuthority,
+      no2Level: data.no2Level,
+      pm25Level: data.pm25Level,
+      rating: data.rating as "Good" | "Moderate" | "High" | "Very High",
+      maxIndex: data.maxIndex,
+    };
+  } catch { return null; }
+}
+
+// ─── Live TfL Commute Times (via /api/tfl-commute) ───────────────────────────
+async function fetchTflCommute(lat: number, lng: number): Promise<Array<{
+  destination: string; durationMins: number; modes: string[];
+}> | null> {
+  try {
+    const res = await fetch(`/api/tfl-commute?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error || !data.results?.length) return null;
+    return data.results;
+  } catch { return null; }
+}
+
 // ─── Median helper ────────────────────────────────────────────────────────────
 function median(prices: number[]): number {
   if (prices.length < 5) return 0; // need at least 5 for reliability
@@ -376,6 +411,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   let liveSoldPrices: Array<{ address: string; price: string; date: string; type: string; lat: number; lng: number }> = [];
   let liveFloodRisk: Awaited<ReturnType<typeof fetchFloodRisk>> = null;
   let liveEpc: Awaited<ReturnType<typeof fetchEpcData>> = null;
+  let liveAirQuality: Awaited<ReturnType<typeof fetchAirQuality>> = null;
+  let liveTflCommute: Awaited<ReturnType<typeof fetchTflCommute>> = null;
 
   if (!outsideEnglandWales && district) {
     [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
@@ -390,10 +427,12 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ]) as any;
   }
 
-  // Fetch live flood risk + EPC data in parallel
-  [liveFloodRisk, liveEpc] = await Promise.all([
+  // Fetch live flood risk + EPC + air quality + TfL in parallel
+  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute] = await Promise.all([
     (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
     fetchEpcData(outcode),
+    (meta?.lat && meta?.lng && isLondon) ? fetchAirQuality(meta.lat, meta.lng) : Promise.resolve(null),
+    (meta?.lat && meta?.lng && isLondon) ? fetchTflCommute(meta.lat, meta.lng) : Promise.resolve(null),
   ]);
 
   const yearMedians = yearData.map(median);
@@ -996,9 +1035,19 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       other: 2,
       dominantType: `Property type split data is not yet available for ${areaName}. Check Rightmove or Zoopla for the local stock breakdown.`,
     },
-    commuteTable: enrichmentProfile?.commuteTable ?? [
-      { destination: "City / Town Centre", time: "Varies by address", mode: "Road / Rail", via: "Check Google Maps or Trainline for exact journey times from your target address" },
-    ],
+    commuteTable: (() => {
+      if (liveTflCommute && liveTflCommute.length > 0) {
+        return liveTflCommute.map(j => ({
+          destination: j.destination,
+          time: `${j.durationMins} mins`,
+          mode: j.modes.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(" + ") || "Public Transport",
+          via: `Live TfL journey time from ${areaName} postcode centre. Actual times vary by exact address and departure time.`,
+        }));
+      }
+      return enrichmentProfile?.commuteTable ?? [
+        { destination: "City / Town Centre", time: "Varies by address", mode: "Road / Rail", via: "Check Google Maps or Trainline for exact journey times from your target address" },
+      ];
+    })(),
     planningActivity: enrichmentProfile?.planningActivity ?? {
       recentApplications: 0,
       majorDevelopments: `Detailed planning data for ${areaName} is not yet available. Check the local council planning portal for recent applications in this postcode.`,
@@ -1021,14 +1070,25 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       providers: "Openreach, Virgin Media (check availability at address level)",
       note: `Check broadband availability at your specific address via Ofcom's broadband checker (ofcom.org.uk/phones-and-broadband/advice/broadband-checker) before committing.`,
     },
-    airQuality: enrichmentProfile?.airQuality ?? {
-      no2Level: isLondon ? "30–40 µg/m³ (est.)" : "15–25 µg/m³ (est.)",
-      pm25Level: isLondon ? "12–16 µg/m³ (est.)" : "8–12 µg/m³ (est.)",
-      rating: isLondon ? "Moderate" as const : "Good" as const,
-      note: liveEpc
-        ? `Air quality data is estimated. EPC data for ${areaName} (${liveEpc.totalRecords} certificates): most common energy rating ${liveEpc.mostCommonRating}${liveEpc.avgEfficiencyScore ? ` (avg efficiency score ${liveEpc.avgEfficiencyScore}/100)` : ""}${liveEpc.pctRatedCOrAbove !== null ? `, ${liveEpc.pctRatedCOrAbove}% rated C or above` : ""}. ${liveEpc.mostCommonConstructionEra ? `Most common construction era: ${liveEpc.mostCommonConstructionEra}.` : ""} Source: EPC Register (epc.opendatacommunities.org).`
-        : `Air quality data for ${areaName} is estimated based on urban density. Check DEFRA's UK-AIR portal (uk-air.defra.gov.uk) for measured readings from the nearest monitoring station.`,
-    },
+    airQuality: (() => {
+      const epcNote = liveEpc
+        ? ` | EPC data (${liveEpc.totalRecords} certificates): most common rating ${liveEpc.mostCommonRating}${liveEpc.avgEfficiencyScore ? `, avg efficiency ${liveEpc.avgEfficiencyScore}/100` : ""}${liveEpc.pctRatedCOrAbove !== null ? `, ${liveEpc.pctRatedCOrAbove}% rated C or above` : ""}${liveEpc.mostCommonConstructionEra ? `. Most common era: ${liveEpc.mostCommonConstructionEra}` : ""}.`
+        : "";
+      if (liveAirQuality) {
+        return {
+          no2Level: liveAirQuality.no2Level,
+          pm25Level: liveAirQuality.pm25Level,
+          rating: liveAirQuality.rating,
+          note: `Live DEFRA readings from ${liveAirQuality.siteName} (${liveAirQuality.localAuthority}). AQI index: ${liveAirQuality.maxIndex}/10. Source: uk-air.defra.gov.uk.${epcNote}`,
+        };
+      }
+      return enrichmentProfile?.airQuality ?? {
+        no2Level: isLondon ? "30–40 µg/m³ (est.)" : "15–25 µg/m³ (est.)",
+        pm25Level: isLondon ? "12–16 µg/m³ (est.)" : "8–12 µg/m³ (est.)",
+        rating: isLondon ? "Moderate" as const : "Good" as const,
+        note: `Air quality data for ${areaName} is estimated based on urban density.${epcNote} Check DEFRA's UK-AIR portal (uk-air.defra.gov.uk) for measured readings.`,
+      };
+    })(),
     rentalDemand: enrichmentProfile?.rentalDemand ?? {
       avgDaysToLet: tier === "prime" ? 14 : tier === "premium" ? 21 : 28,
       vsNationalAvg: tier === "prime" ? "3× faster than national average (42 days)" : tier === "premium" ? "2× faster than national average (42 days)" : "Broadly in line with national average (42 days)",
