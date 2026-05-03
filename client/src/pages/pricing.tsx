@@ -76,17 +76,24 @@ const features: FeatureRow[] = [
   { feature: "Development tracker", explorer: false, professional: false, investor: true },
   { feature: "Sold prices map", explorer: false, professional: false, investor: true },
   { feature: "Portfolio dashboard", explorer: false, professional: false, investor: true },
-  { feature: "Automated price alerts", explorer: false, professional: false, investor: true },
+  { feature: "Automated price alerts", explorer: false, professional: false, investor: "Coming Soon" },
   { feature: "API access", explorer: false, professional: false, investor: "Coming Soon" },
   { feature: "Custom report branding", explorer: false, professional: false, investor: true },
-  { feature: "Priority support", explorer: false, professional: false, investor: true },
-  { feature: "Dedicated account manager", explorer: false, professional: false, investor: true },
+  { feature: "Priority support", explorer: false, professional: false, investor: "Coming Soon" },
+  { feature: "Dedicated account manager", explorer: false, professional: false, investor: "Coming Soon" },
 ];
 
 function CellValue({ value, col }: { value: boolean | string; col: string }) {
   const isInvestor = col === "investor";
   const isPro = col === "professional";
   if (typeof value === "string") {
+    if (value === "Coming Soon") {
+      return (
+        <span className="inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-400/50 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 whitespace-nowrap">
+          Coming Soon
+        </span>
+      );
+    }
     return (
       <span className={`text-sm font-medium ${isInvestor ? "text-amber-600 dark:text-amber-400" : isPro ? "text-primary" : "text-foreground"}`}>
         {value}
