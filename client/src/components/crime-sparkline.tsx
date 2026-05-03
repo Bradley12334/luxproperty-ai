@@ -198,7 +198,7 @@ export function CrimeSparkline({ lat, lng }: CrimeSparklineProps) {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3">
         <div className="text-center p-2 rounded bg-muted/40">
           <p className="text-sm font-bold text-foreground">{counts[counts.length - 1]}</p>
           <p className="text-[10px] text-muted-foreground">Latest month</p>

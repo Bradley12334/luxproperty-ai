@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Sun, Moon, User, LogOut, ChevronDown, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { useTheme } from "./theme-provider";
 import { AuthModal } from "./auth-modal";
 import { useAuth } from "@/hooks/use-auth";
 import { signOut } from "@/lib/authStore";
+import { getBriefUsage, EXPLORER_LIMIT } from "@/hooks/use-brief-usage";
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -26,6 +27,13 @@ export function Header() {
   function openSignUp() { setAuthTab("signup"); setAuthOpen(true); }
 
   const planLabel = user?.plan === "investor" ? "Investor" : user?.plan === "professional" ? "Professional" : "Explorer";
+
+  // Re-read usage count whenever auth state changes (or on each render for freshness)
+  const [briefsUsed, setBriefsUsed] = useState(getBriefUsage);
+  useEffect(() => {
+    // Refresh counter on mount and whenever user changes
+    setBriefsUsed(getBriefUsage());
+  }, [user]);
 
   return (
     <>
@@ -91,6 +99,23 @@ export function Header() {
                 <Moon className="h-4 w-4" />
               )}
             </Button>
+
+            {/* Brief usage counter — Explorer plan only */}
+            {isSignedIn && user?.plan === "explorer" && (
+              <Link href="/pricing">
+                <span
+                  className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer transition-colors ${
+                    briefsUsed >= EXPLORER_LIMIT
+                      ? "border-red-400/60 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                  title={`${briefsUsed} of ${EXPLORER_LIMIT} free briefs used this month`}
+                  data-testid="text-brief-usage"
+                >
+                  {briefsUsed}/{EXPLORER_LIMIT} briefs
+                </span>
+              </Link>
+            )}
 
             {/* Auth buttons / user menu */}
             {isSignedIn && user ? (

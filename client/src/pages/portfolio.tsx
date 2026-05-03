@@ -138,9 +138,12 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <div className="rounded-full bg-muted p-4 mb-4">
         <Building2 className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="font-serif text-lg mb-2">No properties yet</h3>
-      <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-        Add properties and searches to track their performance and build your intelligence portfolio.
+      <h3 className="font-serif text-lg mb-2">No properties saved yet</h3>
+      <p className="text-sm text-muted-foreground mb-2 max-w-xs">
+        Save any brief to your portfolio to track properties and compare performance over time.
+      </p>
+      <p className="text-xs text-muted-foreground mb-6 max-w-xs">
+        Tip: open any brief and tap <span className="font-semibold">Save to Portfolio</span> at the bottom.
       </p>
       <Button
         size="sm"
@@ -149,7 +152,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         data-testid="button-add-first-property"
       >
         <Plus className="h-3.5 w-3.5" />
-        Add your first property
+        Add a property
       </Button>
     </div>
   );

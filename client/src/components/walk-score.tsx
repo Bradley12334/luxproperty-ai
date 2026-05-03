@@ -70,7 +70,7 @@ export function WalkScore({ stations = [], schools = [], amenities }: WalkScoreP
   const circumference = 2 * Math.PI * 40; // r=40
 
   return (
-    <div className="flex items-center gap-6" data-testid="walk-score">
+    <div className="flex flex-wrap items-center gap-6" data-testid="walk-score">
       {/* Circular gauge */}
       <div className="relative shrink-0" style={{ width: 100, height: 100 }}>
         <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>

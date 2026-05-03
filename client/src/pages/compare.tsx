@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -240,7 +240,14 @@ function CompareColumn({ report, label }: CompareColumnProps) {
 }
 
 export default function ComparePage() {
-  const [postcodeA, setPostcodeA] = useState("");
+  // Pre-fill postcode A from ?a= query param (linked from brief page)
+  const initialA = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("a") ??
+      // Hash routing: params after the hash path e.g. /#/compare?a=SW1A
+      (() => { try { return new URLSearchParams(window.location.hash.split("?")[1] || "").get("a") ?? ""; } catch { return ""; } })()
+    : "";
+
+  const [postcodeA, setPostcodeA] = useState(initialA);
   const [postcodeB, setPostcodeB] = useState("");
   const [reportA, setReportA] = useState<BriefReport | null>(null);
   const [reportB, setReportB] = useState<BriefReport | null>(null);
@@ -269,6 +276,14 @@ export default function ComparePage() {
       setLoading(false);
     }
   }
+
+  // Auto-load if postcode A was pre-filled from brief page link
+  useEffect(() => {
+    if (initialA) {
+      loadReport(initialA, setReportA, setLoadingA, setErrorA);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

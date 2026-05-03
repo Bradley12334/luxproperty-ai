@@ -66,7 +66,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-8 pt-6 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} LuxProperty AI Ltd. All rights reserved.
+            &copy; {new Date().getFullYear()} LuxProperty.ai — All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
             Data: HM Land Registry (OGL v3.0) · Postcodes.io

@@ -107,27 +107,64 @@ function SkeletonReport() {
   );
 }
 
+const LOADING_STEPS = [
+  "Fetching HM Land Registry data",
+  "Analysing price trends",
+  "Sourcing comparable sales",
+  "Checking flood & EPC records",
+  "Loading neighbourhood data",
+  "Calculating walk score",
+  "Compiling investment verdict",
+];
+
 function LoadingState() {
+  const [stepIdx, setStepIdx] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStepIdx((i) => (i + 1) % LOADING_STEPS.length);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-10">
           <div className="text-center py-16 mb-8">
-            <div className="inline-flex items-center gap-2 text-primary mb-4">
+            <div className="inline-flex items-center gap-2 text-primary mb-5">
               <FileText className="h-5 w-5 animate-pulse" />
             </div>
-            <h2 className="font-serif text-xl tracking-tight mb-2">
+            <h2 className="font-serif text-xl tracking-tight mb-3">
               Compiling your intelligence brief
             </h2>
-            <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
-              Analysing market data
-              <span className="flex gap-0.5">
-                <span className="pulse-dot w-1 h-1 rounded-full bg-muted-foreground" />
-                <span className="pulse-dot w-1 h-1 rounded-full bg-muted-foreground" />
-                <span className="pulse-dot w-1 h-1 rounded-full bg-muted-foreground" />
-              </span>
-            </p>
+            {/* Progress steps */}
+            <div className="flex flex-col items-center gap-2 mb-6">
+              {LOADING_STEPS.map((step, i) => (
+                <div
+                  key={step}
+                  className={`flex items-center gap-2 text-sm transition-all duration-500 ${
+                    i < stepIdx
+                      ? "text-primary/50 line-through"
+                      : i === stepIdx
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground/40"
+                  }`}
+                >
+                  {i < stepIdx && <span className="text-primary text-xs">✓</span>}
+                  {i === stepIdx && (
+                    <span className="flex gap-0.5">
+                      <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                      <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                      <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                    </span>
+                  )}
+                  {i > stepIdx && <span className="w-3" />}
+                  {step}
+                </div>
+              ))}
+            </div>
           </div>
           <SkeletonReport />
         </div>
@@ -1705,7 +1742,13 @@ export default function BriefPage() {
               <div className="flex items-center gap-3 flex-wrap justify-end">
                 <Link href="/">
                   <Button variant="outline" size="sm" data-testid="button-new-search">
-                    Generate another brief
+                    New brief
+                  </Button>
+                </Link>
+                <Link href={`/compare?a=${encodeURIComponent(report?.postcode || "")}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5" data-testid="button-compare">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Compare
                   </Button>
                 </Link>
                 {/* Save to Portfolio — paid plans only */}

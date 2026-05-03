@@ -257,7 +257,7 @@ export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = 
     <div className="space-y-3">
       <div
         ref={mapRef}
-        style={{ height: "340px", width: "100%", borderRadius: "0.5rem", overflow: "hidden", zIndex: 0 }}
+        style={{ height: typeof window !== "undefined" && window.innerWidth < 640 ? "280px" : "340px", width: "100%", borderRadius: "0.5rem", overflow: "hidden", zIndex: 0 }}
         data-testid="neighbourhood-map"
       />
       {/* Legend */}

@@ -1,5 +1,6 @@
 import type { BriefReport, AreaIntelligence, PropertyDeepDive } from "../../../shared/schema";
 import { enrichmentProfiles } from "./enrichment_data";
+import { incrementBriefUsage } from "../hooks/use-brief-usage";
 
 let briefIdCounter = 1;
 const briefStore: Record<number, BriefReport> = {};
@@ -586,6 +587,9 @@ function median(prices: number[]): number {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 export async function generateBrief(query: string): Promise<BriefReport> {
+  // Track usage for Explorer plan counter
+  incrementBriefUsage();
+
   const queryType = detectQueryType(query);
   const postcode = queryType === "address"
     ? (extractPostcode(query) || query)

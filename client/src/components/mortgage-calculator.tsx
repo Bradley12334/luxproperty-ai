@@ -138,7 +138,7 @@ export function MortgageCalculator({ suggestedPrice }: MortgageCalculatorProps) 
       </div>
 
       {/* Breakdown */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="text-center p-3 rounded-lg bg-muted/40">
           <p className="text-sm font-bold text-foreground">{formatPound(loanAmount)}</p>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Loan Amount</p>

@@ -116,25 +116,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Company info */}
-        <section className="py-14 sm:py-20 border-b border-border/40">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-4">
-              The company
-            </p>
-            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-6">
-              A registered UK business
-            </h2>
-            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-8 max-w-2xl">
-              LuxProperty.ai is the trading name of LuxProperty AI Ltd, a company incorporated
-              in England and Wales. We're committed to building transparent, data-driven tools
-              that help ordinary buyers make extraordinary decisions.
-            </p>
-
-
-          </div>
-        </section>
-
         {/* Values */}
         <section className="py-14 sm:py-20 border-b border-border/40 bg-muted/20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6">
