@@ -56,6 +56,12 @@ import { SoldPricesMap } from "@/components/sold-prices-map";
 import type { BriefReport } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { PostcodeMap } from "@/components/postcode-map";
+import { NeighbourhoodMap } from "@/components/neighbourhood-map";
+import { WalkScore, calculateWalkScore } from "@/components/walk-score";
+import { CrimeSparkline } from "@/components/crime-sparkline";
+import { MortgageCalculator } from "@/components/mortgage-calculator";
+import { StreetPriceRanking } from "@/components/street-price-ranking";
+import { getInfrastructureFlags } from "@/lib/hs2Data";
 
 function SkeletonReport() {
   return (
@@ -221,6 +227,60 @@ function exportToPDF(
 
   const riskFlags = ai.investmentOutlook.riskFlags.map(f => `
     <li style="margin-bottom:4px;padding-left:16px;position:relative"><span style="position:absolute;left:0;color:#9ca3af">–</span>${f}</li>`).join("");
+
+  // Walk Score
+  const { calculateWalkScore: _calcWs } = { calculateWalkScore: (s: any[], sc: any[], a: any) => {
+    let score = 0;
+    if (s.some((x: any) => x.distanceMetres <= 400)) score += 25;
+    else if (s.some((x: any) => x.distanceMetres <= 800)) score += 12;
+    const shops = [...(a?.supermarkets ?? []), ...(a?.cafesAndRestaurants ?? [])];
+    if (shops.some((x: any) => x.distanceMetres <= 400)) score += 20;
+    else if (shops.some((x: any) => x.distanceMetres <= 800)) score += 10;
+    if (a?.greenSpaces?.some((x: any) => x.distanceMetres <= 800)) score += 15;
+    if (sc.some((x: any) => x.distanceMetres <= 800)) score += 10;
+    if (a?.health?.some((x: any) => x.distanceMetres <= 800)) score += 10;
+    if (a?.cafesAndRestaurants?.some((x: any) => x.distanceMetres <= 400)) score += 20;
+    return Math.min(score, 100);
+  }};
+  const walkScoreVal = _calcWs(ai.nearbyStations ?? [], ai.nearbySchools ?? [], ai.nearbyAmenities);
+  const walkScoreLabel = walkScoreVal >= 90 ? "Walker's Paradise" : walkScoreVal >= 70 ? "Very Walkable" : walkScoreVal >= 50 ? "Somewhat Walkable" : walkScoreVal >= 25 ? "Car-Dependent" : "Minimal Walkability";
+
+  // Nearby stations rows
+  const stationRows = (ai.nearbyStations ?? []).slice(0, 6).map(s =>
+    `<tr><td>${s.name}</td><td style="color:#9ca3af">${s.modes?.join(", ") ?? ""}</td><td style="color:#6b7280">${s.lines?.slice(0,2).join(", ") ?? ""}</td><td style="text-align:right;color:#B8860B;font-weight:600">${s.walkMins} min</td></tr>`
+  ).join("");
+
+  // Nearby schools rows
+  const schoolRows = (ai.nearbySchools ?? []).slice(0, 6).map(s =>
+    `<tr><td>${s.name}</td><td style="color:#9ca3af">${s.type}</td><td style="color:${
+      s.ofstedRating === 'Outstanding' ? '#166534' : s.ofstedRating === 'Good' ? '#1d4ed8' : '#6b7280'
+    }">${s.ofstedRating}</td><td style="text-align:right;color:#6b7280">${s.walkMins} min</td></tr>`
+  ).join("");
+
+  // Crime stats
+  const crimeSection = ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 ? `
+  <div class="section">
+    <div class="section-label">Crime Statistics</div>
+    <div style="display:flex;gap:24px;margin-bottom:10px">
+      <div class="kpi"><div class="kpi-label">Crimes/Month</div><div class="kpi-value" style="font-size:20px">${ai.crimeStats.totalCrimesPerMonth.toLocaleString("en-GB")}</div></div>
+    </div>
+    <table><thead><tr><th>Category</th><th style="text-align:right">Count</th><th style="text-align:right">Share</th></tr></thead>
+    <tbody>${ai.crimeStats.topCategories.slice(0, 5).map(c =>
+      `<tr><td>${c.category}</td><td style="text-align:right">${c.count}</td><td style="text-align:right;color:#6b7280">${c.pct}%</td></tr>`
+    ).join("")}</tbody></table>
+    <p style="margin-top:8px;font-size:11px;color:#9ca3af">${ai.crimeStats.vsNationalNote}</p>
+  </div>` : "";
+
+  // HS2 flags
+  const hs2Flags = (() => {
+    const outcode = ai.location.trim().toUpperCase().split(" ")[0].replace(/\d[A-Z]{2}$/, "").trim();
+    const hs2Map: Record<string, string> = {
+      "NW10": "HS2 Old Oak Common — Mixed impact. Under construction.",
+      "NW1": "HS2 Euston Terminus — Under construction.",
+      "B1": "HS2 Birmingham Curzon Street — Positive regeneration impact.",
+    };
+    return hs2Map[outcode] ? `<p style="margin-top:8px;padding:10px 14px;background:#fef9c3;border-left:3px solid #ca8a04;font-size:12px;color:#713f12">⚠ Infrastructure Alert: ${hs2Map[outcode]}</p>` : "";
+  })();
 
   // Masthead branding
   const mastheadLogoHtml = companyName
@@ -422,6 +482,33 @@ function exportToPDF(
     <tbody>${ai.nearbyDevelopments.map(d => `<tr><td>${d.name}</td><td style="color:#9ca3af">${d.type}</td><td style="color:#9ca3af">${d.status}</td><td style="color:${d.impact==='Positive'?'#166534':d.impact==='Monitor'?'#92400e':'#6b7280'};font-weight:600">${d.impact}</td></tr>`).join("")}</tbody>
     </table>
   </div>
+
+  ${walkScoreVal > 0 ? `
+  <div class="section">
+    <div class="section-label">Walk Score</div>
+    <div style="display:flex;gap:24px;margin-bottom:10px;align-items:center">
+      <div class="kpi"><div class="kpi-label">Score</div><div class="kpi-value" style="font-size:28px;color:${walkScoreVal>=70?'#166534':walkScoreVal>=50?'#92400e':'#991b1b'}">${walkScoreVal}</div></div>
+      <div class="kpi"><div class="kpi-label">Rating</div><div class="kpi-value" style="font-size:16px">${walkScoreLabel}</div></div>
+    </div>
+  </div>` : ""}
+
+  ${stationRows ? `
+  <div class="section">
+    <div class="section-label">Nearby Stations</div>
+    <table><thead><tr><th>Station</th><th>Mode</th><th>Lines</th><th style="text-align:right">Walk</th></tr></thead>
+    <tbody>${stationRows}</tbody></table>
+  </div>` : ""}
+
+  ${schoolRows ? `
+  <div class="section">
+    <div class="section-label">Nearby Schools</div>
+    <table><thead><tr><th>School</th><th>Type</th><th>Ofsted</th><th style="text-align:right">Walk</th></tr></thead>
+    <tbody>${schoolRows}</tbody></table>
+  </div>` : ""}
+
+  ${crimeSection}
+
+  ${hs2Flags}
 
   <div class="footer">
     <span>${companyName || "LuxProperty.ai"} — Confidential Intelligence Brief</span>
@@ -645,6 +732,17 @@ export default function BriefPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Walk Score — computed from live data */}
+              {(ai.nearbyStations?.length > 0 || ai.nearbySchools?.length > 0 || ai.nearbyAmenities) && (
+                <div className="mb-6 pb-6 border-b border-border/40">
+                  <WalkScore
+                    stations={ai.nearbyStations ?? []}
+                    schools={ai.nearbySchools ?? []}
+                    amenities={ai.nearbyAmenities}
+                  />
+                </div>
+              )}
 
               {/* Rich descriptions grid */}
               <div className="grid gap-5 sm:grid-cols-2">
@@ -1162,6 +1260,13 @@ export default function BriefPage() {
               </div>
             ) : null}
 
+            {/* ── Street Price Ranking — Investor (uses same sold prices data) ── */}
+            {isInvestor && ai.recentSoldPrices && ai.recentSoldPrices.length > 0 && (
+              <CollapsibleSection title="Street Price Ranking" testId="section-street-ranking">
+                <StreetPriceRanking soldPrices={ai.recentSoldPrices} />
+              </CollapsibleSection>
+            )}
+
             {/* ── Nearby Stations ─────────────────────────────────────────── */}
             {ai.nearbyStations && ai.nearbyStations.length > 0 && (
               <CollapsibleSection title="Nearby Stations" testId="section-stations">
@@ -1329,10 +1434,73 @@ export default function BriefPage() {
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
+                  {/* 12-month trend sparkline — only if we have coords */}
+                  {report.lat && report.lng && (
+                    <div className="pt-2 border-t border-border/40">
+                      <CrimeSparkline lat={report.lat} lng={report.lng} />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">Source: data.police.uk — Police recorded crime data.</p>
                 </div>
               </CollapsibleSection>
             )}
+
+            {/* ── Neighbourhood Map — ALL plans ──────────────────────────────── */}
+            {report.lat && report.lng && (
+              <CollapsibleSection title="Neighbourhood Map" testId="section-neighbourhood-map">
+                <NeighbourhoodMap
+                  lat={report.lat}
+                  lng={report.lng}
+                  postcode={ai.location}
+                  stations={ai.nearbyStations ?? []}
+                  schools={ai.nearbySchools ?? []}
+                  amenities={ai.nearbyAmenities}
+                />
+              </CollapsibleSection>
+            )}
+
+            {/* ── Mortgage Calculator — ALL plans ─────────────────────────────── */}
+            <CollapsibleSection title="Mortgage Calculator" testId="section-mortgage">
+              <MortgageCalculator
+                suggestedPrice={(() => {
+                  const avg = ai.marketOverview?.averagePrice;
+                  if (!avg) return undefined;
+                  const n = parseInt(avg.replace(/[^0-9]/g, ""), 10);
+                  return isNaN(n) ? undefined : n;
+                })()}
+              />
+            </CollapsibleSection>
+
+            {/* ── HS2 / Infrastructure Flag — ALL plans ───────────────────────── */}
+            {(() => {
+              const flags = getInfrastructureFlags(ai.location);
+              if (flags.length === 0) return null;
+              return (
+                <CollapsibleSection title="Infrastructure Alerts" testId="section-infrastructure">
+                  <div className="space-y-3">
+                    {flags.map((flag, i) => (
+                      <div key={i} className={`p-4 rounded-lg border ${
+                        flag.impact === "Positive" ? "border-green-500/30 bg-green-500/5" :
+                        flag.impact === "Disruptive" ? "border-amber-500/30 bg-amber-500/5" :
+                        "border-blue-500/30 bg-blue-500/5"
+                      }`}>
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="text-sm font-bold text-foreground">{flag.name}</span>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                            flag.impact === "Positive" ? "bg-green-500/15 text-green-700 dark:text-green-400" :
+                            flag.impact === "Disruptive" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
+                            "bg-blue-500/15 text-blue-700 dark:text-blue-400"
+                          }`}>{flag.impact}</span>
+                          <span className="text-[10px] text-muted-foreground">{flag.type}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{flag.detail}</p>
+                        <p className="text-xs font-medium text-foreground/70 mt-1.5">Status: {flag.phaseOrStatus}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleSection>
+              );
+            })()}
 
             {/* Property Valuation — only for address searches */}
             {isPropertyReport && pd && (

@@ -17,6 +17,7 @@ import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
 import AccountPage from "@/pages/account";
 import AreaPage from "@/pages/area";
+import ComparePage from "@/pages/compare";
 
 function AppRouter() {
   return (
@@ -30,6 +31,7 @@ function AppRouter() {
       <Route path="/terms" component={TermsPage} />
       <Route path="/account" component={AccountPage} />
       <Route path="/area/:postcode" component={AreaPage} />
+      <Route path="/compare" component={ComparePage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route component={NotFound} />
     </Switch>
