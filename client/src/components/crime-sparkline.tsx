@@ -11,6 +11,10 @@ interface MonthData {
   count: number;
 }
 
+// Module-level cache: keyed by "lat,lng" — persists for the lifetime of the page session.
+// This ensures the same postcode always shows the same sparkline, regardless of re-renders.
+const sparklineCache: Record<string, MonthData[]> = {};
+
 function getMonthsBack(n: number): string[] {
   const months: string[] = [];
   const now = new Date();
@@ -31,6 +35,15 @@ export function CrimeSparkline({ lat, lng }: CrimeSparklineProps) {
 
   useEffect(() => {
     let cancelled = false;
+    const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+
+    // Return cached data immediately — no re-fetch for same location
+    if (sparklineCache[cacheKey]) {
+      setData(sparklineCache[cacheKey]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(false);
 
@@ -59,6 +72,8 @@ export function CrimeSparkline({ lat, lng }: CrimeSparklineProps) {
       }
 
       if (!cancelled) {
+        // Store in cache before setting state
+        sparklineCache[cacheKey] = results;
         setData(results);
         setLoading(false);
       }
