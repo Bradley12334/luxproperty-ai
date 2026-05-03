@@ -427,6 +427,9 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ]) as any;
   }
 
+  // Derive isLondon early so it can be used in API guards below
+  const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
+
   // Fetch live flood risk + EPC + air quality + TfL in parallel
   [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute] = await Promise.all([
     (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
@@ -470,8 +473,6 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const avgDaysOnMarket = tier === "prime" ? 54 : tier === "premium" ? 44 : tier === "mid-market" ? 38 : 32;
   const rentalYield = tier === "prime" ? "2.5% – 3.2% gross" : tier === "premium" ? "3.0% – 3.8% gross" : "3.8% – 5.0% gross";
   const growthForecast = yoyChange.startsWith("+") ? "+3.0% – 5.5% p.a. (2026–2029)" : "+1.5% – 3.5% p.a. (2026–2029)";
-  const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
-
   // Comparables
   const comparables = recentTxns.slice(0, 4).map(t => ({
     address: t.address,
