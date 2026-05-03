@@ -371,15 +371,78 @@ async function fetchTflCommute(lat: number, lng: number): Promise<Array<{
 
 
 // ─── Live TfL Stations (via TfL StopPoint API) ───────────────────────────────
+function distMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+async function overpassQuery(query: string): Promise<any[] | null> {
+  const ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  ];
+  for (const endpoint of ENDPOINTS) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.elements) return data.elements;
+    } catch { continue; }
+  }
+  return null;
+}
+
 async function fetchNearbyStations(lat: number, lng: number): Promise<Array<{
   name: string; lines: string[]; modes: string[]; distanceMetres: number; walkMins: number; lat?: number; lng?: number;
 }>> {
   try {
-    // Use our serverless OSM-based endpoint (works UK-wide, returns real coordinates)
-    const res = await fetch(`/api/nearby-stations?lat=${lat}&lng=${lng}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.stations || [];
+    const query = `[out:json][timeout:15];(
+  node["railway"~"station|halt"](around:1500,${lat},${lng});
+  node["railway"="tram_stop"](around:1000,${lat},${lng});
+  node["amenity"="bus_station"](around:800,${lat},${lng});
+);out body 30;`;
+    const elements = await overpassQuery(query);
+    if (!elements) return [];
+
+    const stations: Array<{ name: string; lines: string[]; modes: string[]; distanceMetres: number; walkMins: number; lat: number; lng: number }> = [];
+    for (const el of elements) {
+      const tags = el.tags || {};
+      const name = tags.name || tags["name:en"];
+      if (!name || !el.lat || !el.lon) continue;
+      const dist = distMetres(lat, lng, el.lat, el.lon);
+      const railway = tags.railway || "";
+      const network = (tags.network || "").toLowerCase();
+      const modes: string[] = [];
+      if (railway === "station") {
+        if (network.includes("london underground") || network.includes("tfl") || tags.subway === "yes") modes.push("tube");
+        else if (network.includes("elizabeth") || (tags.name || "").toLowerCase().includes("crossrail")) modes.push("elizabeth-line");
+        else if (network.includes("overground")) modes.push("overground");
+        else if (network.includes("dlr")) modes.push("dlr");
+        else modes.push("national-rail");
+      } else if (railway === "halt") modes.push("national-rail");
+      else if (railway === "tram_stop") modes.push("tram");
+      else if (tags.amenity === "bus_station") modes.push("bus");
+      if (modes.length === 0) continue;
+      const lineRefs = [tags.network || "", tags.operator || "", tags.route_ref || "", tags.ref || ""].filter(Boolean);
+      const lines = lineRefs.flatMap((r: string) => r.split(/[;,]/)).map((r: string) => r.trim()).filter((r: string) => r.length > 1 && r.length < 40).slice(0, 4);
+      stations.push({ name: name.replace(/ (Railway )?Station$/, " Station"), lines, modes, distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: el.lat, lng: el.lon });
+    }
+    const seen = new Map<string, typeof stations[0]>();
+    for (const s of stations) {
+      const key = s.name.toLowerCase();
+      if (!seen.has(key) || seen.get(key)!.distanceMetres > s.distanceMetres) seen.set(key, s);
+    }
+    return [...seen.values()].sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, 8);
   } catch { return []; }
 }
 
@@ -398,19 +461,47 @@ async function fetchPlanningActivity(postcode: string, lat: number, lng: number,
   } catch { return null; }
 }
 
-// ─── Live Nearby Schools (via /api/nearby-schools) ───────────────────────────
+// ─── Live Nearby Schools (direct Overpass, client-side) ──────────────────────
+function classifySchoolType(tags: Record<string, string>): string {
+  const type = (tags["school:type"] || tags["operator:type"] || "").toLowerCase();
+  const name = (tags.name || "").toLowerCase();
+  if (type.includes("independent") || type.includes("private")) return "Independent";
+  if (name.includes("primary") || name.includes("junior") || name.includes("infant") || name.includes("prep")) return "Primary";
+  if (name.includes("secondary") || name.includes("academy") || name.includes("high") || name.includes("college") || name.includes("sixth form")) return "Secondary";
+  if (name.includes("nursery") || name.includes("montessori")) return "Nursery";
+  return "School";
+}
+
 async function fetchNearbySchools(lat: number, lng: number): Promise<Array<{
   name: string; type: string; ofstedRating: string; distanceMetres: number; walkMins: number; lat?: number; lng?: number;
 }>> {
   try {
-    const res = await fetch(`/api/nearby-schools?lat=${lat}&lng=${lng}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.schools || [];
+    const query = `[out:json][timeout:15];(
+  node["amenity"="school"](around:1500,${lat},${lng});
+  way["amenity"="school"](around:1500,${lat},${lng});
+  node["amenity"="kindergarten"](around:1000,${lat},${lng});
+  way["amenity"="kindergarten"](around:1000,${lat},${lng});
+);out body center 25;`;
+    const elements = await overpassQuery(query);
+    if (!elements) return [];
+    const schools: Array<{ name: string; type: string; ofstedRating: string; distanceMetres: number; walkMins: number; lat: number; lng: number }> = [];
+    for (const el of elements) {
+      const tags = el.tags || {};
+      const name = tags.name;
+      if (!name) continue;
+      const elLat = el.lat ?? el.center?.lat;
+      const elLng = el.lon ?? el.center?.lon;
+      if (!elLat || !elLng) continue;
+      const dist = distMetres(lat, lng, elLat, elLng);
+      const type = tags.amenity === "kindergarten" ? "Nursery" : classifySchoolType(tags);
+      const ofstedRating = tags["ofsted:rating"] || "Not rated";
+      schools.push({ name, type, ofstedRating, distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: elLat, lng: elLng });
+    }
+    return schools.sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, 8);
   } catch { return []; }
 }
 
-// ─── Live Nearby Amenities (via /api/local-amenities) ────────────────────────
+// ─── Live Nearby Amenities (direct Overpass, client-side) ─────────────────────
 async function fetchNearbyAmenities(lat: number, lng: number): Promise<{
   supermarkets: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
   cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
@@ -418,9 +509,52 @@ async function fetchNearbyAmenities(lat: number, lng: number): Promise<{
   greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number; lat?: number; lng?: number }>;
 } | null> {
   try {
-    const res = await fetch(`/api/local-amenities?lat=${lat}&lng=${lng}`);
-    if (!res.ok) return null;
-    return await res.json();
+    const query = `[out:json][timeout:20];(
+  node["shop"~"supermarket|convenience|greengrocer|bakery|butcher|deli|health_food|department_store"](around:1200,${lat},${lng});
+  node["amenity"~"cafe|restaurant|fast_food"](around:700,${lat},${lng});
+  node["amenity"~"doctors|pharmacy|hospital|clinic"](around:1200,${lat},${lng});
+  way["leisure"="park"]["name"](around:1500,${lat},${lng});
+  relation["leisure"="park"]["name"](around:1500,${lat},${lng});
+);out body center 80;`;
+    const elements = await overpassQuery(query);
+    if (!elements) return null;
+
+    const supermarkets: Array<{ name: string; type: string; distanceMetres: number; lat: number; lng: number }> = [];
+    const cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number; lat: number; lng: number }> = [];
+    const health: Array<{ name: string; type: string; distanceMetres: number; lat: number; lng: number }> = [];
+    const greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number; lat: number; lng: number }> = [];
+
+    for (const el of elements) {
+      const tags = el.tags || {};
+      const name = tags.name;
+      if (!name) continue;
+      const elLat = el.lat ?? el.center?.lat;
+      const elLng = el.lon ?? el.center?.lon;
+      if (!elLat || !elLng) continue;
+      const dist = distMetres(lat, lng, elLat, elLng);
+      const shopType = tags.shop;
+      const amenity = tags.amenity;
+      const leisure = tags.leisure;
+      if (shopType && ["supermarket","convenience","greengrocer","bakery","butcher","deli","health_food","department_store"].includes(shopType)) {
+        const typeLabel = shopType === "supermarket" ? "Supermarket" : shopType === "convenience" ? "Convenience store" : shopType === "bakery" ? "Bakery" : shopType === "butcher" ? "Butcher" : "Shop";
+        if (supermarkets.length < 8) supermarkets.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
+      } else if (amenity && ["cafe","restaurant","fast_food"].includes(amenity)) {
+        const typeLabel = amenity === "cafe" ? "Café" : amenity === "restaurant" ? "Restaurant" : "Food";
+        if (cafesAndRestaurants.length < 8) cafesAndRestaurants.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
+      } else if (amenity && ["doctors","pharmacy","hospital","clinic"].includes(amenity)) {
+        const typeLabel = amenity === "doctors" ? "GP Surgery" : amenity === "pharmacy" ? "Pharmacy" : amenity === "hospital" ? "Hospital" : "Clinic";
+        if (health.length < 6) health.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
+      } else if (leisure === "park") {
+        if (greenSpaces.length < 6) greenSpaces.push({ name, distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: elLat, lng: elLng });
+      }
+    }
+    const sortDist = (a: { distanceMetres: number }, b: { distanceMetres: number }) => a.distanceMetres - b.distanceMetres;
+    return {
+      supermarkets: supermarkets.sort(sortDist).slice(0, 5),
+      cafesAndRestaurants: cafesAndRestaurants.sort(sortDist).slice(0, 6),
+      health: health.sort(sortDist).slice(0, 4),
+      greenSpaces: greenSpaces.sort(sortDist).slice(0, 4),
+    };
   } catch { return null; }
 }
 
