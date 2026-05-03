@@ -131,24 +131,7 @@ export default function AboutPage() {
               that help ordinary buyers make extraordinary decisions.
             </p>
 
-            <Card className="p-5 sm:p-6 max-w-lg">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                Company Details
-              </p>
-              <div className="space-y-3">
-                {[
-                  { label: "Legal name", value: "LuxProperty AI Ltd" },
-                  { label: "Incorporated", value: "14 April 2026" },
-                  { label: "SIC code", value: "62012 — Business and domestic software development" },
-                  { label: "Registered in", value: "England and Wales" },
-                ].map((row) => (
-                  <div key={row.label} className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 py-2 border-b border-border/30 last:border-0">
-                    <span className="text-xs text-muted-foreground sm:w-40 shrink-0">{row.label}</span>
-                    <span className="text-sm font-medium">{row.value}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
+
           </div>
         </section>
 
