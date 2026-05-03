@@ -516,7 +516,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     (meta?.lat && meta?.lng) ? fetchNearbySchools(meta.lat, meta.lng) : Promise.resolve([]),
     (meta?.lat && meta?.lng) ? fetchNearbyAmenities(meta.lat, meta.lng) : Promise.resolve(null),
     (meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng) : Promise.resolve(null),
-    (meta?.lat && meta?.lng) ? fetchPlanningActivity(normalised, meta.lat, meta.lng, district) : Promise.resolve(null),
+    (meta?.lat && meta?.lng) ? fetchPlanningActivity(postcode, meta.lat, meta.lng, district) : Promise.resolve(null),
   ]) as any;
 
   const yearMedians = yearData.map(median);
