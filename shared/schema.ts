@@ -168,6 +168,8 @@ export interface AreaIntelligence {
     modes: string[];
     distanceMetres: number;
     walkMins: number;
+    lat?: number;
+    lng?: number;
   }>;
 
   nearbySchools: Array<{
@@ -176,13 +178,15 @@ export interface AreaIntelligence {
     ofstedRating: string; // "Outstanding" | "Good" | "Requires Improvement" | "Inadequate" | "Not yet rated"
     distanceMetres: number;
     walkMins: number;
+    lat?: number;
+    lng?: number;
   }>;
 
   nearbyAmenities: {
-    supermarkets: Array<{ name: string; type: string; distanceMetres: number }>;
-    cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number }>;
-    health: Array<{ name: string; type: string; distanceMetres: number }>;
-    greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number }>;
+    supermarkets: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
+    cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
+    health: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
+    greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number; lat?: number; lng?: number }>;
   };
 
   crimeStats: {

@@ -1,5 +1,6 @@
 // api/local-amenities.js — Vercel serverless function
 // Fetches nearby shops, cafes, parks, GP surgeries via Overpass API (OpenStreetMap)
+// Returns lat/lng for each item so the map can place accurate pins
 
 function distMetres(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -68,18 +69,18 @@ out body center 80;
           shopType === "butcher" ? "Butcher" :
           shopType === "deli" ? "Deli" :
           shopType === "health_food" ? "Health food" : "Shop";
-        if (supermarkets.length < 8) supermarkets.push({ name, type: typeLabel, distanceMetres: dist });
+        if (supermarkets.length < 8) supermarkets.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
       } else if (amenity && ["cafe", "restaurant", "fast_food"].includes(amenity)) {
         const typeLabel = amenity === "cafe" ? "Café" : amenity === "restaurant" ? "Restaurant" : "Food";
-        if (cafesAndRestaurants.length < 8) cafesAndRestaurants.push({ name, type: typeLabel, distanceMetres: dist });
+        if (cafesAndRestaurants.length < 8) cafesAndRestaurants.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
       } else if (amenity && ["doctors", "pharmacy", "hospital", "clinic"].includes(amenity)) {
         const typeLabel = amenity === "doctors" ? "GP Surgery" :
           amenity === "pharmacy" ? "Pharmacy" :
           amenity === "hospital" ? "Hospital" : "Clinic";
-        if (health.length < 6) health.push({ name, type: typeLabel, distanceMetres: dist });
+        if (health.length < 6) health.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
       } else if (leisure === "park") {
         const walkMins = Math.ceil(dist / 80);
-        if (greenSpaces.length < 6) greenSpaces.push({ name, distanceMetres: dist, walkMins });
+        if (greenSpaces.length < 6) greenSpaces.push({ name, distanceMetres: dist, walkMins, lat: elLat, lng: elLng });
       }
     }
 

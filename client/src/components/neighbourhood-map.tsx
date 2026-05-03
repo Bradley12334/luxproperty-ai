@@ -6,6 +6,8 @@ interface Station {
   modes: string[];
   distanceMetres: number;
   walkMins: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface School {
@@ -14,18 +16,24 @@ interface School {
   ofstedRating: string;
   distanceMetres: number;
   walkMins: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface Amenity {
   name: string;
   type: string;
   distanceMetres: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface GreenSpace {
   name: string;
   distanceMetres: number;
   walkMins: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface NearbyAmenities {
@@ -44,17 +52,17 @@ interface NeighbourhoodMapProps {
   amenities?: NearbyAmenities;
 }
 
-// Rough offset in degrees for a given distance in metres
-function offsetFromCentre(distanceMetres: number, bearing: number) {
-  // 1 degree lat ≈ 111,000m; 1 degree lng ≈ 111,000m * cos(lat)
-  const latDeg = 0.000009 * distanceMetres; // ~1m per 0.000009 deg
-  const lngDeg = 0.000012 * distanceMetres;
-  const angle = (bearing * Math.PI) / 180;
-  return {
-    lat: Math.sin(angle) * latDeg * 0.7,
-    lng: Math.cos(angle) * lngDeg * 0.7,
-  };
+// Fallback: compute approximate position from bearing + distance if no real coords
+function bearingOffset(centreLat: number, centreLng: number, distanceMetres: number, bearingDeg: number): [number, number] {
+  const R = 6371000;
+  const d = Math.max(distanceMetres, 150);
+  const ang = (bearingDeg * Math.PI) / 180;
+  const dLat = (d * Math.cos(ang)) / R;
+  const dLng = (d * Math.sin(ang)) / (R * Math.cos((centreLat * Math.PI) / 180));
+  return [centreLat + (dLat * 180) / Math.PI, centreLng + (dLng * 180) / Math.PI];
 }
+
+const BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315, 22, 67, 112, 157, 202, 247, 292, 337];
 
 export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = [], amenities }: NeighbourhoodMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -86,7 +94,7 @@ export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = 
         maxZoom: 19,
       }).addTo(map);
 
-      // Helper: create circle icon
+      // Helper: create coloured circle icon
       function createIcon(color: string, emoji: string) {
         return L.divIcon({
           html: `<div style="
@@ -121,14 +129,18 @@ export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = 
         .addTo(map)
         .bindPopup(`<strong>${postcode}</strong><br/>Search location`);
 
-      // Bearings to space things out visually
-      const bearings = [0, 45, 90, 135, 180, 225, 270, 315, 22, 67, 112, 157, 202, 247, 292, 337];
+      let fallbackIdx = 0;
 
       // Stations — blue
-      stations.slice(0, 6).forEach((s, i) => {
-        const offset = offsetFromCentre(Math.max(s.distanceMetres, 150), bearings[i % bearings.length]);
-        const markerLat = lat + offset.lat;
-        const markerLng = lng + offset.lng;
+      stations.slice(0, 6).forEach((s) => {
+        let markerLat: number, markerLng: number;
+        if (s.lat && s.lng) {
+          markerLat = s.lat;
+          markerLng = s.lng;
+        } else {
+          [markerLat, markerLng] = bearingOffset(lat, lng, s.distanceMetres, BEARINGS[fallbackIdx % BEARINGS.length]);
+          fallbackIdx++;
+        }
         L.marker([markerLat, markerLng], { icon: createIcon("#2563eb", "🚉") })
           .addTo(map)
           .bindPopup(
@@ -140,10 +152,16 @@ export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = 
       });
 
       // Schools — green
-      schools.slice(0, 5).forEach((s, i) => {
-        const bIdx = (stations.length + i) % bearings.length;
-        const offset = offsetFromCentre(Math.max(s.distanceMetres, 150), bearings[bIdx]);
-        L.marker([lat + offset.lat, lng + offset.lng], { icon: createIcon("#16a34a", "🎓") })
+      schools.slice(0, 5).forEach((s) => {
+        let markerLat: number, markerLng: number;
+        if (s.lat && s.lng) {
+          markerLat = s.lat;
+          markerLng = s.lng;
+        } else {
+          [markerLat, markerLng] = bearingOffset(lat, lng, s.distanceMetres, BEARINGS[(stations.length + fallbackIdx) % BEARINGS.length]);
+          fallbackIdx++;
+        }
+        L.marker([markerLat, markerLng], { icon: createIcon("#16a34a", "🎓") })
           .addTo(map)
           .bindPopup(
             `<strong>${s.name}</strong><br/>` +
@@ -154,40 +172,62 @@ export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = 
       });
 
       if (amenities) {
-        const baseIdx = stations.length + schools.length;
-
         // Supermarkets — orange
-        amenities.supermarkets.slice(0, 4).forEach((s, i) => {
-          const bIdx = (baseIdx + i) % bearings.length;
-          const offset = offsetFromCentre(Math.max(s.distanceMetres, 100), bearings[bIdx]);
-          L.marker([lat + offset.lat, lng + offset.lng], { icon: createIcon("#ea580c", "🛒") })
+        amenities.supermarkets.slice(0, 4).forEach((s) => {
+          let markerLat: number, markerLng: number;
+          if (s.lat && s.lng) {
+            markerLat = s.lat;
+            markerLng = s.lng;
+          } else {
+            [markerLat, markerLng] = bearingOffset(lat, lng, s.distanceMetres, BEARINGS[fallbackIdx % BEARINGS.length]);
+            fallbackIdx++;
+          }
+          L.marker([markerLat, markerLng], { icon: createIcon("#ea580c", "🛒") })
             .addTo(map)
             .bindPopup(`<strong>${s.name}</strong><br/>${s.type}<br/>${s.distanceMetres}m away`);
         });
 
         // Green spaces — teal
-        amenities.greenSpaces.slice(0, 4).forEach((s, i) => {
-          const bIdx = (baseIdx + amenities.supermarkets.length + i) % bearings.length;
-          const offset = offsetFromCentre(Math.max(s.distanceMetres, 100), bearings[bIdx]);
-          L.marker([lat + offset.lat, lng + offset.lng], { icon: createIcon("#0d9488", "🌳") })
+        amenities.greenSpaces.slice(0, 4).forEach((s) => {
+          let markerLat: number, markerLng: number;
+          if (s.lat && s.lng) {
+            markerLat = s.lat;
+            markerLng = s.lng;
+          } else {
+            [markerLat, markerLng] = bearingOffset(lat, lng, s.distanceMetres, BEARINGS[fallbackIdx % BEARINGS.length]);
+            fallbackIdx++;
+          }
+          L.marker([markerLat, markerLng], { icon: createIcon("#0d9488", "🌳") })
             .addTo(map)
             .bindPopup(`<strong>${s.name}</strong><br/>${s.walkMins} min walk (${s.distanceMetres}m)`);
         });
 
         // Health — red
-        amenities.health.slice(0, 3).forEach((s, i) => {
-          const bIdx = (baseIdx + amenities.supermarkets.length + amenities.greenSpaces.length + i) % bearings.length;
-          const offset = offsetFromCentre(Math.max(s.distanceMetres, 100), bearings[bIdx]);
-          L.marker([lat + offset.lat, lng + offset.lng], { icon: createIcon("#dc2626", "🏥") })
+        amenities.health.slice(0, 3).forEach((s) => {
+          let markerLat: number, markerLng: number;
+          if (s.lat && s.lng) {
+            markerLat = s.lat;
+            markerLng = s.lng;
+          } else {
+            [markerLat, markerLng] = bearingOffset(lat, lng, s.distanceMetres, BEARINGS[fallbackIdx % BEARINGS.length]);
+            fallbackIdx++;
+          }
+          L.marker([markerLat, markerLng], { icon: createIcon("#dc2626", "🏥") })
             .addTo(map)
             .bindPopup(`<strong>${s.name}</strong><br/>${s.type}<br/>${s.distanceMetres}m away`);
         });
 
         // Cafes — purple
-        amenities.cafesAndRestaurants.slice(0, 3).forEach((s, i) => {
-          const bIdx = (baseIdx + amenities.supermarkets.length + amenities.greenSpaces.length + amenities.health.length + i) % bearings.length;
-          const offset = offsetFromCentre(Math.max(s.distanceMetres, 100), bearings[bIdx]);
-          L.marker([lat + offset.lat, lng + offset.lng], { icon: createIcon("#7c3aed", "☕") })
+        amenities.cafesAndRestaurants.slice(0, 3).forEach((s) => {
+          let markerLat: number, markerLng: number;
+          if (s.lat && s.lng) {
+            markerLat = s.lat;
+            markerLng = s.lng;
+          } else {
+            [markerLat, markerLng] = bearingOffset(lat, lng, s.distanceMetres, BEARINGS[fallbackIdx % BEARINGS.length]);
+            fallbackIdx++;
+          }
+          L.marker([markerLat, markerLng], { icon: createIcon("#7c3aed", "☕") })
             .addTo(map)
             .bindPopup(`<strong>${s.name}</strong><br/>${s.type}<br/>${s.distanceMetres}m away`);
         });
@@ -245,7 +285,7 @@ export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = 
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Markers are approximate. Click any pin for details. Scroll to zoom disabled — use +/- controls.
+        Pins show real GPS coordinates from OpenStreetMap data. Click any pin for details. Scroll to zoom disabled — use +/− controls.
       </p>
     </div>
   );

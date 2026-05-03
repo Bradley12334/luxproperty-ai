@@ -372,30 +372,35 @@ async function fetchTflCommute(lat: number, lng: number): Promise<Array<{
 
 // ─── Live TfL Stations (via TfL StopPoint API) ───────────────────────────────
 async function fetchNearbyStations(lat: number, lng: number): Promise<Array<{
-  name: string; lines: string[]; modes: string[]; distanceMetres: number; walkMins: number;
+  name: string; lines: string[]; modes: string[]; distanceMetres: number; walkMins: number; lat?: number; lng?: number;
 }>> {
   try {
-    const url = `https://api.tfl.gov.uk/StopPoint?lat=${lat}&lon=${lng}&stopTypes=NaptanMetroStation,NaptanRailStation&radius=1200&useStopPointHierarchy=true&modes=tube,elizabeth-line,overground,national-rail&returnLines=true`;
-    const res = await fetch(url);
+    // Use our serverless OSM-based endpoint (works UK-wide, returns real coordinates)
+    const res = await fetch(`/api/nearby-stations?lat=${lat}&lng=${lng}`);
     if (!res.ok) return [];
     const data = await res.json();
-    const stops: any[] = data.stopPoints || [];
-    return stops.slice(0, 6).map((s: any) => {
-      const dist = Math.round(s.distance || 0);
-      return {
-        name: s.commonName?.replace(/ (Underground|Rail|DLR) Station$/, " Station").replace(/  Station$/, " Station") || s.commonName,
-        lines: (s.lines || []).map((l: any) => l.name).filter(Boolean),
-        modes: (s.modes || []),
-        distanceMetres: dist,
-        walkMins: Math.ceil(dist / 80),
-      };
-    });
+    return data.stations || [];
   } catch { return []; }
+}
+
+// ─── Live Planning Activity ───────────────────────────────────────────────────
+async function fetchPlanningActivity(postcode: string, lat: number, lng: number, district: string): Promise<{
+  recentApplications: number;
+  majorDevelopments: string;
+  developments: Array<{ name: string; type: string; status: string; impact: "Positive" | "Neutral" | "Monitor"; detail: string }>;
+  councilPortalUrl: string;
+  note: string;
+} | null> {
+  try {
+    const res = await fetch(`/api/planning-activity?postcode=${encodeURIComponent(postcode)}&lat=${lat}&lng=${lng}&district=${encodeURIComponent(district)}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
 }
 
 // ─── Live Nearby Schools (via /api/nearby-schools) ───────────────────────────
 async function fetchNearbySchools(lat: number, lng: number): Promise<Array<{
-  name: string; type: string; ofstedRating: string; distanceMetres: number; walkMins: number;
+  name: string; type: string; ofstedRating: string; distanceMetres: number; walkMins: number; lat?: number; lng?: number;
 }>> {
   try {
     const res = await fetch(`/api/nearby-schools?lat=${lat}&lng=${lng}`);
@@ -407,10 +412,10 @@ async function fetchNearbySchools(lat: number, lng: number): Promise<Array<{
 
 // ─── Live Nearby Amenities (via /api/local-amenities) ────────────────────────
 async function fetchNearbyAmenities(lat: number, lng: number): Promise<{
-  supermarkets: Array<{ name: string; type: string; distanceMetres: number }>;
-  cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number }>;
-  health: Array<{ name: string; type: string; distanceMetres: number }>;
-  greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number }>;
+  supermarkets: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
+  cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
+  health: Array<{ name: string; type: string; distanceMetres: number; lat?: number; lng?: number }>;
+  greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number; lat?: number; lng?: number }>;
 } | null> {
   try {
     const res = await fetch(`/api/local-amenities?lat=${lat}&lng=${lng}`);
@@ -483,6 +488,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   let liveSchools: Awaited<ReturnType<typeof fetchNearbySchools>> = [];
   let liveAmenities: Awaited<ReturnType<typeof fetchNearbyAmenities>> = null;
   let liveCrime: Awaited<ReturnType<typeof fetchCrimeStats>> = null;
+  let livePlanningActivity: Awaited<ReturnType<typeof fetchPlanningActivity>> = null;
 
   if (!outsideEnglandWales && district) {
     [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
@@ -501,7 +507,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
 
   // Fetch all live data in parallel
-  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime] = await Promise.all([
+  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime, livePlanningActivity] = await Promise.all([
     (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
     fetchEpcData(outcode),
     (meta?.lat && meta?.lng && isLondon) ? fetchAirQuality(meta.lat, meta.lng) : Promise.resolve(null),
@@ -510,7 +516,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     (meta?.lat && meta?.lng) ? fetchNearbySchools(meta.lat, meta.lng) : Promise.resolve([]),
     (meta?.lat && meta?.lng) ? fetchNearbyAmenities(meta.lat, meta.lng) : Promise.resolve(null),
     (meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng) : Promise.resolve(null),
-  ]);
+    (meta?.lat && meta?.lng) ? fetchPlanningActivity(normalised, meta.lat, meta.lng, district) : Promise.resolve(null),
+  ]) as any;
 
   const yearMedians = yearData.map(median);
   const latestMedian = [...yearMedians].reverse().find(p => p > 0) || 0;
@@ -1123,7 +1130,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         { destination: "City / Town Centre", time: "Varies by address", mode: "Road / Rail", via: "Check Google Maps or Trainline for exact journey times from your target address" },
       ];
     })(),
-    planningActivity: enrichmentProfile?.planningActivity ?? {
+    planningActivity: livePlanningActivity ?? enrichmentProfile?.planningActivity ?? {
       recentApplications: 0,
       majorDevelopments: `Detailed planning data for ${areaName} is not yet available. Check the local council planning portal for recent applications in this postcode.`,
       councilPortalUrl: `https://www.google.com/search?q=${encodeURIComponent(areaName + " council planning applications portal")}`,
@@ -1170,8 +1177,12 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       score: tier === "prime" ? 8 : tier === "premium" ? 7 : 6,
       note: `Rental demand score is estimated based on area tier and market conditions. Specific days-to-let data for ${areaName} is not yet in our database.`,
     },
-    nearbyDevelopments: enrichmentProfile?.nearbyDevelopments ?? [
-      { name: "Data not yet available", type: "—", status: "—", impact: "Neutral" as const, detail: `Check ${areaName}'s local council planning portal for major consented developments within 1km of your target property.` },
+    nearbyDevelopments: (
+      livePlanningActivity?.developments && livePlanningActivity.developments.length > 0
+        ? livePlanningActivity.developments
+        : enrichmentProfile?.nearbyDevelopments
+    ) ?? [
+      { name: "No major schemes identified", type: "—", status: "—", impact: "Neutral" as const, detail: `Check ${areaName}'s local council planning portal for major consented developments within 1km of your target property.` },
     ],
     recentSoldPrices: liveSoldPrices.length > 0 ? liveSoldPrices : (enrichmentProfile?.recentSoldPrices ?? []),
 

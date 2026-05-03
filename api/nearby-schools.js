@@ -127,7 +127,7 @@ out body center 25;
 
       // Prefer OSM ofsted tag, then try GIAS
       let ofstedRating = tags["ofsted:rating"] || null;
-      schools.push({ name, type, ofstedRating, distanceMetres: dist, walkMins, _rawName: name });
+      schools.push({ name, type, ofstedRating, distanceMetres: dist, walkMins, lat: elLat, lng: elLng, _rawName: name });
     }
 
     schools.sort((a, b) => a.distanceMetres - b.distanceMetres);
@@ -152,7 +152,7 @@ out body center 25;
       if (!s.ofstedRating) s.ofstedRating = "Not rated by Ofsted";
     });
 
-    const output = top8.map(({ _rawName, ...rest }) => rest);
+    const output = top8.map(({ _rawName, lat, lng, ...rest }) => ({ ...rest, lat, lng }));
     return res.status(200).json({ schools: output });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch schools", detail: err.message });
