@@ -369,6 +369,72 @@ async function fetchTflCommute(lat: number, lng: number): Promise<Array<{
   } catch { return null; }
 }
 
+
+// ─── Live TfL Stations (via TfL StopPoint API) ───────────────────────────────
+async function fetchNearbyStations(lat: number, lng: number): Promise<Array<{
+  name: string; lines: string[]; modes: string[]; distanceMetres: number; walkMins: number;
+}>> {
+  try {
+    const url = `https://api.tfl.gov.uk/StopPoint?lat=${lat}&lon=${lng}&stopTypes=NaptanMetroStation,NaptanRailStation&radius=1200&useStopPointHierarchy=true&modes=tube,elizabeth-line,overground,national-rail&returnLines=true`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const stops: any[] = data.stopPoints || [];
+    return stops.slice(0, 6).map((s: any) => {
+      const dist = Math.round(s.distance || 0);
+      return {
+        name: s.commonName?.replace(/ (Underground|Rail|DLR) Station$/, " Station").replace(/  Station$/, " Station") || s.commonName,
+        lines: (s.lines || []).map((l: any) => l.name).filter(Boolean),
+        modes: (s.modes || []),
+        distanceMetres: dist,
+        walkMins: Math.ceil(dist / 80),
+      };
+    });
+  } catch { return []; }
+}
+
+// ─── Live Nearby Schools (via /api/nearby-schools) ───────────────────────────
+async function fetchNearbySchools(lat: number, lng: number): Promise<Array<{
+  name: string; type: string; ofstedRating: string; distanceMetres: number; walkMins: number;
+}>> {
+  try {
+    const res = await fetch(`/api/nearby-schools?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.schools || [];
+  } catch { return []; }
+}
+
+// ─── Live Nearby Amenities (via /api/local-amenities) ────────────────────────
+async function fetchNearbyAmenities(lat: number, lng: number): Promise<{
+  supermarkets: Array<{ name: string; type: string; distanceMetres: number }>;
+  cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number }>;
+  health: Array<{ name: string; type: string; distanceMetres: number }>;
+  greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number }>;
+} | null> {
+  try {
+    const res = await fetch(`/api/local-amenities?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+// ─── Live Crime Stats (via /api/crime-stats) ─────────────────────────────────
+async function fetchCrimeStats(lat: number, lng: number): Promise<{
+  totalCrimesPerMonth: number;
+  topCategories: Array<{ category: string; count: number; pct: number }>;
+  vsNationalNote: string;
+  date: string;
+} | null> {
+  try {
+    const res = await fetch(`/api/crime-stats?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
+  } catch { return null; }
+}
+
 // ─── Median helper ────────────────────────────────────────────────────────────
 function median(prices: number[]): number {
   if (prices.length < 5) return 0; // need at least 5 for reliability
@@ -413,6 +479,10 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   let liveEpc: Awaited<ReturnType<typeof fetchEpcData>> = null;
   let liveAirQuality: Awaited<ReturnType<typeof fetchAirQuality>> = null;
   let liveTflCommute: Awaited<ReturnType<typeof fetchTflCommute>> = null;
+  let liveStations: Awaited<ReturnType<typeof fetchNearbyStations>> = [];
+  let liveSchools: Awaited<ReturnType<typeof fetchNearbySchools>> = [];
+  let liveAmenities: Awaited<ReturnType<typeof fetchNearbyAmenities>> = null;
+  let liveCrime: Awaited<ReturnType<typeof fetchCrimeStats>> = null;
 
   if (!outsideEnglandWales && district) {
     [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
@@ -430,12 +500,16 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   // Derive isLondon early so it can be used in API guards below
   const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
 
-  // Fetch live flood risk + EPC + air quality + TfL in parallel
-  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute] = await Promise.all([
+  // Fetch all live data in parallel
+  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime] = await Promise.all([
     (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
     fetchEpcData(outcode),
     (meta?.lat && meta?.lng && isLondon) ? fetchAirQuality(meta.lat, meta.lng) : Promise.resolve(null),
     (meta?.lat && meta?.lng && isLondon) ? fetchTflCommute(meta.lat, meta.lng) : Promise.resolve(null),
+    (meta?.lat && meta?.lng) ? fetchNearbyStations(meta.lat, meta.lng) : Promise.resolve([]),
+    (meta?.lat && meta?.lng) ? fetchNearbySchools(meta.lat, meta.lng) : Promise.resolve([]),
+    (meta?.lat && meta?.lng) ? fetchNearbyAmenities(meta.lat, meta.lng) : Promise.resolve(null),
+    (meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng) : Promise.resolve(null),
   ]);
 
   const yearMedians = yearData.map(median);
@@ -1100,6 +1174,25 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       { name: "Data not yet available", type: "—", status: "—", impact: "Neutral" as const, detail: `Check ${areaName}'s local council planning portal for major consented developments within 1km of your target property.` },
     ],
     recentSoldPrices: liveSoldPrices.length > 0 ? liveSoldPrices : (enrichmentProfile?.recentSoldPrices ?? []),
+
+    // ── Live Local Amenities ──────────────────────────────────────────────────
+    nearbyStations: liveStations,
+
+    nearbySchools: liveSchools,
+
+    nearbyAmenities: liveAmenities ?? {
+      supermarkets: [],
+      cafesAndRestaurants: [],
+      health: [],
+      greenSpaces: [],
+    },
+
+    crimeStats: liveCrime ?? {
+      totalCrimesPerMonth: 0,
+      topCategories: [],
+      vsNationalNote: `Crime data for ${areaName} is temporarily unavailable. Check the Police UK crime map at police.uk/crime for area-level statistics.`,
+      date: "",
+    },
   };
 
   let propertyDeepDive: PropertyDeepDive | undefined;

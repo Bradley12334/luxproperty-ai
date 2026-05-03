@@ -160,6 +160,37 @@ export interface AreaIntelligence {
     lat: number;
     lng: number;
   }>;
+
+  // ── Local Amenities (live data) ──────────────────────────────────────────────
+  nearbyStations: Array<{
+    name: string;
+    lines: string[];
+    modes: string[];
+    distanceMetres: number;
+    walkMins: number;
+  }>;
+
+  nearbySchools: Array<{
+    name: string;
+    type: string;         // "Primary" | "Secondary" | "Independent" etc.
+    ofstedRating: string; // "Outstanding" | "Good" | "Requires Improvement" | "Inadequate" | "Not yet rated"
+    distanceMetres: number;
+    walkMins: number;
+  }>;
+
+  nearbyAmenities: {
+    supermarkets: Array<{ name: string; type: string; distanceMetres: number }>;
+    cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number }>;
+    health: Array<{ name: string; type: string; distanceMetres: number }>;
+    greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number }>;
+  };
+
+  crimeStats: {
+    totalCrimesPerMonth: number;
+    topCategories: Array<{ category: string; count: number; pct: number }>;
+    vsNationalNote: string;
+    date: string;
+  };
 }
 
 export interface PropertyDeepDive {
