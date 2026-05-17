@@ -560,6 +560,51 @@ async function fetchNearbyAmenities(lat: number, lng: number): Promise<{
 }
 
 // ─── Live Crime Stats (via /api/crime-stats) ─────────────────────────────────
+// ─── Rental Market (ONS IPHRP + VOA) ────────────────────────────────────────
+async function fetchRentalMarket(postcode: string): Promise<{
+  region: string;
+  yoyChange: number;
+  yoyDate: string;
+  oneBedAskingRent: string;
+  twoBedAskingRent: string;
+  threeBedAskingRent: string;
+  oneBedYield: string;
+  twoBedYield: string;
+  demandLevel: string;
+  note: string;
+} | null> {
+  try {
+    const res = await fetch(`/api/rental-market?postcode=${encodeURIComponent(postcode)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Broadband (Ofcom Connected Nations 2024) ─────────────────────────────────
+async function fetchBroadband(postcode: string): Promise<{
+  avgDownloadSpeed: string;
+  avgDownloadMbps: number;
+  fullFibreAvailability: string;
+  sfbbAvailability: string;
+  rating: string;
+  providers: string;
+  note: string;
+} | null> {
+  try {
+    const res = await fetch(`/api/broadband?postcode=${encodeURIComponent(postcode)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchCrimeStats(lat: number, lng: number): Promise<{
   totalCrimesPerMonth: number;
   topCategories: Array<{ category: string; count: number; pct: number }>;
@@ -627,6 +672,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   let liveAmenities: Awaited<ReturnType<typeof fetchNearbyAmenities>> = null;
   let liveCrime: Awaited<ReturnType<typeof fetchCrimeStats>> = null;
   let livePlanningActivity: Awaited<ReturnType<typeof fetchPlanningActivity>> = null;
+  let liveRentalMarket: Awaited<ReturnType<typeof fetchRentalMarket>> = null;
+  let liveBroadband: Awaited<ReturnType<typeof fetchBroadband>> = null;
 
   if (!outsideEnglandWales && district) {
     [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
@@ -645,7 +692,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
 
   // Fetch all live data in parallel
-  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime, livePlanningActivity] = await Promise.all([
+  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime, livePlanningActivity, liveRentalMarket, liveBroadband] = await Promise.all([
     (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
     fetchEpcData(outcode),
     (meta?.lat && meta?.lng && isLondon) ? fetchAirQuality(meta.lat, meta.lng) : Promise.resolve(null),
@@ -655,6 +702,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     (meta?.lat && meta?.lng) ? fetchNearbyAmenities(meta.lat, meta.lng) : Promise.resolve(null),
     (meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng) : Promise.resolve(null),
     (meta?.lat && meta?.lng) ? fetchPlanningActivity(postcode, meta.lat, meta.lng, district) : Promise.resolve(null),
+    fetchRentalMarket(postcode),
+    fetchBroadband(postcode),
   ]) as any;
 
   const yearMedians = yearData.map(median);
@@ -1274,21 +1323,35 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       councilPortalUrl: `https://www.google.com/search?q=${encodeURIComponent(areaName + " council planning applications portal")}`,
       note: "Monitor the local planning portal regularly — major nearby developments can significantly affect property values.",
     },
-    rentalMarket: enrichmentProfile?.rentalMarket ?? {
+    rentalMarket: liveRentalMarket ? {
+      oneBedAskingRent: liveRentalMarket.oneBedAskingRent,
+      twoBedAskingRent: liveRentalMarket.twoBedAskingRent,
+      threeBedAskingRent: liveRentalMarket.threeBedAskingRent,
+      oneBedYield: liveRentalMarket.oneBedYield,
+      twoBedYield: liveRentalMarket.twoBedYield,
+      demandLevel: liveRentalMarket.demandLevel,
+      note: liveRentalMarket.note,
+    } : enrichmentProfile?.rentalMarket ?? {
       oneBedAskingRent: tier === "prime" ? "£2,500–£4,000+ pcm" : tier === "premium" ? "£1,500–£2,500 pcm" : "£900–£1,500 pcm",
       twoBedAskingRent: tier === "prime" ? "£4,000–£7,000+ pcm" : tier === "premium" ? "£2,200–£3,500 pcm" : "£1,200–£2,000 pcm",
       threeBedAskingRent: tier === "prime" ? "£6,000–£12,000+ pcm" : tier === "premium" ? "£3,000–£5,000 pcm" : "£1,500–£2,800 pcm",
       oneBedYield: tier === "prime" ? "2.8–3.5%" : tier === "premium" ? "3.5–4.5%" : "4.5–6.5%",
       twoBedYield: tier === "prime" ? "2.5–3.2%" : tier === "premium" ? "3.2–4.2%" : "4.2–6.0%",
       demandLevel: tier === "prime" ? "Very High" : tier === "premium" ? "High" : "Moderate",
-      note: `Rental market estimates for ${areaName} are based on comparable postcode tier data. Check Rightmove and Zoopla rental listings for current asking rents in this specific area.`,
+      note: `Rental market estimates for ${areaName} are based on comparable postcode tier data. Check Rightmove and Zoopla for current asking rents.`,
     },
-    broadband: enrichmentProfile?.broadband ?? {
+    broadband: liveBroadband ? {
+      avgDownloadSpeed: liveBroadband.avgDownloadSpeed,
+      fullFibreAvailability: liveBroadband.fullFibreAvailability,
+      rating: liveBroadband.rating as "Excellent" | "Very Good" | "Good" | "Moderate" | "Limited",
+      providers: liveBroadband.providers,
+      note: liveBroadband.note,
+    } : enrichmentProfile?.broadband ?? {
       avgDownloadSpeed: "Unknown — check Ofcom",
       fullFibreAvailability: "Unknown",
       rating: "Good" as const,
       providers: "Openreach, Virgin Media (check availability at address level)",
-      note: `Check broadband availability at your specific address via Ofcom's broadband checker (ofcom.org.uk/phones-and-broadband/advice/broadband-checker) before committing.`,
+      note: `Check broadband availability at your specific address via Ofcom's broadband checker (checker.ofcom.org.uk) before committing.`,
     },
     airQuality: (() => {
       const epcNote = liveEpc

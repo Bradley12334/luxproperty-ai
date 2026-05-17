@@ -122,7 +122,7 @@ export interface AreaIntelligence {
   broadband: {
     avgDownloadSpeed: string;   // "220 Mbps"
     fullFibreAvailability: string; // "89%"
-    rating: "Excellent" | "Good" | "Fair" | "Poor";
+    rating: "Excellent" | "Very Good" | "Good" | "Moderate" | "Limited" | "Fair" | "Poor";
     providers: string;          // "Openreach, Virgin Media, Hyperoptic"
     note: string;
   };

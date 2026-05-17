@@ -170,6 +170,8 @@ export async function registerRoutes(
     ["/api/air-quality",      "air-quality.js"],
     ["/api/tfl-commute",      "tfl-commute.js"],
     ["/api/epc",              "epc.js"],
+    ["/api/rental-market",    "rental-market.js"],
+    ["/api/broadband",        "broadband.js"],
   ];
 
   for (const [route, file] of apiRoutes) {
