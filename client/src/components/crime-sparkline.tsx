@@ -99,7 +99,7 @@ export function CrimeSparkline({ lat, lng }: CrimeSparklineProps) {
   }
 
   if (error || data.length === 0) {
-    return <p className="text-xs text-muted-foreground">Crime trend data unavailable.</p>;
+    return <p className="text-xs text-muted-foreground italic">12-month trend not available for this area.</p>;
   }
 
   const counts = data.map((d) => d.count);

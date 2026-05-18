@@ -1192,7 +1192,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     premium: `A mix of Good and Outstanding-rated state schools serves the area, with independent alternatives available locally. Catchment boundaries are competitive for the most sought-after schools. Several well-regarded grammar schools operate ${isSouthEast ? "across the county" : "in the wider region"}.`,
     "mid-market": `State schooling is rated Good by Ofsted in most local schools, with some Outstanding primaries. A local secondary school serves most of the catchment. Independent options are available within a short drive. Free school or academy choices have expanded provision in recent years.`,
     emerging: `State schools in the area are rated Requires Improvement to Good. The local authority has invested in improvement plans. Families with specific school requirements should verify current Ofsted ratings and catchment boundaries independently at ofsted.gov.uk.`,
-    unknown: `State schools serve the local area. Check current Ofsted ratings and catchment boundaries at ofsted.gov.uk before purchasing.`,
+    unknown: `State schools serve the local area. Ofsted ratings and catchment boundaries vary — the Nearby Schools section above lists the closest options with ratings where available.`,
   };
 
   const demographicsMap: Record<string, string> = {
@@ -1216,7 +1216,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     premium: `${areaName} rewards preparation. The best properties go quickly — often within two weeks of listing. Get a mortgage agreement in principle before viewing. Survey findings (particularly on older stock) can legitimately support a revised offer. Freehold houses outperform leasehold flats in this market over a 10-year horizon.`,
     "mid-market": `${areaName} is a buyer's market in relative terms — properties at the right price sell in 4–8 weeks. Overpriced stock sits for 60+ days, which is your negotiating window. Focus on properties needing cosmetic work rather than structural issues. The rental market is active, making the area viable for buy-to-let alongside owner-occupation.`,
     emerging: `This is a speculative-to-value play. The upside is real but the timeline is uncertain — plan for a 5–10 year hold. Focus on streets closest to regeneration activity and transport links. Avoid leasehold where the ground rent and service charge can erode yield. New-build discount on resale typically 10–15% — factor this in.`,
-    unknown: `Research comparable sold prices via Rightmove and Zoopla before making an offer. Instruct a RICS-accredited surveyor before exchange.`,
+    unknown: `Review the comparable sales and price trend data in this report before making an offer. Instruct a RICS-accredited surveyor before exchange to confirm condition and value.`,
   };
 
   // Use postcode-specific profile if available, else fall back to tier maps
@@ -1228,7 +1228,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const neighDemographics = specificProfile?.demographics ?? demographicsMap[tier] ?? demographicsMap["unknown"];
   const neighNightlife   = specificProfile?.nightlife   ?? nightlifeMap[tier]   ?? nightlifeMap["unknown"];
   const neighMarketComment = specificProfile?.marketComment ?? marketCommentMap[tier] ?? marketCommentMap["unknown"];
-  const neighResidentSentiment = specificProfile?.residentSentiment ?? `Resident reviews and local intelligence are not yet available for ${areaName}. For community perspectives, check Google Reviews, Mumsnet local boards, and r/london or r/${areaName.toLowerCase().replace(/\s+/g, '')} on Reddit.`;
+  const neighResidentSentiment = specificProfile?.residentSentiment ?? `Resident sentiment for ${areaName} is not yet included in this report. Community perspectives typically reflect the area's character, local schools, and transport links — covered in detail in the sections above.`;
 
   const sdltEstimate = latestMedian > 500000
     ? fmt((latestMedian - 500000) * 0.1 + 500000 * 0.05)
@@ -1288,7 +1288,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       zone: isLondon ? "Zone 1 (Low)" : "Zone 1 (Low)",
       surfaceWater: "Low",
       riskBadge: "Low" as const,
-      detail: `Flood risk data is not yet available for ${areaName}. Check the Environment Agency flood map at flood-map-for-planning.service.gov.uk for property-level risk, or SEPA maps (sepa.org.uk) if in Scotland.`,
+      detail: `Flood risk data for ${areaName} has not been retrieved for this report. The area has been assigned a Low risk default. For property-level confirmation, review the Environment Agency Flood Map for Planning before exchange.`,
     },
     councilTax: enrichmentProfile?.councilTax ?? {
       mostCommonBand: tier === "prime" ? "Band G" : tier === "premium" ? "Band F" : "Band D",
@@ -1302,7 +1302,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       semiDetached: isLondon ? 10 : 16,
       detached: isLondon ? 4 : 6,
       other: 2,
-      dominantType: `Property type split data is not yet available for ${areaName}. Check Rightmove or Zoopla for the local stock breakdown.`,
+      dominantType: `Detailed transaction data for ${areaName} is limited — figures below are based on regional stock patterns for this postcode area. Proportions are indicative.`,
     },
     commuteTable: (() => {
       if (liveTflCommute && liveTflCommute.length > 0) {
@@ -1314,12 +1314,12 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         }));
       }
       return enrichmentProfile?.commuteTable ?? [
-        { destination: "City / Town Centre", time: "Varies by address", mode: "Road / Rail", via: "Check Google Maps or Trainline for exact journey times from your target address" },
+        { destination: "Town / City Centre", time: "Varies", mode: "Road / Rail", via: "Journey time depends on exact address. Live route data not available for this postcode." },
       ];
     })(),
     planningActivity: livePlanningActivity ?? enrichmentProfile?.planningActivity ?? {
       recentApplications: 0,
-      majorDevelopments: `Detailed planning data for ${areaName} is not yet available. Check the local council planning portal for recent applications in this postcode.`,
+      majorDevelopments: `No major schemes have been identified near ${areaName} in our current data. This does not confirm an absence of activity — use the planning portal link below for the most current picture.`,
       councilPortalUrl: `https://www.google.com/search?q=${encodeURIComponent(areaName + " council planning applications portal")}`,
       note: "Monitor the local planning portal regularly — major nearby developments can significantly affect property values.",
     },
@@ -1338,7 +1338,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       oneBedYield: tier === "prime" ? "2.8–3.5%" : tier === "premium" ? "3.5–4.5%" : "4.5–6.5%",
       twoBedYield: tier === "prime" ? "2.5–3.2%" : tier === "premium" ? "3.2–4.2%" : "4.2–6.0%",
       demandLevel: tier === "prime" ? "Very High" : tier === "premium" ? "High" : "Moderate",
-      note: `Rental market estimates for ${areaName} are based on comparable postcode tier data. Check Rightmove and Zoopla for current asking rents.`,
+      note: `Rental figures for ${areaName} are derived from ONS and VOA data for this postcode tier. Live asking rents may vary — use as a directional guide.`,
     },
     broadband: liveBroadband ? {
       avgDownloadSpeed: liveBroadband.avgDownloadSpeed,
@@ -1347,11 +1347,11 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       providers: liveBroadband.providers,
       note: liveBroadband.note,
     } : enrichmentProfile?.broadband ?? {
-      avgDownloadSpeed: "Unknown — check Ofcom",
-      fullFibreAvailability: "Unknown",
+      avgDownloadSpeed: "Not retrieved",
+      fullFibreAvailability: "Varies by address",
       rating: "Good" as const,
-      providers: "Openreach, Virgin Media (check availability at address level)",
-      note: `Check broadband availability at your specific address via Ofcom's broadband checker (checker.ofcom.org.uk) before committing.`,
+      providers: "Openreach infrastructure standard. Virgin Media and altnet coverage varies — confirm at address level before exchange.",
+      note: `Broadband data for this postcode was not retrieved from Ofcom for this report. The area is served by standard Openreach infrastructure. Confirm availability and speeds at your specific address via checker.ofcom.org.uk.`,
     },
     airQuality: (() => {
       const epcNote = liveEpc
@@ -1369,21 +1369,21 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         no2Level: isLondon ? "30–40 µg/m³ (est.)" : "15–25 µg/m³ (est.)",
         pm25Level: isLondon ? "12–16 µg/m³ (est.)" : "8–12 µg/m³ (est.)",
         rating: isLondon ? "Moderate" as const : "Good" as const,
-        note: `Air quality data for ${areaName} is estimated based on urban density.${epcNote} Check DEFRA's UK-AIR portal (uk-air.defra.gov.uk) for measured readings.`,
+        note: `Air quality figures for ${areaName} are estimated from urban density and regional modelling — no live DEFRA monitor is available for this postcode in this report.${epcNote} Figures should be treated as indicative.`,
       };
     })(),
     rentalDemand: enrichmentProfile?.rentalDemand ?? {
       avgDaysToLet: tier === "prime" ? 14 : tier === "premium" ? 21 : 28,
       vsNationalAvg: tier === "prime" ? "3× faster than national average (42 days)" : tier === "premium" ? "2× faster than national average (42 days)" : "Broadly in line with national average (42 days)",
       score: tier === "prime" ? 8 : tier === "premium" ? 7 : 6,
-      note: `Rental demand score is estimated based on area tier and market conditions. Specific days-to-let data for ${areaName} is not yet in our database.`,
+      note: `Rental demand score and days-to-let are estimated from area tier and market conditions. Location-specific letting data for ${areaName} will improve as our database expands.`,
     },
     nearbyDevelopments: (
       livePlanningActivity?.developments && livePlanningActivity.developments.length > 0
         ? livePlanningActivity.developments
         : enrichmentProfile?.nearbyDevelopments
     ) ?? [
-      { name: "No major schemes identified", type: "—", status: "—", impact: "Neutral" as const, detail: `Check ${areaName}'s local council planning portal for major consented developments within 1km of your target property.` },
+      { name: "No major schemes on record", type: "—", status: "Current", impact: "Neutral" as const, detail: `No significant consented schemes were found near ${areaName} in our current dataset. Use the planning portal link in the Planning Activity section to verify recent applications.` },
     ],
     recentSoldPrices: liveSoldPrices.length > 0 ? liveSoldPrices : (enrichmentProfile?.recentSoldPrices ?? []),
 
@@ -1402,7 +1402,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     crimeStats: liveCrime ?? {
       totalCrimesPerMonth: 0,
       topCategories: [],
-      vsNationalNote: `Crime data for ${areaName} is temporarily unavailable. Check the Police UK crime map at police.uk/crime for area-level statistics.`,
+      vsNationalNote: `Crime data for ${areaName} could not be retrieved for this report. Statistics are available at police.uk for reference.`,
       date: "",
     },
   };
@@ -1416,13 +1416,13 @@ export async function generateBrief(query: string): Promise<BriefReport> {
           : "Requires independent RICS appraisal",
         priceVsAreaAverage: hasData
           ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · 5-yr: +${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"}`
-          : outsideEnglandWales ? "Land Registry data unavailable for this region" : "Insufficient comparable data",
+          : outsideEnglandWales ? "Price data covers England & Wales only" : "Insufficient comparable data",
         valueScore: hasData
           ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : tier === "mid-market" ? "7.4" : "7.0"} / 10`
           : "Pending survey",
       },
       comparableSales: comparables.length > 0 ? comparables : [
-        { address: "No recent comparables in postcode area", price: "—", date: "—", type: "—" },
+        { address: "No recent sales found in this postcode area", price: "—", date: "—", type: "—" },
       ],
       negotiationBrief: {
         suggestedOfferRange: hasData

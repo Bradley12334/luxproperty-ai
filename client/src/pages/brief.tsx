@@ -1200,22 +1200,22 @@ export default function BriefPage() {
               {/* Rich descriptions grid */}
               <div className="grid gap-5 sm:grid-cols-2">
                 {[
-                  { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
-                  { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities },
-                  { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport },
-                  { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace },
-                  { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
-                  { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics },
-                  { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife },
-                  { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment },
-                  { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment },
+                  { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character, fallback: false },
+                  { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities, fallback: false },
+                  { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport, fallback: false },
+                  { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace, fallback: false },
+                  { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools, fallback: false },
+                  { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics, fallback: false },
+                  { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife, fallback: false },
+                  { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment, fallback: false },
+                  { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment, fallback: ai.neighbourhoodProfile.residentSentiment.includes("not yet included") },
                 ].map((item) => (
-                  <div key={item.label} className="flex flex-col gap-1.5">
+                  <div key={item.label} className={`flex flex-col gap-1.5 ${item.fallback ? "opacity-60" : ""}`}>
                     <div className="flex items-center gap-1.5">
-                      <item.icon className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                      <item.icon className={`h-3.5 w-3.5 shrink-0 ${item.fallback ? "text-muted-foreground" : "text-primary"}`} />
+                      <span className={`text-xs font-semibold uppercase tracking-[0.12em] ${item.fallback ? "text-muted-foreground" : "text-primary"}`}>{item.label}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                    <p className={`leading-relaxed ${item.fallback ? "text-xs text-muted-foreground italic" : "text-sm text-muted-foreground"}`}>{item.text}</p>
                   </div>
                 ))}
               </div>
@@ -1292,7 +1292,7 @@ export default function BriefPage() {
             {/* Property Type Split */}
             <CollapsibleSection title="Property Type Split" testId="section-property-types">
               <div className="flex flex-col gap-4">
-                <p className="text-sm text-muted-foreground">{ai.propertyTypeSplit.dominantType}</p>
+                <p className={`text-sm ${ai.propertyTypeSplit.dominantType.includes("Indicative") || ai.propertyTypeSplit.dominantType.includes("indicative") || ai.propertyTypeSplit.dominantType.includes("limited") ? "text-muted-foreground italic text-xs" : "text-muted-foreground"}`}>{ai.propertyTypeSplit.dominantType}</p>
                 <div className="flex flex-col gap-2.5">
                   {[
                     { label: "Flats / Apartments", value: ai.propertyTypeSplit.flats, color: "bg-[#B8860B]" },
@@ -1361,7 +1361,10 @@ export default function BriefPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Planning Applications (past 12 months)</span>
-                      <span className="text-2xl font-bold text-foreground">{ai.planningActivity.recentApplications.toLocaleString()}</span>
+                      {ai.planningActivity.recentApplications > 0
+                        ? <span className="text-2xl font-bold text-foreground">{ai.planningActivity.recentApplications.toLocaleString()}</span>
+                        : <span className="text-sm text-muted-foreground italic">Not retrieved for this area</span>
+                      }
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Local Authority</span>
@@ -1470,37 +1473,47 @@ export default function BriefPage() {
             {/* Broadband & Infrastructure — Pro+ */}
             {isPaid ? (
               <CollapsibleSection title="Broadband & Infrastructure" testId="section-broadband">
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                      ai.broadband.rating === "Excellent"
-                        ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                        : ai.broadband.rating === "Good"
-                        ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-                        : ai.broadband.rating === "Fair"
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                        : "bg-red-500/15 text-red-700 dark:text-red-400"
-                    }`}>
-                      <Wifi className="h-3 w-3" />
-                      {ai.broadband.rating}
-                    </span>
+                {ai.broadband.avgDownloadSpeed === "Not retrieved" ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <Wifi className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                      <p className="text-sm text-muted-foreground">{ai.broadband.note}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{ai.broadband.providers}</p>
                   </div>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Download Speed</span>
-                      <span className="text-xl font-bold text-foreground">{ai.broadband.avgDownloadSpeed}</span>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                        ai.broadband.rating === "Excellent"
+                          ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                          : ai.broadband.rating === "Good"
+                          ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
+                          : ai.broadband.rating === "Fair"
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                          : "bg-red-500/15 text-red-700 dark:text-red-400"
+                      }`}>
+                        <Wifi className="h-3 w-3" />
+                        {ai.broadband.rating}
+                      </span>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Full Fibre Availability</span>
-                      <span className="text-xl font-bold text-foreground">{ai.broadband.fullFibreAvailability}</span>
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Download Speed</span>
+                        <span className="text-xl font-bold text-foreground">{ai.broadband.avgDownloadSpeed}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Full Fibre Availability</span>
+                        <span className="text-xl font-bold text-foreground">{ai.broadband.fullFibreAvailability}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Providers</span>
+                        <span className="text-sm text-foreground font-medium">{ai.broadband.providers}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Providers</span>
-                      <span className="text-sm text-foreground font-medium">{ai.broadband.providers}</span>
-                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
-                </div>
+                )}
               </CollapsibleSection>
             ) : (
               <div className="relative" data-testid="section-broadband-locked">
@@ -1643,26 +1656,34 @@ export default function BriefPage() {
             {isInvestor ? (
               <CollapsibleSection title="Development Tracker" testId="section-developments">
                 <div className="flex flex-col gap-3">
-                  {ai.nearbyDevelopments.map((dev, i) => (
-                    <div key={i} className="flex gap-3 p-3 rounded-lg border border-border bg-card">
-                      <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
-                        dev.impact === "Positive" ? "bg-green-500" : dev.impact === "Monitor" ? "bg-amber-500" : "bg-muted-foreground"
-                      }`} />
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">{dev.name}</span>
-                          <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{dev.type}</span>
-                          <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
-                            dev.impact === "Positive" ? "bg-green-500/15 text-green-700 dark:text-green-400" :
-                            dev.impact === "Monitor" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                            "bg-muted text-muted-foreground"
-                          }`}>{dev.impact}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{dev.status}</span>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{dev.detail}</p>
+                  {ai.nearbyDevelopments.map((dev, i) => {
+                    const isNoSchemesEntry = dev.name === "No major schemes on record";
+                    return isNoSchemesEntry ? (
+                      <div key={i} className="flex items-center gap-3 py-2">
+                        <Construction className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                        <p className="text-sm text-muted-foreground italic">{dev.detail}</p>
                       </div>
-                    </div>
-                  ))}
+                    ) : (
+                      <div key={i} className="flex gap-3 p-3 rounded-lg border border-border bg-card">
+                        <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
+                          dev.impact === "Positive" ? "bg-green-500" : dev.impact === "Monitor" ? "bg-amber-500" : "bg-muted-foreground"
+                        }`} />
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">{dev.name}</span>
+                            {dev.type !== "—" && <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{dev.type}</span>}
+                            <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
+                              dev.impact === "Positive" ? "bg-green-500/15 text-green-700 dark:text-green-400" :
+                              dev.impact === "Monitor" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
+                              "bg-muted text-muted-foreground"
+                            }`}>{dev.impact}</span>
+                          </div>
+                          {dev.status !== "—" && <span className="text-xs text-muted-foreground">{dev.status}</span>}
+                          <p className="text-xs text-muted-foreground leading-relaxed">{dev.detail}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CollapsibleSection>
             ) : (
@@ -1842,7 +1863,7 @@ export default function BriefPage() {
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <div className={`h-2 w-2 rounded-full shrink-0 ${ofstedColour.dot}`} />
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ofstedColour.pill}`}>
-                                Ofsted: {school.ofstedRating}
+                                {school.ofstedRating && school.ofstedRating !== "Not rated" ? `Ofsted: ${school.ofstedRating}` : "Not yet rated"}
                               </span>
                             </div>
                           </div>
@@ -1858,7 +1879,7 @@ export default function BriefPage() {
                     );
                   })}
                   <p className="text-xs text-muted-foreground pt-2">
-                    Ofsted ratings sourced from OpenStreetMap — verify at{" "}
+                    Ofsted ratings sourced from OpenStreetMap. For the definitive rating, see{" "}
                     <a href="https://www.ofsted.gov.uk" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">ofsted.gov.uk</a>.
                   </p>
                 </div>
@@ -1954,12 +1975,20 @@ export default function BriefPage() {
                       </div>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground pt-1">Source: OpenStreetMap contributors. Data may not be exhaustive — verify locally.</p>
+                  <p className="text-xs text-muted-foreground pt-1">Source: OpenStreetMap. Coverage is typically accurate but may not include every local business or amenity.</p>
                 </div>
               </CollapsibleSection>
             )}
 
             {/* ── Crime Statistics ─────────────────────────────────────────────── */}
+            {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
+              <CollapsibleSection title="Crime Statistics" testId="section-crime-unavailable">
+                <div className="flex items-center gap-3 py-1">
+                  <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0" />
+                  <p className="text-sm text-muted-foreground italic">Crime statistics for this area could not be retrieved for this report.</p>
+                </div>
+              </CollapsibleSection>
+            )}
             {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 && (
               <CollapsibleSection title="Crime Statistics" testId="section-crime">
                 <div className="space-y-4">
