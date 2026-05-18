@@ -23,23 +23,23 @@ const planDetails = {
     label: "Explorer",
     price: "Free",
     color: "text-muted-foreground",
-    features: ["3 briefs per month", "Area intelligence reports", "Basic market data"],
-    upgradeUrl: "https://buy.stripe.com/test_4gM5kw7tS0sv0Kq4Fd1gs02",
+    features: ["3 briefs per month", "5-year price trend & area data", "Neighbourhood profile & local character"],
+    upgradeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00",
     upgradeTo: "Professional — £4.99/month",
   },
   professional: {
     label: "Professional",
     price: "£4.99/month",
     color: "text-primary",
-    features: ["Unlimited briefs", "Property deep dive", "PDF export", "Comparables", "Negotiation brief"],
-    upgradeUrl: "https://buy.stripe.com/test_28EbIU8xWfnp0Kq6Nl1gs03",
+    features: ["Unlimited briefs", "Comparable sales & valuation range", "Negotiation brief & offer guidance", "Planning activity & risk flags", "Export to PDF & save briefs"],
+    upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
     upgradeTo: "Investor — £39.99/month",
   },
   investor: {
     label: "Investor",
     price: "£39.99/month",
     color: "text-amber-600 dark:text-amber-400",
-    features: ["Everything in Professional", "Portfolio dashboard", "Price alerts", "Custom branding", "API access"],
+    features: ["Everything in Professional", "Portfolio dashboard", "Sold prices map", "Development tracker", "Custom-branded PDF reports"],
     upgradeUrl: null,
     upgradeTo: null,
   },
@@ -165,7 +165,7 @@ export default function AccountPage() {
                     size="sm"
                     variant="outline"
                     className="text-sm"
-                    onClick={() => window.open("https://billing.stripe.com/p/login/test_00g14n4MU7tN9XW000", "_blank", "noopener,noreferrer")}
+                    onClick={() => window.open("https://billing.stripe.com/p/login/live_00g14n4MU7tN9XW000", "_blank", "noopener,noreferrer")}
                     data-testid="button-manage-subscription"
                   >
                     Manage Subscription

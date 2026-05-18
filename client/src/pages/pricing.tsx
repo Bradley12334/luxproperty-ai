@@ -10,7 +10,7 @@ const tiers = [
     name: "Explorer",
     price: "Free",
     period: "",
-    description: "Get started with basic property intelligence",
+    description: "Try it with 3 briefs a month. No card required.",
     badge: null,
     style: "default",
     cta: "Start Free",
@@ -21,7 +21,7 @@ const tiers = [
     name: "Professional",
     price: "£4.99",
     period: "/month",
-    description: "For serious buyers and property professionals",
+    description: "Unlimited briefs and the full pre-offer toolkit. For buyers and advisers doing serious work.",
     badge: "Most Popular",
     style: "professional",
     cta: "Start Professional",
@@ -32,8 +32,8 @@ const tiers = [
     name: "Investor",
     price: "£39.99",
     period: "/month",
-    description: "Portfolio management and advanced analytics",
-    badge: "Best Value",
+    description: "For advisers and buyers tracking multiple properties. Includes portfolio tools and custom-branded PDF reports.",
+    badge: "Power Users",
     style: "investor",
     cta: "Start Investor",
     ctaVariant: "default" as const,
@@ -49,38 +49,27 @@ interface FeatureRow {
 }
 
 const features: FeatureRow[] = [
-  // ── Core ──────────────────────────────────────────────────────────────────
-  { feature: "Monthly briefs", explorer: "3", professional: "Unlimited", investor: "Unlimited" },
-  { feature: "Area intelligence reports", explorer: true, professional: true, investor: true },
-  { feature: "Market overview data", explorer: true, professional: true, investor: true },
-  { feature: "Neighbourhood profile", explorer: true, professional: true, investor: true },
-  { feature: "What residents say", explorer: true, professional: true, investor: true },
-  { feature: "Price trend analysis", explorer: "1 year", professional: "5 years", investor: "10 years" },
-  // ── Free enrichment ───────────────────────────────────────────────────────
-  { feature: "Flood & climate risk", explorer: true, professional: true, investor: true },
-  { feature: "Council tax data", explorer: true, professional: true, investor: true },
-  { feature: "Property type split", explorer: true, professional: true, investor: true },
-  { feature: "Commute calculator", explorer: true, professional: true, investor: true },
-  // ── Professional ──────────────────────────────────────────────────────────
-  { feature: "Property deep dive", explorer: false, professional: true, investor: true },
-  { feature: "Valuation assessment", explorer: false, professional: true, investor: true },
-  { feature: "Comparable sales data", explorer: false, professional: true, investor: true },
-  { feature: "Negotiation brief", explorer: false, professional: true, investor: true },
-  { feature: "Planning activity", explorer: false, professional: true, investor: true },
+  // ── Free ──────────────────────────────────────────────────────────────────────────────
+  { feature: "Briefs per month", explorer: "3", professional: "Unlimited", investor: "Unlimited" },
+  { feature: "5-year price trend (Land Registry)", explorer: true, professional: true, investor: true },
+  { feature: "Neighbourhood profile & local character", explorer: true, professional: true, investor: true },
+  { feature: "Flood risk, council tax & commute data", explorer: true, professional: true, investor: true },
+  { feature: "Nearby schools, stations & parks", explorer: true, professional: true, investor: true },
+  // ── Professional ───────────────────────────────────────────────────────────────────────
+  { feature: "Comparable sales & valuation range", explorer: false, professional: true, investor: true },
+  { feature: "Negotiation brief & offer guidance", explorer: false, professional: true, investor: true },
+  { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
   { feature: "Rental market snapshot", explorer: false, professional: true, investor: true },
-  { feature: "Broadband & infrastructure", explorer: false, professional: true, investor: true },
-  { feature: "Air quality index", explorer: false, professional: true, investor: true },
+  { feature: "Broadband & air quality data", explorer: false, professional: true, investor: true },
   { feature: "Export to PDF", explorer: false, professional: true, investor: true },
-  // ── Investor ──────────────────────────────────────────────────────────────
-  { feature: "Rental demand score", explorer: false, professional: false, investor: true },
-  { feature: "Development tracker", explorer: false, professional: false, investor: true },
-  { feature: "Sold prices map", explorer: false, professional: false, investor: true },
+  { feature: "Save briefs", explorer: false, professional: true, investor: true },
+  // ── Investor ──────────────────────────────────────────────────────────────────────────
   { feature: "Portfolio dashboard", explorer: false, professional: false, investor: true },
-  { feature: "Automated price alerts", explorer: false, professional: false, investor: "Coming Soon" },
-  { feature: "API access", explorer: false, professional: false, investor: "Coming Soon" },
-  { feature: "Custom report branding", explorer: false, professional: false, investor: true },
-  { feature: "Priority support", explorer: false, professional: false, investor: "Coming Soon" },
-  { feature: "Dedicated account manager", explorer: false, professional: false, investor: "Coming Soon" },
+  { feature: "Sold prices map", explorer: false, professional: false, investor: true },
+  { feature: "Development tracker", explorer: false, professional: false, investor: true },
+  { feature: "Rental demand score", explorer: false, professional: false, investor: true },
+  { feature: "Custom-branded PDF reports", explorer: false, professional: false, investor: true },
+  { feature: "Price alerts", explorer: false, professional: false, investor: "Coming Soon" },
 ];
 
 function CellValue({ value, col }: { value: boolean | string; col: string }) {
@@ -121,11 +110,11 @@ export default function PricingPage() {
               Pricing
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-3">
-              Invest in better decisions
+              Clear pricing, real value
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Every plan includes AI-powered area intelligence. Upgrade for full property
-              analysis, negotiation briefs, and portfolio tools.
+              Start free with 3 briefs a month. Upgrade for unlimited access,
+              comparable sales, negotiation briefs, and PDF export.
             </p>
           </div>
         </section>
@@ -220,7 +209,7 @@ export default function PricingPage() {
         {/* Feature Comparison Table */}
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <h2 className="font-serif text-2xl tracking-tight mb-8">Compare plans</h2>
+            <h2 className="font-serif text-2xl tracking-tight mb-8">What’s included</h2>
 
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="w-full text-sm min-w-[600px]" data-testid="table-feature-comparison">
@@ -268,10 +257,10 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              Ready to make smarter property decisions?
+              Start with a free brief
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Start with a free brief and see the quality of our intelligence firsthand.
+              No credit card, no commitment. Run a brief on any UK postcode and see exactly what you get.
             </p>
             <Link href="/">
               <Button size="lg" className="text-sm font-semibold px-8" data-testid="button-get-started">
