@@ -62,7 +62,7 @@ export default function AreaPage() {
   const postcode = params.postcode?.toUpperCase() || "";
   const area = AREA_DATA[postcode];
 
-  useDocumentTitle(area ? `${area.name} (${postcode}) Property Intelligence` : `${postcode} Property Market`);
+  useDocumentTitle(area ? `${area.name} (${postcode}) Property Report` : `${postcode} Property Market`);
 
   if (!area) {
     // Unknown postcode — redirect to home with the postcode pre-filled
@@ -73,13 +73,13 @@ export default function AreaPage() {
           <div className="text-center max-w-md">
             <MapPin className="h-8 w-8 text-primary mx-auto mb-4" />
             <h1 className="font-serif text-2xl tracking-tight mb-3">
-              {postcode} Property Intelligence
+              {postcode} Property Report
             </h1>
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              Generate a full intelligence brief for {postcode} — including real Land Registry price data, 5-year trends, and neighbourhood analysis.
+              Generate a full property report for {postcode} — real Land Registry price data, 5-year trends, and neighbourhood analysis.
             </p>
             <Button onClick={() => navigate(`/?q=${postcode}`)} className="font-semibold">
-              Generate {postcode} Brief
+              Generate {postcode} Report
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -116,7 +116,7 @@ export default function AreaPage() {
               size="lg"
               className="font-semibold"
             >
-              Generate Full Intelligence Brief
+              Generate Full Property Report
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -129,7 +129,7 @@ export default function AreaPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               {[
                 { label: "Median Sale Price", value: area.medianPrice, icon: Home },
-                { label: "YoY Price Change", value: area.priceChange, icon: TrendingUp },
+                { label: "1-Year Price Change", value: area.priceChange, icon: TrendingUp },
                 { label: "Market Tier", value: area.tier, icon: MapPin },
                 { label: "Region", value: area.region, icon: Train },
               ].map((stat) => (
@@ -163,10 +163,10 @@ export default function AreaPage() {
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
             <div className="max-w-xl">
               <h2 className="font-serif text-2xl tracking-tight mb-3">
-                Get the full {postcode} intelligence report
+                Get the full {postcode} property report
               </h2>
               <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                Real Land Registry data, 5-year price trends, neighbourhood profile, investment outlook, and negotiation brief — all in 60 seconds.
+                Real Land Registry data, 5-year price trends, neighbourhood profile, market outlook, and comparable sales — all in 60 seconds.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
@@ -175,7 +175,7 @@ export default function AreaPage() {
                   onClick={() => navigate(`/?q=${postcode}`)}
                 >
                   <Search className="mr-2 h-4 w-4" />
-                  Generate {postcode} Brief — Free
+                  Generate {postcode} Report — Free
                 </Button>
                 <Link href="/pricing">
                   <Button variant="outline" size="lg">

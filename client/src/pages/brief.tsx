@@ -139,7 +139,7 @@ function LoadingState() {
               <FileText className="h-5 w-5 animate-pulse" />
             </div>
             <h2 className="font-serif text-xl tracking-tight mb-3">
-              Compiling your intelligence brief
+              Compiling your property report
             </h2>
             {/* Progress steps */}
             <div className="flex flex-col items-center gap-2 mb-6">
@@ -338,7 +338,7 @@ function exportToPDF(
 <html>
 <head>
 <meta charset="utf-8">
-<title>${companyName || "LuxProperty.ai"} — ${isProperty ? "Property" : "Area"} Intelligence Brief</title>
+<title>${companyName || "LuxProperty.ai"} — ${isProperty ? "Property" : "Area"} Report</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, 'Helvetica Neue', sans-serif; font-size: 13px; color: #1a1612; background: #fff; }
@@ -373,7 +373,7 @@ function exportToPDF(
   <div class="masthead">
     ${mastheadLogoHtml}
     <div class="meta">
-      Intelligence Brief<br>
+      Property Report<br>
       Generated ${date}${preparedByLine}<br>
       Data: HM Land Registry · Postcodes.io
     </div>
@@ -381,7 +381,7 @@ function exportToPDF(
 
   <div style="margin-bottom:28px">
     <div class="badge">${isProperty ? "Property Brief" : "Area Brief"}</div>
-    <h1>${isProperty ? "Property Intelligence Brief" : `Area Intelligence Brief — ${ai.location}, ${ai.area}`}</h1>
+    <h1>${isProperty ? `Property Report — ${ai.location}` : `${ai.location} Property Report — ${ai.area}`}</h1>
     ${isProperty ? `<div class="subtitle">📍 ${report.query}</div>` : ""}
   </div>
 
@@ -551,7 +551,7 @@ function exportToPDF(
   ${hs2Flags}
 
   <div class="footer">
-    <span>${companyName || "LuxProperty.ai"} — Confidential Intelligence Brief</span>
+    <span>${companyName || "LuxProperty.ai"} — Confidential Property Report</span>
     <span>Data sourced from HM Land Registry Price Paid &amp; Postcodes.io. For informational purposes only.</span>
   </div>
 </div>
@@ -774,9 +774,9 @@ export default function BriefPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <h2 className="font-serif text-xl mb-2">Brief not found</h2>
+            <h2 className="font-serif text-xl mb-2">Report not found</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              We couldn't load this intelligence brief.
+              We couldn't load this report.
             </p>
             <Link href="/">
               <Button variant="outline" size="sm">
@@ -820,15 +820,10 @@ export default function BriefPage() {
               data-testid="text-report-title"
             >
               {isPropertyReport
-                ? `Property Intelligence Brief`
-                : `Area Intelligence Brief — ${ai.location}, ${ai.area}`}
+                ? `Property Report — ${report.query}`
+                : `${ai.location} Property Report — ${ai.area}`}
             </h1>
-            {isPropertyReport && (
-              <p className="text-base text-muted-foreground flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
-                {report.query}
-              </p>
-            )}
+
             <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
               <Clock className="h-3 w-3" />
               Generated {new Date(report.generatedAt).toLocaleDateString("en-GB", {
@@ -859,7 +854,7 @@ export default function BriefPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                 <KpiValue label="Average Price" value={ai.marketOverview.averagePrice} />
                 <KpiValue label="Price Change YoY" value={ai.marketOverview.priceChangeYoY} />
-                <KpiValue label="Avg Days on Market" value={ai.marketOverview.avgDaysOnMarket} />
+                <KpiValue label="Time on Market" value={ai.marketOverview.avgDaysOnMarket} />
                 <KpiValue label="Supply Level" value={ai.marketOverview.supplyLevel} />
               </div>
             </Card>
@@ -950,7 +945,7 @@ export default function BriefPage() {
                   { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
                   { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics },
                   { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife },
-                  { icon: Lightbulb, label: "Buyer Intelligence", text: ai.neighbourhoodProfile.marketComment },
+                  { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment },
                   { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment },
                 ].map((item) => (
                   <div key={item.label} className="flex flex-col gap-1.5">
@@ -983,7 +978,7 @@ export default function BriefPage() {
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">EA Flood Zone</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Flood Zone (EA)</span>
                     <span className="text-sm text-foreground font-medium">{ai.floodRisk.zone}</span>
                   </div>
                   <div className="flex flex-col gap-1">
@@ -1103,7 +1098,7 @@ export default function BriefPage() {
                 <div className="flex flex-col gap-4">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Applications (12 months)</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Planning Applications (past 12 months)</span>
                       <span className="text-2xl font-bold text-foreground">{ai.planningActivity.recentApplications.toLocaleString()}</span>
                     </div>
                     <div className="flex flex-col gap-1">
@@ -1248,7 +1243,7 @@ export default function BriefPage() {
 
             {/* Air Quality — Pro+ */}
             {isPaid ? (
-              <CollapsibleSection title="Air Quality Index" testId="section-air-quality">
+              <CollapsibleSection title="Air Quality" testId="section-air-quality">
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap gap-2 items-center">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
@@ -1292,7 +1287,7 @@ export default function BriefPage() {
                   <Card className="p-5 sm:p-6">
                     <div className="flex items-center gap-2 mb-4">
                       <Wind className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Air Quality Index</h3>
+                      <h3 className="font-semibold text-sm">Air Quality</h3>
                     </div>
                     <div className="h-20 bg-muted rounded" />
                   </Card>
@@ -1972,13 +1967,13 @@ export default function BriefPage() {
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
-                This brief was generated using AI-assisted analysis of public market data.<br />
-                Data sourced from HM Land Registry Price Paid &amp; Postcodes.io.
+                Generated from public market data — HM Land Registry, ONS, Environment Agency &amp; more.<br />
+                Not a substitute for professional survey or legal advice.
               </p>
               <div className="flex items-center gap-3 flex-wrap justify-end">
                 <Link href="/">
                   <Button variant="outline" size="sm" data-testid="button-new-search">
-                    New brief
+                    New search
                   </Button>
                 </Link>
                 <Link href={`/compare?a=${encodeURIComponent(report?.postcode || "")}`}>

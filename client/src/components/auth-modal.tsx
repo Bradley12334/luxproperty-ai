@@ -165,7 +165,7 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
                 <Input
                   id="auth-name"
                   type="text"
-                  placeholder="Bradley Skana"
+                  placeholder="Jane Smith"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="pl-9"

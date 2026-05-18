@@ -264,7 +264,7 @@ export default function PortfolioPage() {
             </div>
             <h2 className="font-serif text-xl mb-2">Sign in to access your portfolio</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
-              Your saved properties and intelligence briefs are stored in your account.
+              Your saved properties and reports are stored in your account.
             </p>
             <Link href="/">
               <Button size="sm">Go to homepage</Button>
@@ -315,7 +315,7 @@ export default function PortfolioPage() {
                 Portfolio
               </h1>
               <p className="text-sm text-muted-foreground">
-                Your saved properties and area intelligence briefs
+                Your saved properties and area reports
               </p>
             </div>
 
@@ -334,7 +334,7 @@ export default function PortfolioPage() {
                 <DialogHeader>
                   <DialogTitle className="font-serif">Add to Portfolio</DialogTitle>
                   <DialogDescription>
-                    Enter a postcode or property address to generate an intelligence brief and add it to your portfolio.
+                    Enter a postcode or property address to generate a report and add it to your portfolio.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddProperty}>

@@ -335,7 +335,7 @@ export default function Home() {
                   {/* Report header bar */}
                   <div className="px-5 py-4 border-b border-border/40 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Area Intelligence Brief</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Area Property Report</p>
                       <h3 className="font-serif text-base tracking-tight mt-0.5">Chelsea, SW3 1AA</h3>
                     </div>
                     <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-0 text-[10px] font-semibold shrink-0">

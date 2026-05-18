@@ -80,7 +80,7 @@ export default function PrivacyPage() {
             <Section title="3. How we use your data">
               <p>We use the data we collect to:</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>Generate property intelligence briefs in response to your search queries</li>
+                <li>Generate property reports in response to your search queries</li>
                 <li>Send price alert notifications to your registered email address</li>
                 <li>Process and manage your subscription (if applicable)</li>
                 <li>Improve the platform based on anonymised usage patterns</li>

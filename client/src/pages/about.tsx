@@ -165,7 +165,7 @@ export default function AboutPage() {
               Ready to try it?
             </h2>
             <p className="text-sm text-muted-foreground mb-8 max-w-lg">
-              Generate your first property intelligence brief free — no account required.
+              Generate your first property report free — no account required.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/">

@@ -46,7 +46,7 @@ export default function TermsPage() {
 
           <Section title="2. Description of service">
             <p>
-              LuxProperty.ai provides AI-assisted property intelligence briefs based on
+              LuxProperty.ai provides AI-assisted property reports based on
               publicly available data from HM Land Registry and Postcodes.io. The Service
               is provided for informational purposes only.
             </p>
