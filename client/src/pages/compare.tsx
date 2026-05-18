@@ -205,23 +205,17 @@ function CompareColumn({ report, label }: CompareColumnProps) {
         </Card>
       )}
 
-      {/* Investment outlook */}
-      <Card className="p-4 border-primary/20">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Investment</p>
-        <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">Growth forecast</span>
-            <span className="text-xs font-bold text-foreground">{ai.investmentOutlook?.growthForecast}</span>
+      {/* Market signals / risk flags */}
+      {ai.investmentOutlook?.riskFlags && ai.investmentOutlook.riskFlags.length > 0 && (
+        <Card className="p-4 border-amber-400/20">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Risk Flags</p>
+          <div className="space-y-1">
+            {ai.investmentOutlook.riskFlags.slice(0, 3).map((f, i) => (
+              <p key={i} className="text-xs text-amber-600 dark:text-amber-400">⚠ {f}</p>
+            ))}
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">Rental yield</span>
-            <span className="text-xs font-bold text-foreground">{ai.investmentOutlook?.rentalYieldEstimate}</span>
-          </div>
-        </div>
-        {ai.investmentOutlook?.riskFlags?.slice(0, 2).map((f, i) => (
-          <p key={i} className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5">⚠ {f}</p>
-        ))}
-      </Card>
+        </Card>
+      )}
 
       {/* Verdict */}
       <Card className="p-4 border-primary/20 bg-primary/5">
@@ -300,7 +294,7 @@ export default function ComparePage() {
         <div className="mb-8">
           <h1 className="text-xl font-serif font-bold text-foreground mb-1">Compare Postcodes</h1>
           <p className="text-sm text-muted-foreground">
-            Enter two postcodes to generate a side-by-side investment comparison.
+            Enter two postcodes to generate a side-by-side area comparison.
           </p>
         </div>
 

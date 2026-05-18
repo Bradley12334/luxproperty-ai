@@ -34,10 +34,10 @@ export default function AboutPage() {
               <span className="text-primary italic">for you</span>
             </h1>
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
-              LuxProperty.ai is a UK property intelligence platform that turns official Land
-              Registry data into instant, professional-grade buyer briefs. Enter any postcode
-              or address, and in 60 seconds you'll have everything a serious buyer needs —
-              price trends, comparables, negotiation leverage, and an investment verdict.
+              LuxProperty.ai turns any UK postcode or address into a structured property
+              brief in under a minute. Built on official Land Registry data, it gives buyers
+              and their advisers a clear picture of price trends, comparable sales, area
+              character, and key risk factors — before making an offer.
             </p>
           </div>
         </section>
@@ -62,8 +62,8 @@ export default function AboutPage() {
                 We built LuxProperty.ai to change that. By combining HM Land Registry's
                 official Price Paid dataset with postcode-level intelligence from
                 Postcodes.io, we generate structured briefs that give buyers the same
-                quality of insight previously reserved for professional analysts — in
-                seconds, not days.
+                quality of research previously available only to those paying for a
+                surveyor or buying agent — in seconds, not days.
               </p>
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function AboutPage() {
                 {
                   icon: FileText,
                   title: "Professional-grade output",
-                  body: "Reports are structured like the analyst briefings used by property investment firms: executive summary, market KPIs, neighbourhood profile, comparables, negotiation brief, and a final verdict.",
+                  body: "Reports are structured to cover the questions that matter before an offer: market KPIs, neighbourhood profile, comparable sales, negotiation context, and a summary of key risk flags.",
                 },
               ].map((item) => (
                 <div key={item.title} className="flex flex-col gap-3">

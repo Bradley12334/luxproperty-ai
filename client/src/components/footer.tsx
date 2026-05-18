@@ -12,7 +12,7 @@ export function Footer() {
               <LuxPropertyLogo />
             </Link>
             <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-              AI-powered UK property intelligence. Built on HM Land Registry data.
+              UK property briefs built on official data. HM Land Registry, EPC Register, and more.
             </p>
 
           </div>

@@ -140,7 +140,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       </div>
       <h3 className="font-serif text-lg mb-2">No properties saved yet</h3>
       <p className="text-sm text-muted-foreground mb-2 max-w-xs">
-        Save any brief to your portfolio to track properties and compare performance over time.
+        Save any brief to your portfolio to revisit and compare the areas you're watching.
       </p>
       <p className="text-xs text-muted-foreground mb-6 max-w-xs">
         Tip: open any brief and tap <span className="font-semibold">Save to Portfolio</span> at the bottom.
@@ -290,7 +290,7 @@ export default function PortfolioPage() {
             </div>
             <h2 className="font-serif text-xl mb-2">Portfolio is an Investor feature</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
-              Upgrade to the Investor plan to save properties, track values, and build your intelligence portfolio.
+              Upgrade to the Investor plan to save properties, build a portfolio of briefs, and compare the areas you're considering.
             </p>
             <Link href="/pricing">
               <Button size="sm" className="font-semibold">View Investor plan — £39.99/month</Button>
@@ -402,13 +402,19 @@ export default function PortfolioPage() {
             />
             <StatCard
               icon={BarChart3}
-              label="Average Portfolio Value"
+              label="Avg. Area Price"
               value={stats.averagePortfolioValue}
             />
             <StatCard
               icon={TrendingUp}
-              label="Total Value"
-              value={stats.totalValue}
+              label="Last Saved"
+              value={
+                items.length > 0
+                  ? new Date(
+                      [...items].sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())[0].savedAt
+                    ).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                  : "—"
+              }
             />
           </div>
 

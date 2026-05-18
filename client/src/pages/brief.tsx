@@ -116,7 +116,7 @@ const LOADING_STEPS = [
   "Checking flood & EPC records",
   "Loading neighbourhood data",
   "Calculating walk score",
-  "Compiling investment verdict",
+  "Summarising key findings",
 ];
 
 function LoadingState() {
@@ -429,10 +429,11 @@ function exportToPDF(
   </div>` : ""}
 
   <div class="section">
-    <div class="section-label">Investment Outlook</div>
+    <div class="section-label">Market Outlook</div>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Indicative ranges based on recent Land Registry trends and ONS rental data. Not financial advice.</p>
     <div class="two-col" style="margin-bottom:16px">
-      <div class="kpi"><div class="kpi-label">Growth Forecast</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
-      <div class="kpi"><div class="kpi-label">Rental Yield Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
+      <div class="kpi"><div class="kpi-label">Price Growth (indicative)</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
+      <div class="kpi"><div class="kpi-label">Rental Yield (indicative)</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
     </div>
     <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Risk Flags</p>
     <ul>${riskFlags}</ul>
@@ -1837,10 +1838,13 @@ export default function BriefPage() {
               <div className="space-y-6">
                 {/* Investment Outlook — unlocked */}
                 <Card className="p-5 sm:p-6" data-testid="section-investment-outlook">
-                  <SectionHeading>Investment Outlook</SectionHeading>
+                  <SectionHeading>Market Outlook</SectionHeading>
+                  <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                    Indicative ranges based on recent Land Registry trends and ONS rental data for this area. Not financial advice.
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                    <KpiValue label="Growth Forecast" value={ai.investmentOutlook.growthForecast} />
-                    <KpiValue label="Rental Yield" value={ai.investmentOutlook.rentalYieldEstimate} />
+                    <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
+                    <KpiValue label="Rental Yield (indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
                   </div>
                   {ai.investmentOutlook.riskFlags.length > 0 && (
                     <div>
@@ -1876,10 +1880,10 @@ export default function BriefPage() {
                 {/* Blurred preview */}
                 <div className="space-y-6 blur-sm opacity-50 select-none pointer-events-none" aria-hidden="true">
                   <Card className="p-5 sm:p-6">
-                    <SectionHeading>Investment Outlook</SectionHeading>
+                    <SectionHeading>Market Outlook</SectionHeading>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                      <KpiValue label="Growth Forecast" value={ai.investmentOutlook.growthForecast} />
-                      <KpiValue label="Rental Yield" value={ai.investmentOutlook.rentalYieldEstimate} />
+                      <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
+                      <KpiValue label="Rental Yield (indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
                     </div>
                     {ai.investmentOutlook.riskFlags.length > 0 && (
                       <ul className="space-y-1.5">
@@ -1905,7 +1909,7 @@ export default function BriefPage() {
                       Upgrade to see the full picture
                     </h3>
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                      Investment outlook, risk flags, verdict, and PDF export are included in
+                      Market outlook, risk flags, negotiation brief, and PDF export are included in
                       Professional and Investor plans.
                     </p>
                     <div className="space-y-2">
