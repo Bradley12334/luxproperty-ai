@@ -310,6 +310,34 @@ function exportToPDF(
     <p style="margin-top:8px;font-size:11px;color:#9ca3af">${ai.crimeStats.vsNationalNote}</p>
   </div>` : "";
 
+  // Strengths & Considerations for PDF
+  const { strengths: pdfStrengths, considerations: pdfConsiderations } = deriveStrengthsAndConsiderations(ai);
+  const pdfSCSSection = (pdfStrengths.length > 0 || pdfConsiderations.length > 0) ? `
+  <div class="section">
+    <div class="section-label">Strengths &amp; Considerations</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      ${pdfStrengths.length > 0 ? `
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#166534;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e"></span>What works in your favour
+        </div>
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px">
+          ${pdfStrengths.map(s => `<li><div style="font-size:12px;font-weight:600;color:#111827;margin-bottom:2px">${s.label}</div><div style="font-size:11px;color:#6b7280;line-height:1.55">${s.detail}</div></li>`).join("")}
+        </ul>
+      </div>` : ""}
+      ${pdfConsiderations.length > 0 ? `
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b"></span>Worth thinking about
+        </div>
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px">
+          ${pdfConsiderations.map(c => `<li><div style="font-size:12px;font-weight:600;color:#111827;margin-bottom:2px">${c.label}</div><div style="font-size:11px;color:#6b7280;line-height:1.55">${c.detail}</div></li>`).join("")}
+        </ul>
+      </div>` : ""}
+    </div>
+    <p style="margin-top:12px;font-size:10px;color:#9ca3af">Synthesised from Land Registry, Environment Agency, Ofsted, and ONS data. Not a substitute for a professional survey.</p>
+  </div>` : "";
+
   // HS2 flags
   const hs2Flags = (() => {
     const outcode = ai.location.trim().toUpperCase().split(" ")[0].replace(/\d[A-Z]{2}$/, "").trim();
@@ -389,6 +417,8 @@ function exportToPDF(
     <div class="section-label">Executive Summary</div>
     <p class="body-text">${ai.executiveSummary}</p>
   </div>
+
+  ${pdfSCSSection}
 
   <div class="section">
     <div class="section-label">Market Overview</div>
@@ -596,6 +626,235 @@ const TFL_LINE_COLOURS: Record<string, { bg: string; text: string }> = {
 function getLineStyle(line: string): { bg: string; text: string } {
   const key = line.toLowerCase().trim();
   return TFL_LINE_COLOURS[key] ?? { bg: "#B8860B", text: "#fff" };
+}
+
+// ── Strengths & Considerations ────────────────────────────────────────────────
+// Derived entirely from existing report data — no extra API calls.
+interface SCSPoint {
+  label: string;
+  detail: string;
+}
+
+function deriveStrengthsAndConsiderations(ai: BriefReport["areaIntelligence"]): {
+  strengths: SCSPoint[];
+  considerations: SCSPoint[];
+} {
+  const strengths: SCSPoint[] = [];
+  const considerations: SCSPoint[] = [];
+
+  // ── STRENGTHS ─────────────────────────────────────────────────────────────
+
+  // Price growth
+  const yoy = ai.marketOverview.priceChangeYoY;
+  const yoyNum = parseFloat(yoy.replace(/[^\d.\-]/g, ""));
+  if (!isNaN(yoyNum) && yoyNum >= 4) {
+    strengths.push({
+      label: "Strong price growth",
+      detail: `Values up ${yoy} year-on-year — above the national average, suggesting sustained buyer demand.`,
+    });
+  } else if (!isNaN(yoyNum) && yoyNum > 0) {
+    strengths.push({
+      label: "Steady price appreciation",
+      detail: `Values have grown ${yoy} over the past year, indicating a stable, demand-led market.`,
+    });
+  }
+
+  // Good Ofsted school nearby
+  const outstandingSchool = ai.nearbySchools?.find(s => s.ofstedRating === "Outstanding");
+  const goodSchool = ai.nearbySchools?.find(s => s.ofstedRating === "Good");
+  const topSchool = outstandingSchool ?? goodSchool;
+  if (topSchool) {
+    strengths.push({
+      label: `${topSchool.ofstedRating} school within reach`,
+      detail: `${topSchool.name} (${topSchool.type}) is rated ${topSchool.ofstedRating} by Ofsted and is a ${topSchool.walkMins}-minute walk.`,
+    });
+  }
+
+  // Strong transport
+  const transportRating = ai.neighbourhoodProfile?.transportRating ?? 0;
+  const closestStation = ai.nearbyStations?.slice().sort((a, b) => a.walkMins - b.walkMins)?.[0];
+  if (transportRating >= 7 || (closestStation && closestStation.walkMins <= 8)) {
+    const stationNote = closestStation
+      ? `${closestStation.name} is ${closestStation.walkMins} minutes on foot.`
+      : "Several stations are within easy walking distance.";
+    strengths.push({
+      label: "Well connected for commuters",
+      detail: stationNote + (closestStation?.lines?.length ? ` Lines: ${closestStation.lines.slice(0, 2).join(", ")}.` : ""),
+    });
+  }
+
+  // Low flood risk
+  if (ai.floodRisk?.riskBadge === "Low") {
+    strengths.push({
+      label: "Low flood risk",
+      detail: `The Environment Agency classifies this area as ${ai.floodRisk.zone} — a genuine plus for long-term insurability and resale.`,
+    });
+  }
+
+  // Good broadband
+  if (ai.broadband?.rating === "Excellent" || ai.broadband?.rating === "Very Good") {
+    strengths.push({
+      label: `${ai.broadband.rating.toLowerCase()} broadband`,
+      detail: `Average download speeds of ${ai.broadband.avgDownloadSpeed}, with ${ai.broadband.fullFibreAvailability} full-fibre availability.`,
+    });
+  }
+
+  // Good air quality
+  if (ai.airQuality?.rating === "Good") {
+    strengths.push({
+      label: "Good air quality",
+      detail: `NO₂ and PM2.5 readings are within WHO guidelines — important for families with young children.`,
+    });
+  }
+
+  // Green space nearby
+  const closestPark = ai.nearbyAmenities?.greenSpaces?.[0];
+  if (closestPark && closestPark.walkMins <= 8) {
+    strengths.push({
+      label: "Green space on your doorstep",
+      detail: `${closestPark.name} is ${closestPark.walkMins} minutes away — ideal for families, dog walkers, and weekend morning runs.`,
+    });
+  }
+
+  // Supply tightness
+  const supply = ai.marketOverview.supplyLevel?.toLowerCase();
+  if (supply && (supply.includes("low") || supply.includes("tight") || supply.includes("constrained"))) {
+    strengths.push({
+      label: "Constrained supply",
+      detail: `Stock levels are ${ai.marketOverview.supplyLevel}, which tends to support prices and limit negotiating room for sellers.`,
+    });
+  }
+
+  // ── CONSIDERATIONS ────────────────────────────────────────────────────────
+
+  // Flood risk
+  if (ai.floodRisk?.riskBadge === "High") {
+    considerations.push({
+      label: "High flood risk — check insurance",
+      detail: `Classified as ${ai.floodRisk.zone}. Flood insurance may be harder to obtain or more expensive — verify with your broker before proceeding.`,
+    });
+  } else if (ai.floodRisk?.riskBadge === "Medium") {
+    considerations.push({
+      label: "Medium flood risk",
+      detail: `Classified as ${ai.floodRisk.zone}. Worth requesting a specific flood risk assessment and checking the Environment Agency's interactive map.`,
+    });
+  }
+
+  // Price falling
+  if (!isNaN(yoyNum) && yoyNum < 0) {
+    considerations.push({
+      label: "Prices have softened",
+      detail: `Values are ${yoy} year-on-year. This could be a buying opportunity, or a sign of weaker local demand — worth exploring the cause.`,
+    });
+  }
+
+  // Risk flags from investmentOutlook
+  if (ai.investmentOutlook?.riskFlags?.length > 0) {
+    ai.investmentOutlook.riskFlags.slice(0, 2).forEach(flag => {
+      considerations.push({ label: "Risk flag", detail: flag });
+    });
+  }
+
+  // High crime
+  const safetyRating = ai.neighbourhoodProfile?.safetyRating ?? 100;
+  if (safetyRating < 40 && ai.crimeStats?.totalCrimesPerMonth > 0) {
+    const topCat = ai.crimeStats.topCategories?.[0];
+    considerations.push({
+      label: "Above-average crime levels",
+      detail: `${ai.crimeStats.totalCrimesPerMonth} crimes recorded per month in this area.${ topCat ? ` Most common: ${topCat.category} (${topCat.pct}%).` : ""} ${ai.crimeStats.vsNationalNote}`,
+    });
+  }
+
+  // Poor air quality
+  if (ai.airQuality?.rating === "Poor" || ai.airQuality?.rating === "Very Poor") {
+    considerations.push({
+      label: `${ai.airQuality.rating} air quality`,
+      detail: `NO₂ at ${ai.airQuality.no2Level} — above WHO guidelines. Relevant if you have young children, respiratory conditions, or simply want fresh air at home.`,
+    });
+  }
+
+  // Slow market / high days on market
+  const dom = ai.marketOverview.avgDaysOnMarket;
+  if (typeof dom === "number" && dom > 90) {
+    considerations.push({
+      label: "Properties sitting longer",
+      detail: `Homes are taking an average of ${dom} days to sell — a signal that demand may be softer, which could work in your favour at negotiation.`,
+    });
+  }
+
+  // No good schools nearby
+  const hasDecentSchool = ai.nearbySchools?.some(s =>
+    (s.ofstedRating === "Outstanding" || s.ofstedRating === "Good") && s.walkMins <= 20
+  );
+  if (ai.nearbySchools?.length > 0 && !hasDecentSchool) {
+    considerations.push({
+      label: "School ratings to consider",
+      detail: `No Outstanding or Good-rated Ofsted schools within a 20-minute walk. Worth checking the wider catchment if schools are a priority.`,
+    });
+  }
+
+  // Cap to 3 each for readability
+  return {
+    strengths: strengths.slice(0, 3),
+    considerations: considerations.slice(0, 3),
+  };
+}
+
+function StrengthsAndConsiderations({ ai }: { ai: BriefReport["areaIntelligence"] }) {
+  const { strengths, considerations } = deriveStrengthsAndConsiderations(ai);
+
+  if (strengths.length === 0 && considerations.length === 0) return null;
+
+  return (
+    <Card className="p-5 sm:p-6" data-testid="section-strengths-considerations">
+      <div className="flex items-center gap-2 mb-5">
+        <BadgeCheck className="h-4 w-4 text-primary" />
+        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-primary">Strengths &amp; Considerations</h3>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-6">
+        {/* Strengths */}
+        {strengths.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-green-700 dark:text-green-400 mb-3 flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500 shrink-0" />
+              What works in your favour
+            </p>
+            <ul className="space-y-4">
+              {strengths.map((s, i) => (
+                <li key={i} className="flex flex-col gap-0.5">
+                  <span className="text-sm font-semibold text-foreground leading-snug">{s.label}</span>
+                  <span className="text-xs text-muted-foreground leading-relaxed">{s.detail}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Considerations */}
+        {considerations.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-400 mb-3 flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              Worth thinking about
+            </p>
+            <ul className="space-y-4">
+              {considerations.map((c, i) => (
+                <li key={i} className="flex flex-col gap-0.5">
+                  <span className="text-sm font-semibold text-foreground leading-snug">{c.label}</span>
+                  <span className="text-xs text-muted-foreground leading-relaxed">{c.detail}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/70 mt-5 pt-4 border-t border-border/40">
+        Synthesised from Land Registry, Environment Agency, Ofsted, and ONS data in this report. Not a substitute for a professional survey.
+      </p>
+    </Card>
+  );
 }
 
 // ── At a Glance lifestyle panel ───────────────────────────────────────────────
@@ -839,6 +1098,9 @@ export default function BriefPage() {
           <div className="space-y-6">
             {/* At a Glance — lifestyle panel */}
             <LifestyleGlance ai={ai} report={report} />
+
+            {/* Strengths & Considerations — synthesised from report data */}
+            <StrengthsAndConsiderations ai={ai} />
 
             {/* Executive Summary */}
             <Card className="p-5 sm:p-6" data-testid="section-executive-summary">
