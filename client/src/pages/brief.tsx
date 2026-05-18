@@ -51,6 +51,8 @@ import {
   Coffee,
   Stethoscope,
   TreePine,
+  Leaf,
+  BadgeCheck,
 } from "lucide-react";
 import { SoldPricesMap } from "@/components/sold-prices-map";
 import type { BriefReport } from "@shared/schema";
@@ -563,6 +565,159 @@ function exportToPDF(
   setTimeout(() => { win.print(); }, 500);
 }
 
+// ── TfL / rail line colour mapping ───────────────────────────────────────────
+const TFL_LINE_COLOURS: Record<string, { bg: string; text: string }> = {
+  "elizabeth line":    { bg: "#6950a1", text: "#fff" },
+  "elizabeth":         { bg: "#6950a1", text: "#fff" },
+  "jubilee":           { bg: "#868f98", text: "#fff" },
+  "central":           { bg: "#dc241f", text: "#fff" },
+  "northern":          { bg: "#000000", text: "#fff" },
+  "victoria":          { bg: "#0098d4", text: "#fff" },
+  "piccadilly":        { bg: "#003688", text: "#fff" },
+  "bakerloo":          { bg: "#b36305", text: "#fff" },
+  "district":          { bg: "#00782a", text: "#fff" },
+  "circle":            { bg: "#ffd300", text: "#1a1612" },
+  "hammersmith & city": { bg: "#f3a9bb", text: "#1a1612" },
+  "hammersmith":       { bg: "#f3a9bb", text: "#1a1612" },
+  "metropolitan":      { bg: "#9b0056", text: "#fff" },
+  "overground":        { bg: "#ee7c0e", text: "#fff" },
+  "london overground": { bg: "#ee7c0e", text: "#fff" },
+  "dlr":               { bg: "#00a4a7", text: "#fff" },
+  "thameslink":        { bg: "#da0a43", text: "#fff" },
+  "southeastern":      { bg: "#1c3f73", text: "#fff" },
+  "great western":     { bg: "#0a493e", text: "#fff" },
+  "chiltern":          { bg: "#3f4d9f", text: "#fff" },
+  "c2c":               { bg: "#b2195b", text: "#fff" },
+  "crossrail":         { bg: "#6950a1", text: "#fff" },
+  "national rail":     { bg: "#1c3f73", text: "#fff" },
+};
+
+function getLineStyle(line: string): { bg: string; text: string } {
+  const key = line.toLowerCase().trim();
+  return TFL_LINE_COLOURS[key] ?? { bg: "#B8860B", text: "#fff" };
+}
+
+// ── At a Glance lifestyle panel ───────────────────────────────────────────────
+function LifestyleGlance({ ai, report }: { ai: BriefReport["areaIntelligence"]; report: BriefReport }) {
+  // Pick best school
+  const bestSchool = ai.nearbySchools?.find(s =>
+    s.ofstedRating === "Outstanding" || s.ofstedRating === "Good"
+  ) ?? ai.nearbySchools?.[0];
+
+  // Pick nearest station
+  const closestStation = ai.nearbyStations?.
+    slice().sort((a, b) => a.walkMins - b.walkMins)?.[0];
+
+  // Pick nearest green space
+  const closestPark = ai.nearbyAmenities?.greenSpaces?.[0];
+
+  // Safety
+  const safetyRating = ai.neighbourhoodProfile?.safetyRating ?? 0;
+  const safetyLabel =
+    safetyRating >= 80 ? "Very Safe" :
+    safetyRating >= 60 ? "Generally Safe" :
+    safetyRating >= 40 ? "Average" : "Below Average";
+  const safetyColour =
+    safetyRating >= 80 ? "text-green-700 dark:text-green-400" :
+    safetyRating >= 60 ? "text-blue-700 dark:text-blue-400" :
+    safetyRating >= 40 ? "text-amber-700 dark:text-amber-400" : "text-red-700 dark:text-red-400";
+
+  // Local feel — pull from character or area name
+  const localFeel = ai.neighbourhoodProfile?.character
+    ? ai.neighbourhoodProfile.character.split(".")[0] + "."
+    : `${ai.area} is a well-connected residential area.`;
+
+  const hasAnyData = bestSchool || closestStation || closestPark;
+  if (!hasAnyData) return null;
+
+  return (
+    <Card className="p-5 sm:p-6 border-primary/20 bg-gradient-to-br from-card to-primary/[0.03]" data-testid="section-lifestyle-glance">
+      <div className="flex items-center gap-2 mb-4">
+        <Home className="h-4 w-4 text-primary" />
+        <span className="text-xs font-bold uppercase tracking-[0.14em] text-primary">At a Glance — Life Here</span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+        {/* Schools */}
+        {bestSchool && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <GraduationCap className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Schools</span>
+            </div>
+            <p className="text-sm font-semibold text-foreground leading-tight">{bestSchool.name}</p>
+            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full self-start ${
+              bestSchool.ofstedRating === "Outstanding" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
+              bestSchool.ofstedRating === "Good" ? "bg-blue-500/15 text-blue-700 dark:text-blue-400" :
+              "bg-muted text-muted-foreground"
+            }`}>{bestSchool.ofstedRating}</span>
+            <p className="text-xs text-muted-foreground">{bestSchool.walkMins} min walk</p>
+          </div>
+        )}
+
+        {/* Commute */}
+        {closestStation && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Train className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Commute</span>
+            </div>
+            <p className="text-sm font-semibold text-foreground leading-tight">{closestStation.name}</p>
+            <div className="flex flex-wrap gap-1">
+              {closestStation.lines.slice(0, 2).map((line, j) => {
+                const style = getLineStyle(line);
+                return (
+                  <span key={j} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: style.bg, color: style.text }}>{line}</span>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">{closestStation.walkMins} min walk</p>
+          </div>
+        )}
+
+        {/* Safety */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Safety</span>
+          </div>
+          <p className={`text-sm font-semibold leading-tight ${safetyColour}`}>{safetyLabel}</p>
+          <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-0.5">
+            <div
+              className={`h-full rounded-full transition-all ${
+                safetyRating >= 80 ? "bg-green-500" :
+                safetyRating >= 60 ? "bg-blue-500" :
+                safetyRating >= 40 ? "bg-amber-500" : "bg-red-500"
+              }`}
+              style={{ width: `${safetyRating}%` }}
+            />
+          </div>
+          {ai.crimeStats && (
+            <p className="text-xs text-muted-foreground">{ai.crimeStats.totalCrimesPerMonth} crimes/mo</p>
+          )}
+        </div>
+
+        {/* Green Space */}
+        {closestPark && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Leaf className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Green Space</span>
+            </div>
+            <p className="text-sm font-semibold text-foreground leading-tight">{closestPark.name}</p>
+            <p className="text-xs text-muted-foreground">{closestPark.walkMins} min walk</p>
+          </div>
+        )}
+      </div>
+
+      {/* Local feel sentence */}
+      <div className="border-t border-border/40 pt-3 mt-1">
+        <p className="text-xs text-muted-foreground leading-relaxed italic">"{localFeel}"</p>
+      </div>
+    </Card>
+  );
+}
+
 export default function BriefPage() {
   const params = useParams<{ id: string }>();
   const briefId = params.id;
@@ -686,6 +841,9 @@ export default function BriefPage() {
           </div>
 
           <div className="space-y-6">
+            {/* At a Glance — lifestyle panel */}
+            <LifestyleGlance ai={ai} report={report} />
+
             {/* Executive Summary */}
             <Card className="p-5 sm:p-6" data-testid="section-executive-summary">
               <SectionHeading>Executive Summary</SectionHeading>
@@ -1307,27 +1465,59 @@ export default function BriefPage() {
             {/* ── Nearby Stations ─────────────────────────────────────────── */}
             {ai.nearbyStations && ai.nearbyStations.length > 0 && (
               <CollapsibleSection title="Nearby Stations" testId="section-stations">
-                <div className="space-y-3">
-                  {ai.nearbyStations.map((station, i) => (
-                    <div key={i} className="flex items-start justify-between gap-3 py-2 border-b border-border/40 last:border-0">
-                      <div className="flex items-start gap-3">
-                        <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{station.name}</p>
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            {station.lines.map((line, j) => (
-                              <span key={j} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{line}</span>
-                            ))}
+                <div className="space-y-0">
+                  {ai.nearbyStations.map((station, i) => {
+                    // Detect if any London Tube / Overpass line for commute note
+                    const isLondonLine = station.lines.some(l =>
+                      ["jubilee","central","northern","victoria","piccadilly","bakerloo",
+                       "district","circle","metropolitan","elizabeth","elizabeth line",
+                       "hammersmith","overground","dlr","london overground"].includes(l.toLowerCase())
+                    );
+                    const isNationalRail = !isLondonLine && station.modes?.includes("national-rail");
+                    const commuteNote = isLondonLine
+                      ? `Direct access to central London`
+                      : isNationalRail
+                      ? `National Rail connections`
+                      : null;
+
+                    return (
+                      <div key={i} className="flex items-start justify-between gap-3 py-3 border-b border-border/40 last:border-0">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Train className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{station.name}</p>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {station.lines.map((line, j) => {
+                                const style = getLineStyle(line);
+                                return (
+                                  <span
+                                    key={j}
+                                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                    style={{ backgroundColor: style.bg, color: style.text }}
+                                  >
+                                    {line}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            {commuteNote && (
+                              <p className="text-xs text-muted-foreground mt-1">{commuteNote}</p>
+                            )}
                           </div>
                         </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-[#B8860B]">{station.walkMins} min</p>
+                          <p className="text-[11px] text-muted-foreground">walk</p>
+                          {station.distanceMetres && (
+                            <p className="text-[11px] text-muted-foreground">{station.distanceMetres}m</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-semibold text-foreground">{station.walkMins} min walk</p>
-                        <p className="text-xs text-muted-foreground">{station.distanceMetres}m</p>
-                      </div>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground pt-1">Source: TfL StopPoint API. Walk times estimated at 80m/min.</p>
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground pt-2">Walk times estimated at 80m/min. Source: OpenStreetMap.</p>
                 </div>
               </CollapsibleSection>
             )}
@@ -1335,30 +1525,56 @@ export default function BriefPage() {
             {/* ── Nearby Schools ──────────────────────────────────────────────── */}
             {ai.nearbySchools && ai.nearbySchools.length > 0 && (
               <CollapsibleSection title="Nearby Schools" testId="section-schools">
-                <div className="space-y-3">
-                  {ai.nearbySchools.map((school, i) => (
-                    <div key={i} className="flex items-start justify-between gap-3 py-2 border-b border-border/40 last:border-0">
-                      <div className="flex items-start gap-3">
-                        <GraduationCap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{school.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{school.type}</p>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full mt-1 inline-block ${
-                            school.ofstedRating === "Outstanding" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
-                            school.ofstedRating === "Good" ? "bg-blue-500/15 text-blue-700 dark:text-blue-400" :
-                            school.ofstedRating.includes("Improvement") ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                            school.ofstedRating === "Inadequate" ? "bg-red-500/15 text-red-700 dark:text-red-400" :
-                            "bg-muted text-muted-foreground"
-                          }`}>{school.ofstedRating}</span>
+                <div className="space-y-0">
+                  {ai.nearbySchools.map((school, i) => {
+                    const ofstedColour =
+                      school.ofstedRating === "Outstanding"
+                        ? { pill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" }
+                        : school.ofstedRating === "Good"
+                        ? { pill: "bg-blue-500/15 text-blue-700 dark:text-blue-400", dot: "bg-blue-500" }
+                        : school.ofstedRating?.includes("Improvement")
+                        ? { pill: "bg-amber-500/15 text-amber-700 dark:text-amber-400", dot: "bg-amber-500" }
+                        : school.ofstedRating === "Inadequate"
+                        ? { pill: "bg-red-500/15 text-red-700 dark:text-red-400", dot: "bg-red-500" }
+                        : { pill: "bg-muted text-muted-foreground", dot: "bg-muted-foreground/40" };
+
+                    const walkContext =
+                      school.walkMins <= 5 ? "on your doorstep"
+                      : school.walkMins <= 10 ? "a short walk away"
+                      : school.walkMins <= 20 ? "comfortable walk"
+                      : "nearby";
+
+                    return (
+                      <div key={i} className="flex items-start justify-between gap-3 py-3.5 border-b border-border/40 last:border-0">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <GraduationCap className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <p className="text-sm font-semibold text-foreground leading-tight">{school.name}</p>
+                            <p className="text-xs text-muted-foreground">{school.type}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <div className={`h-2 w-2 rounded-full shrink-0 ${ofstedColour.dot}`} />
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ofstedColour.pill}`}>
+                                Ofsted: {school.ofstedRating}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-[#B8860B]">{school.walkMins} min</p>
+                          <p className="text-[11px] text-muted-foreground">{walkContext}</p>
+                          {school.distanceMetres && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{school.distanceMetres}m</p>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-semibold text-foreground">{school.walkMins} min walk</p>
-                        <p className="text-xs text-muted-foreground">{school.distanceMetres}m</p>
-                      </div>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground pt-1">Source: OpenStreetMap. Ofsted ratings where available — verify at ofsted.gov.uk.</p>
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground pt-2">
+                    Ofsted ratings sourced from OpenStreetMap — verify at{" "}
+                    <a href="https://www.ofsted.gov.uk" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">ofsted.gov.uk</a>.
+                  </p>
                 </div>
               </CollapsibleSection>
             )}
@@ -1422,17 +1638,33 @@ export default function BriefPage() {
                   )}
                   {ai.nearbyAmenities.greenSpaces.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-3">
                         <TreePine className="h-3.5 w-3.5 text-primary" />
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Parks & Green Spaces</p>
                       </div>
-                      <div className="space-y-1.5">
-                        {ai.nearbyAmenities.greenSpaces.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-foreground">{s.name}</span>
-                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.walkMins} min walk</span>
-                          </div>
-                        ))}
+                      <div className="space-y-2.5">
+                        {ai.nearbyAmenities.greenSpaces.map((s, i) => {
+                          const parkContext =
+                            s.walkMins <= 3 ? "right on your street"
+                            : s.walkMins <= 7 ? "perfect for a morning run"
+                            : s.walkMins <= 12 ? "great for weekend walks"
+                            : "a pleasant stroll away";
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Leaf className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
+                                  <p className="text-xs text-muted-foreground">{parkContext}</p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-sm font-bold text-[#B8860B]">{s.walkMins} min</span>
+                                <p className="text-[11px] text-muted-foreground">walk</p>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
