@@ -23,12 +23,14 @@ import {
   Star,
   Building2,
   ChevronRight,
-  Quote,
   Users,
   ExternalLink,
   Train,
   TreePine,
   GraduationCap,
+  HardDrive,
+  Wifi,
+  AlertTriangle,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -615,90 +617,144 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Why LuxProperty / Trust Section */}
-        <section className="py-16 sm:py-20 border-b border-border/40">
+        {/* Built on Trusted Data Section */}
+        <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              Why LuxProperty.ai
-            </p>
-            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-10">
-              Built on official data. No guesswork.
-            </h2>
+            <div className="grid gap-12 lg:grid-cols-[1fr_1.5fr] lg:gap-16 items-start">
 
-            <div className="grid gap-6 sm:grid-cols-3 mb-12">
-              {[
-                {
-                  icon: Database,
-                  title: "HM Land Registry",
-                  body: "Every price trend is calculated from actual registered transactions — the same data solicitors and surveyors rely on.",
-                },
-                {
-                  icon: Shield,
-                  title: "No AI hallucinations",
-                  body: "Market data is fetched live from official APIs. Prices, trends, and district data are real — never made up.",
-                },
-                {
-                  icon: FileText,
-                  title: "Professional-grade output",
-                  body: "Briefs are structured, client-ready, and exportable to PDF. Share directly with your solicitor, mortgage adviser, or buying agent.",
-                },
-              ].map((item) => (
-                <div key={item.title} className="flex flex-col gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <item.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
-                  </div>
+              {/* Left — framing copy */}
+              <div className="lg:sticky lg:top-24">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
+                  Data sources
+                </p>
+                <h2 className="font-serif text-2xl sm:text-[1.65rem] tracking-tight mb-4">
+                  Built on trusted data, not estimates
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+                  Every section of a LuxProperty brief is drawn from a named, official source.
+                  No AI estimates. No made-up averages. The data behind your brief is the same
+                  data used by solicitors, surveyors, and planning authorities.
+                </p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border/50 rounded-lg px-3.5 py-2.5 bg-card inline-flex w-fit">
+                  <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span>Registered UK company · LuxProperty AI Ltd · No. 17158079</span>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* Early user quotes */}
-            <div className="grid gap-4 sm:grid-cols-3 mb-10">
-              {[
-                {
-                  quote: "I used it before viewing a flat in Hackney. The negotiation brief saved me at least £12,000 off the asking price.",
-                  name: "James R.",
-                  role: "First-time buyer, East London",
-                },
-                {
-                  quote: "The neighbourhood profile is better than anything I've seen on Rightmove. Actual detail, not a list of nearby postcodes.",
-                  name: "Priya M.",
-                  role: "Homebuyer, Birmingham",
-                },
-                {
-                  quote: "As a mortgage broker, I send the PDF reports to clients before we discuss loan amounts. It sets the right expectations immediately.",
-                  name: "Tom W.",
-                  role: "Independent mortgage broker",
-                },
-              ].map((t) => (
-                <Card key={t.name} className="p-5 flex flex-col gap-3">
-                  <Quote className="h-4 w-4 text-primary/40 shrink-0" />
-                  <p className="text-sm text-muted-foreground leading-relaxed italic flex-1">{t.quote}</p>
-                  <div>
-                    <p className="text-xs font-semibold">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.role}</p>
+              {/* Right — source list */}
+              <div className="divide-y divide-border/40">
+                {[
+                  {
+                    icon: Database,
+                    source: "HM Land Registry",
+                    covers: "Price trends, comparable sales, 5-year history",
+                    note: "Actual registered transactions across England & Wales",
+                  },
+                  {
+                    icon: HardDrive,
+                    source: "EPC Register",
+                    covers: "Energy efficiency ratings, property type, build year",
+                    note: "MHCLG domestic energy performance data",
+                  },
+                  {
+                    icon: AlertTriangle,
+                    source: "Environment Agency",
+                    covers: "Flood risk zones and surface water risk",
+                    note: "Official flood mapping data for England",
+                  },
+                  {
+                    icon: Shield,
+                    source: "data.police.uk",
+                    covers: "Crime statistics and category breakdown",
+                    note: "Published monthly by UK police forces",
+                  },
+                  {
+                    icon: GraduationCap,
+                    source: "Ofsted",
+                    covers: "School locations and inspection ratings",
+                    note: "Via OpenStreetMap school data and Ofsted results",
+                  },
+                  {
+                    icon: Train,
+                    source: "Transport open data",
+                    covers: "Nearest stations, TfL lines, walk times",
+                    note: "OpenStreetMap transport nodes and TfL Journey Planner",
+                  },
+                  {
+                    icon: Wifi,
+                    source: "Ofcom Connected Nations",
+                    covers: "Broadband availability and average speeds",
+                    note: "2024 Connected Nations dataset by local authority",
+                  },
+                  {
+                    icon: TrendingUp,
+                    source: "ONS / VOA Rental Data",
+                    covers: "Rental market benchmarks and demand indicators",
+                    note: "ONS IPHRP and Valuation Office Agency 2024 data",
+                  },
+                ].map((item) => (
+                  <div key={item.source} className="flex items-start gap-4 py-4 first:pt-0 last:pb-0">
+                    <div className="w-7 h-7 rounded-md bg-primary/8 border border-border/50 flex items-center justify-center shrink-0 mt-0.5">
+                      <item.icon className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mb-0.5">
+                        <span className="text-sm font-semibold">{item.source}</span>
+                        <span className="text-xs text-muted-foreground">· {item.covers}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground/70">{item.note}</p>
+                    </div>
                   </div>
-                </Card>
-              ))}
+                ))}
+              </div>
             </div>
+          </div>
+        </section>
 
-            {/* Company trust line */}
-            <div className="pt-8 border-t border-border/40 flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">Registered UK company · LuxProperty AI Ltd</span>
+        {/* Founder + Early Access Section */}
+        <section className="py-14 sm:py-16 border-b border-border/40">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1fr_1px_1fr] items-stretch">
+
+              {/* Founder snippet */}
+              <div className="flex flex-col gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                  Who built this
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  LuxProperty.ai was built by a quantity surveying student who couldn't find a
+                  clean, data-backed way to research a property before making an offer.
+                  The brief is the tool I wanted to have — built on real data, structured for
+                  buyers and the professionals who advise them.
+                </p>
+                <p className="text-xs text-muted-foreground/70">
+                  QS student, University of Reading · LuxProperty AI Ltd
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Database className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">Data from HM Land Registry &amp; official UK sources</span>
+
+              {/* Divider — visible on lg only */}
+              <div className="hidden lg:block w-px bg-border/40 self-stretch" aria-hidden="true" />
+
+              {/* Early access note */}
+              <div className="flex flex-col gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                  Early access
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  LuxProperty.ai is in early access. The core brief is live and working across
+                  England and Wales. New data sources, features, and export options are being
+                  added regularly.
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  If you run into something that doesn't look right, or have a feature you'd
+                  find genuinely useful, the contact details are on the About page.
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs text-muted-foreground">Live &amp; actively improving</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">Used by buyers, advisers &amp; mortgage brokers</span>
-              </div>
+
             </div>
           </div>
         </section>
