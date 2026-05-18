@@ -51,21 +51,21 @@ export default function Home() {
   const features = [
     {
       icon: MapPin,
-      title: "Area Intelligence",
+      title: "Neighbourhood Profile",
       description:
-        "Neighbourhood data, price trends, school ratings, transport links, and local amenity analysis.",
+        "Schools, transport links, crime data, local amenities, flood risk, and 5-year price trends — all in one place.",
     },
     {
       icon: BarChart3,
-      title: "Property Deep Dive",
+      title: "Comparable Sales",
       description:
-        "Valuation assessment, comparable sales analysis, and negotiation leverage points.",
+        "Real Land Registry transactions for the street and surrounding area, with a valuation range and negotiation context.",
     },
     {
       icon: TrendingUp,
-      title: "Investment Outlook",
+      title: "Market Context",
       description:
-        "Yield projections, growth trajectory forecasts, and risk flags for informed decision-making.",
+        "Regional rental benchmarks, broadband ratings, planning activity, and key risk flags before you make an offer.",
     },
   ];
 
@@ -74,8 +74,8 @@ export default function Home() {
       name: "Explorer",
       price: "Free",
       period: "",
-      description: "Get started with basic property intelligence",
-      features: ["3 briefs per month", "Area intelligence reports", "Basic market data"],
+      description: "Try it before you commit to anything",
+      features: ["3 briefs per month", "Area profile & price trends", "Neighbourhood & crime data"],
       cta: "Start Free",
       highlighted: false,
       stripeUrl: null,
@@ -84,12 +84,12 @@ export default function Home() {
       name: "Professional",
       price: "£4.99",
       period: "/month",
-      description: "For serious buyers and property professionals",
+      description: "For active buyers and the advisers who support them",
       features: [
         "Unlimited briefs",
-        "Property deep dive analysis",
-        "Comparable sales data",
-        "Negotiation briefs",
+        "Comparable sales & valuation range",
+        "Negotiation brief",
+        "Planning activity & risk flags",
         "Export to PDF",
       ],
       cta: "Start Professional",
@@ -100,7 +100,7 @@ export default function Home() {
       name: "Investor",
       price: "£39.99",
       period: "/month",
-      description: "Portfolio management and advanced analytics",
+      description: "For professionals managing multiple properties or clients",
       features: [
         "Everything in Professional",
         "Portfolio dashboard",
@@ -141,13 +141,12 @@ export default function Home() {
                 className="font-serif text-4xl sm:text-5xl lg:text-[3.25rem] leading-[1.1] tracking-tight text-foreground"
                 data-testid="text-hero-heading"
               >
-                Property Intelligence.{" "}
-                <span className="text-primary italic">Instantly.</span>
+                Know the property before{" "}
+                <span className="text-primary italic">you make an offer.</span>
               </h1>
               <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg">
-                Enter any UK postcode or property address. Get a complete buyer
-                intelligence brief in 60 seconds — built on real sales data, not
-                estimates.
+                Turn any UK postcode or address into a clear, client-ready brief
+                in under a minute — built on official Land Registry data, not estimates.
               </p>
 
               {/* Search Form */}
@@ -239,10 +238,10 @@ export default function Home() {
         <section className="py-16 sm:py-20 border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              What you get
+              What's inside every brief
             </p>
             <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-12">
-              Everything a buyer needs to know
+              The detail buyers and advisers actually need
             </h2>
 
             <div className="grid gap-6 sm:grid-cols-3">
@@ -263,18 +262,80 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Who It's For Section */}
+        <section className="py-16 sm:py-20 border-b border-border/40">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
+              Who it's for
+            </p>
+            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-4">
+              Built for buyers and the professionals who advise them
+            </h2>
+            <p className="text-sm text-muted-foreground mb-10 max-w-lg">
+              Whether you're viewing your first home or advising a client on a complex purchase,
+              LuxProperty.ai gives you the data to act with confidence.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  audience: "Homebuyers",
+                  description: "Understand any property and its area before you commit. Check prices, risk flags, and comparable sales — before instructing a solicitor.",
+                  icon: "\uD83C\uDFE1",
+                },
+                {
+                  audience: "Buying Agents",
+                  description: "Generate a clear PDF brief for every property you shortlist. Present clients with structured due-diligence in minutes, not hours.",
+                  icon: "\uD83E\uDD1D",
+                },
+                {
+                  audience: "Mortgage Advisers",
+                  description: "Set accurate expectations before discussing loan amounts. Share a comparable sales snapshot and valuation range with every client.",
+                  icon: "\uD83D\uDCCB",
+                },
+                {
+                  audience: "Brokers",
+                  description: "Accelerate your pre-application process. Pull market context and planning history for any UK postcode in seconds.",
+                  icon: "\uD83D\uDCCA",
+                },
+                {
+                  audience: "Wealth Managers",
+                  description: "Monitor multiple properties across a portfolio. Identify risk flags and market movements for client reporting.",
+                  icon: "\uD83D\uDCBC",
+                },
+                {
+                  audience: "First-Time Buyers",
+                  description: "Navigate an unfamiliar market with confidence. Get the same depth of information as experienced buyers, without needing an agent.",
+                  icon: "\uD83D\uDD11",
+                },
+              ].map((item) => (
+                <div
+                  key={item.audience}
+                  className="flex flex-col gap-2.5 p-5 rounded-lg border border-border/50 bg-card hover:border-primary/30 transition-colors"
+                  data-testid={`card-audience-${item.audience.toLowerCase().replace(/[^a-z]/g, "-")}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg" role="img" aria-label={item.audience}>{item.icon}</span>
+                    <h3 className="text-sm font-semibold">{item.audience}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Sample Report Preview Section */}
         <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              Sample report
+              Sample brief
             </p>
             <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-3">
               See exactly what you'll receive
             </h2>
             <p className="text-sm text-muted-foreground mb-10 max-w-lg">
-              Every brief includes real Land Registry data, a 5-year price trend, and an
-              investment verdict — all in one clean document.
+              Every brief includes real Land Registry data, a 5-year price trend, comparable
+              sales, and a clear verdict — structured so you can share it with your agent or adviser.
             </p>
 
             {/* Mock report card */}
@@ -424,7 +485,7 @@ export default function Home() {
                 {
                   icon: FileText,
                   title: "Professional-grade output",
-                  body: "Reports follow the same structure used by property analysts. Export to branded PDF. Share with your solicitor or agent.",
+                  body: "Briefs are structured, client-ready, and exportable to PDF. Share directly with your solicitor, mortgage adviser, or buying agent.",
                 },
               ].map((item) => (
                 <div key={item.title} className="flex flex-col gap-3">
@@ -450,7 +511,7 @@ export default function Home() {
                 {
                   quote: "The neighbourhood profile is better than anything I've seen on Rightmove. Actual detail, not a list of nearby postcodes.",
                   name: "Priya M.",
-                  role: "Property investor, Birmingham",
+                  role: "Homebuyer, Birmingham",
                 },
                 {
                   quote: "As a mortgage broker, I send the PDF reports to clients before we discuss loan amounts. It sets the right expectations immediately.",
@@ -473,15 +534,15 @@ export default function Home() {
             <div className="pt-8 border-t border-border/40 flex flex-wrap items-center gap-6">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">Registered UK company · LuxProperty AI Ltd · #17158079</span>
+                <span className="text-sm text-muted-foreground">Registered UK company · LuxProperty AI Ltd</span>
               </div>
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">Data from HM Land Registry &amp; Postcodes.io</span>
+                <span className="text-sm text-muted-foreground">Data from HM Land Registry &amp; official UK sources</span>
               </div>
               <div className="flex items-center gap-2">
                 <Star className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm text-muted-foreground">Used by buyers, investors &amp; mortgage brokers</span>
+                <span className="text-sm text-muted-foreground">Used by buyers, advisers &amp; mortgage brokers</span>
               </div>
             </div>
           </div>
@@ -535,7 +596,7 @@ export default function Home() {
               Simple, transparent pricing
             </h2>
             <p className="text-muted-foreground text-sm mb-12 max-w-lg">
-              Start free. Upgrade when you need deeper intelligence and unlimited access.
+              Start free with 3 briefs a month. Upgrade for unlimited access and the full pre-offer toolkit.
             </p>
 
             <div className="grid gap-6 sm:grid-cols-3">
