@@ -1407,21 +1407,41 @@ export default function BriefPage() {
             {/* Rental Market Snapshot — Pro+ */}
             {isPaid ? (
               <CollapsibleSection title="Rental Market Snapshot" testId="section-rental-market">
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {[
-                      { label: "1-Bed Asking Rent", value: ai.rentalMarket.oneBedAskingRent },
-                      { label: "2-Bed Asking Rent", value: ai.rentalMarket.twoBedAskingRent },
-                      { label: "3-Bed Asking Rent", value: ai.rentalMarket.threeBedAskingRent },
-                      { label: "1-Bed Gross Yield", value: ai.rentalMarket.oneBedYield },
-                      { label: "2-Bed Gross Yield", value: ai.rentalMarket.twoBedYield },
-                      { label: "Demand Level", value: ai.rentalMarket.demandLevel },
-                    ].map(item => (
-                      <div key={item.label} className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
-                        <span className={`font-bold ${item.label.includes("Yield") ? "text-green-600 dark:text-green-400 text-lg" : item.label === "Demand Level" ? "text-[#B8860B] text-base" : "text-foreground text-lg"}`}>{item.value}</span>
-                      </div>
-                    ))}
+                <div className="flex flex-col gap-5">
+                  {/* Asking rents — useful context for all buyers */}
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-3">Asking rents nearby</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      {[
+                        { label: "1-Bed", value: ai.rentalMarket.oneBedAskingRent },
+                        { label: "2-Bed", value: ai.rentalMarket.twoBedAskingRent },
+                        { label: "3-Bed", value: ai.rentalMarket.threeBedAskingRent },
+                      ].map(item => (
+                        <div key={item.label} className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                          <span className="text-lg font-bold text-foreground">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Yields + demand — investor context */}
+                  <div className="pt-3 border-t border-border/40">
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Buy-to-let indicators</p>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {[
+                        { label: "1-Bed Gross Yield", value: ai.rentalMarket.oneBedYield },
+                        { label: "2-Bed Gross Yield", value: ai.rentalMarket.twoBedYield },
+                        { label: "Demand Level", value: ai.rentalMarket.demandLevel },
+                      ].map(item => (
+                        <div key={item.label} className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                          <span className={`font-bold ${item.label.includes("Yield") ? "text-green-600 dark:text-green-400 text-lg" : "text-[#B8860B] text-base"}`}>{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{ai.rentalMarket.note}</p>
                 </div>
@@ -1564,7 +1584,15 @@ export default function BriefPage() {
               </div>
             )}
 
-            {/* ── INVESTOR ONLY SECTIONS ──────────────────────────────────── */}
+            {/* ── FOR LANDLORDS & INVESTORS ───────────────────────────────── */}
+            <div className="flex items-center gap-3 mt-2 mb-1" data-testid="divider-investor">
+              <div className="flex-1 h-px bg-border/60" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-[0.12em] bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20 shrink-0">
+                <Building2 className="h-2.5 w-2.5" />
+                For landlords &amp; investors
+              </span>
+              <div className="flex-1 h-px bg-border/60" />
+            </div>
 
             {/* Rental Demand Score — Investor */}
             {isInvestor ? (
@@ -2090,21 +2118,29 @@ export default function BriefPage() {
               </>
             )}
 
-            {/* === INVESTMENT OUTLOOK + VERDICT — gated for paid plans === */}
+            {/* === MARKET OUTLOOK + VERDICT — gated for paid plans === */}
             {isPaid ? (
               <div className="space-y-6">
-                {/* Investment Outlook — unlocked */}
+                {/* Market Outlook — unlocked */}
                 <Card className="p-5 sm:p-6" data-testid="section-investment-outlook">
                   <SectionHeading>Market Outlook</SectionHeading>
                   <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                     Indicative ranges based on recent Land Registry trends and ONS rental data for this area. Not financial advice.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                  {/* Price growth — relevant to all buyers */}
+                  <div className="mb-4">
                     <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
-                    <KpiValue label="Rental Yield (indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
+                  </div>
+                  {/* Rental yield — investor context */}
+                  <div className="pt-4 border-t border-border/40">
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Buy-to-let context</p>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
+                    </div>
+                    <KpiValue label="Rental Yield (buy-to-let, indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
                   </div>
                   {ai.investmentOutlook.riskFlags.length > 0 && (
-                    <div>
+                    <div className="mt-4">
                       <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
                         <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                         Risk Flags
@@ -2138,9 +2174,11 @@ export default function BriefPage() {
                 <div className="space-y-6 blur-sm opacity-50 select-none pointer-events-none" aria-hidden="true">
                   <Card className="p-5 sm:p-6">
                     <SectionHeading>Market Outlook</SectionHeading>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                    <div className="mb-4">
                       <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
-                      <KpiValue label="Rental Yield (indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
+                    </div>
+                    <div className="pt-4 border-t border-border/40 mb-4">
+                      <KpiValue label="Rental Yield (buy-to-let, indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
                     </div>
                     {ai.investmentOutlook.riskFlags.length > 0 && (
                       <ul className="space-y-1.5">
