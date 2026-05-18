@@ -24,6 +24,8 @@ import {
   Building2,
   ChevronRight,
   Quote,
+  Users,
+  ExternalLink,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -230,6 +232,91 @@ export default function Home() {
                   <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* For Professionals Section */}
+        <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="grid gap-12 lg:grid-cols-[1fr_1.4fr] lg:gap-16 items-start">
+
+              {/* Left — headline + intro */}
+              <div className="lg:sticky lg:top-24">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary mb-5">
+                  <Users className="h-3 w-3" />
+                  For professionals
+                </div>
+                <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-4">
+                  The brief you pull up in front of a client
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                  Buying agents, mortgage advisers, and wealth managers use LuxProperty.ai
+                  to run live due-diligence in client meetings — then export or share the
+                  brief in one click.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <FileText className="h-3.5 w-3.5 text-primary/70" />
+                    <span>Export to PDF</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ExternalLink className="h-3.5 w-3.5 text-primary/70" />
+                    <span>Share as a link</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Database className="h-3.5 w-3.5 text-primary/70" />
+                    <span>Official data sources</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right — use-case scenarios */}
+              <div className="flex flex-col divide-y divide-border/40">
+                {[
+                  {
+                    context: "First call with a new buyer",
+                    heading: "Establish the market straight away",
+                    body: "Pull up a brief for the buyer's target area while you're still on the call. Show them real price trends, typical comparable values, and what supply looks like — before they've even seen a property.",
+                    step: "01",
+                  },
+                  {
+                    context: "Pre-viewing research",
+                    heading: "Arrive knowing the numbers",
+                    body: "Run a brief on the specific postcode the night before a viewing. Check comparable sales on the same street, flag any planning activity nearby, and have the negotiation context ready before you walk through the door.",
+                    step: "02",
+                  },
+                  {
+                    context: "Comparing two shortlisted areas",
+                    heading: "Give clients a clear, side-by-side picture",
+                    body: "Generate briefs for both postcodes, export to PDF, and share with your client before the next meeting. Price trajectory, neighbourhood profile, and risk flags — all in the same format, ready to compare.",
+                    step: "03",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.step}
+                    className="py-6 first:pt-0 last:pb-0"
+                    data-testid={`card-usecase-${item.step}`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <span className="font-serif text-2xl text-primary/20 leading-none tabular-nums shrink-0 mt-0.5 select-none">
+                        {item.step}
+                      </span>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-1.5">
+                          {item.context}
+                        </p>
+                        <h3 className="text-sm font-semibold text-foreground mb-2">
+                          {item.heading}
+                        </h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {item.body}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
