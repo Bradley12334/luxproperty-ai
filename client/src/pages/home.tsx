@@ -26,6 +26,9 @@ import {
   Quote,
   Users,
   ExternalLink,
+  Train,
+  TreePine,
+  GraduationCap,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -160,7 +163,7 @@ export default function Home() {
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="e.g. SW7 1AL or 12 Onslow Gardens, London"
+                    placeholder="Try SW3 1AA, RG1 2AB, or any UK address…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="pl-10 h-12 text-base bg-card border-border/80"
@@ -235,8 +238,210 @@ export default function Home() {
           </div>
         </section>
 
-        {/* For Professionals Section */}
+        {/* How It Works Section */}
+        <section className="py-14 sm:py-16 border-b border-border/40">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
+              How it works
+            </p>
+            <h2 className="font-serif text-2xl sm:text-[1.65rem] tracking-tight mb-10">
+              A clear brief in under a minute
+            </h2>
+            <div className="grid gap-0 sm:grid-cols-3 relative">
+              {/* connector line, desktop only */}
+              <div className="hidden sm:block absolute top-5 left-[calc(16.66%+1rem)] right-[calc(16.66%+1rem)] h-px bg-border/50" aria-hidden="true" />
+              {[
+                {
+                  step: "01",
+                  heading: "Enter a postcode or address",
+                  body: "Type any UK postcode or full address into the search bar. Chelsea, Reading, Manchester — any property in England or Wales.",
+                },
+                {
+                  step: "02",
+                  heading: "We pull trusted data",
+                  body: "LuxProperty.ai fetches live data from HM Land Registry, the EPC Register, Environment Agency, and official UK sources.",
+                },
+                {
+                  step: "03",
+                  heading: "You get a clear brief",
+                  body: "A structured report: price trends, comparable sales, neighbourhood profile, risk flags, and a negotiation summary — ready to share.",
+                },
+              ].map((item, i) => (
+                <div key={item.step} className={`flex flex-col gap-3 px-0 sm:px-6 ${i === 0 ? "sm:pl-0" : ""} ${i === 2 ? "sm:pr-0" : ""} ${i > 0 ? "mt-8 sm:mt-0 pt-8 sm:pt-0 border-t sm:border-t-0 border-border/40" : ""}`}>
+                  <div className="relative z-10 w-10 h-10 rounded-full border border-border/60 bg-card flex items-center justify-center shrink-0">
+                    <span className="font-serif text-sm text-primary">{item.step}</span>
+                  </div>
+                  <h3 className="text-sm font-semibold leading-snug">{item.heading}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Brief Preview Section — moved up */}
         <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="grid gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-16 items-start">
+
+              {/* Left col — context copy */}
+              <div className="lg:sticky lg:top-24">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
+                  Sample brief
+                </p>
+                <h2 className="font-serif text-2xl sm:text-[1.65rem] tracking-tight mb-4">
+                  This is what you'll receive
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                  Every brief is structured, data-backed, and client-ready. Comparable sales,
+                  5-year price trend, neighbourhood profile, risk flags, and a clear
+                  negotiation summary — all in one place.
+                </p>
+                <div className="space-y-2.5 mb-8">
+                  {[
+                    "Real Land Registry transactions",
+                    "Neighbourhood character & lifestyle data",
+                    "Flood, planning & EPC risk flags",
+                    "Valuation range & negotiation brief",
+                    "Export to PDF or share as a link",
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-2.5 text-sm">
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-muted-foreground">{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  onClick={() => {
+                    const el = document.querySelector("[data-testid='input-search']") as HTMLInputElement | null;
+                    el?.focus();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="text-sm font-semibold"
+                  data-testid="button-try-it"
+                >
+                  Generate your free brief
+                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                </Button>
+                <p className="mt-2.5 text-xs text-muted-foreground">No sign-up required</p>
+              </div>
+
+              {/* Right col — rich brief mock */}
+              <div className="relative">
+                <Card className="border-border/60 shadow-md overflow-hidden">
+
+                  {/* Report header bar */}
+                  <div className="px-5 py-4 border-b border-border/40 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Area Intelligence Brief</p>
+                      <h3 className="font-serif text-base tracking-tight mt-0.5">Chelsea, SW3 1AA</h3>
+                    </div>
+                    <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-0 text-[10px] font-semibold shrink-0">
+                      STRONG BUY
+                    </Badge>
+                  </div>
+
+                  <div className="p-5 space-y-5">
+
+                    {/* At a Glance panel */}
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-2.5">At a Glance</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { icon: Train, label: "Nearest tube", value: "South Kensington · 4 min walk", colour: "bg-[#114B8B]" },
+                          { icon: GraduationCap, label: "Schools nearby", value: "4 Ofsted Outstanding within 0.5mi" },
+                          { icon: TreePine, label: "Green space", value: "Ranelagh Gardens · 3 min walk" },
+                          { icon: Shield, label: "Safety rating", value: "Low crime · Royal Borough of K&C" },
+                        ].map((item) => (
+                          <div key={item.label} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/40">
+                            <item.icon className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                              <p className="text-xs font-medium leading-snug mt-0.5 truncate">{item.value}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* KPI row */}
+                    <div className="grid grid-cols-4 gap-3 pb-4 border-b border-border/40">
+                      {[
+                        { label: "Median", value: "£1.38M" },
+                        { label: "5yr Change", value: "+24.7%" },
+                        { label: "On Market", value: "43 days" },
+                        { label: "Supply", value: "Low" },
+                      ].map((kpi) => (
+                        <div key={kpi.label}>
+                          <p className="text-[10px] text-muted-foreground mb-0.5">{kpi.label}</p>
+                          <p className="font-serif text-sm text-foreground">{kpi.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 5-year trend */}
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-2.5">5-Year Price Trend</p>
+                      <div className="space-y-1.5">
+                        {[
+                          { year: "2020", price: "£1,105,000", pct: "—", w: "64%" },
+                          { year: "2021", price: "£1,168,000", pct: "+5.7%", w: "68%" },
+                          { year: "2022", price: "£1,241,000", pct: "+6.3%", w: "72%" },
+                          { year: "2023", price: "£1,310,000", pct: "+5.6%", w: "76%" },
+                          { year: "2024", price: "£1,379,000", pct: "+5.3%", w: "80%" },
+                        ].map((row) => (
+                          <div key={row.year} className="flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground w-8 shrink-0">{row.year}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div className="h-full rounded-full bg-primary/40" style={{ width: row.w }} />
+                            </div>
+                            <span className="font-serif text-foreground w-20 text-right shrink-0">{row.price}</span>
+                            <span className={`w-10 text-right shrink-0 ${row.pct === "—" ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400"}`}>{row.pct}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Comparables stub — blurred bottom */}
+                    <div className="relative">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-2.5">Comparable Sales</p>
+                      <div className="space-y-2 blur-[2px] opacity-60 select-none pointer-events-none">
+                        {[
+                          { addr: "14 Onslow Square", beds: "4 bed", price: "£1.42M", date: "Jan 2025" },
+                          { addr: "7 Lennox Gardens", beds: "3 bed", price: "£1.19M", date: "Dec 2024" },
+                          { addr: "31 Cale Street", beds: "2 bed", price: "£875,000", date: "Nov 2024" },
+                        ].map((c) => (
+                          <div key={c.addr} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="text-muted-foreground truncate">{c.addr}</span>
+                            <span className="text-muted-foreground shrink-0">{c.beds}</span>
+                            <span className="font-serif text-foreground shrink-0">{c.price}</span>
+                            <span className="text-muted-foreground shrink-0">{c.date}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex items-center gap-1.5 bg-background/90 border border-border px-3 py-1.5 rounded-full shadow-sm">
+                          <Lock className="h-3 w-3 text-primary" />
+                          <span className="text-[10px] font-medium">Full comparables in your brief</span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </Card>
+
+                {/* Data source footer */}
+                <p className="mt-3 text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <Database className="h-3 w-3 text-primary/60" />
+                  Data from HM Land Registry · EPC Register · data.police.uk · OSM
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* For Professionals Section */}
+        <section className="py-16 sm:py-20 border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <div className="grid gap-12 lg:grid-cols-[1fr_1.4fr] lg:gap-16 items-start">
 
@@ -406,142 +611,6 @@ export default function Home() {
                   <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
                 </div>
               ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Sample Report Preview Section */}
-        <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              Sample brief
-            </p>
-            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-3">
-              See exactly what you'll receive
-            </h2>
-            <p className="text-sm text-muted-foreground mb-10 max-w-lg">
-              Every brief includes real Land Registry data, a 5-year price trend, comparable
-              sales, and a clear verdict — structured so you can share it with your agent or adviser.
-            </p>
-
-            {/* Mock report card */}
-            <div className="relative max-w-2xl">
-              <Card className="p-6 border-border/60 shadow-sm overflow-hidden">
-                {/* Report header */}
-                <div className="flex items-start justify-between mb-5 pb-4 border-b border-border/40">
-                  <div>
-                    <Badge variant="outline" className="text-[10px] mb-2">
-                      Area Brief
-                    </Badge>
-                    <h3 className="font-serif text-lg tracking-tight">
-                      Area Intelligence Brief — Chelsea, SW3
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Generated from HM Land Registry · Postcodes.io
-                    </p>
-                  </div>
-                  <Badge className="bg-primary/10 text-primary hover:bg-primary/20 text-[10px] shrink-0">
-                    STRONG BUY
-                  </Badge>
-                </div>
-
-                {/* Executive Summary stub */}
-                <div className="mb-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
-                    Executive Summary
-                  </p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Chelsea (SW3) remains one of London's most resilient prime markets.
-                    Median prices have climbed from £1.1M in 2020 to £1.38M in 2024,
-                    representing a 25% uplift over five years. Supply is constrained,
-                    demand is internationally driven, and fundamentals remain robust.
-                  </p>
-                </div>
-
-                {/* KPI grid */}
-                <div className="grid grid-cols-4 gap-4 mb-5 pb-5 border-b border-border/40">
-                  {[
-                    { label: "Median Price", value: "£1.38M" },
-                    { label: "YoY Change", value: "+5.2%" },
-                    { label: "Days on Market", value: "43" },
-                    { label: "Supply Level", value: "Low" },
-                  ].map((kpi) => (
-                    <div key={kpi.label}>
-                      <p className="text-[10px] text-muted-foreground mb-1">{kpi.label}</p>
-                      <p className="font-serif text-base text-foreground">{kpi.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 5-year trend stub */}
-                <div className="mb-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-3">
-                    5-Year Price Trend
-                  </p>
-                  <div className="space-y-2">
-                    {[
-                      { year: "2020", price: "£1,105,000", change: "—" },
-                      { year: "2021", price: "£1,168,000", change: "+5.7%" },
-                      { year: "2022", price: "£1,241,000", change: "+6.3%" },
-                      { year: "2023", price: "£1,310,000", change: "+5.6%" },
-                      { year: "2024", price: "£1,379,000", change: "+5.3%" },
-                    ].map((row) => (
-                      <div key={row.year} className="flex items-center gap-3 text-xs">
-                        <span className="text-muted-foreground w-8">{row.year}</span>
-                        <span className="font-serif text-sm flex-1">{row.price}</span>
-                        <span
-                          className={
-                            row.change === "—"
-                              ? "text-muted-foreground"
-                              : "text-emerald-600 dark:text-emerald-400"
-                          }
-                        >
-                          {row.change}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Blur overlay for bottom sections */}
-                <div className="relative mt-4">
-                  <div className="space-y-3 blur-sm opacity-60 select-none pointer-events-none">
-                    <div className="h-4 bg-muted rounded w-32" />
-                    <div className="h-3 bg-muted rounded w-full" />
-                    <div className="h-3 bg-muted rounded w-5/6" />
-                    <div className="h-3 bg-muted rounded w-4/6" />
-                    <div className="h-3 bg-muted rounded w-full" />
-                    <div className="h-3 bg-muted rounded w-3/4" />
-                  </div>
-                  {/* Unlock overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex items-center gap-2 bg-background/90 border border-border px-4 py-2 rounded-full shadow-sm">
-                      <Lock className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-medium">
-                        Negotiation brief + investment verdict in full reports
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* CTA below card */}
-              <div className="mt-5 flex items-center gap-3">
-                <Button
-                  onClick={() => {
-                    const el = document.querySelector("[data-testid='input-search']") as HTMLInputElement | null;
-                    el?.focus();
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="text-sm font-semibold"
-                >
-                  Generate your free brief
-                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  No sign-up required
-                </span>
-              </div>
             </div>
           </div>
         </section>
