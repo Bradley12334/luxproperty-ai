@@ -113,14 +113,16 @@ export default function Home() {
       name: "Investor",
       price: "£39.99",
       period: "/month",
-      description: "For buyers and advisers running multiple searches or working across a portfolio.",
+      description: "Comparing multiple opportunities at once? Get 10-year trends, rental demand scores, a sold prices map, and a portfolio dashboard to save and compare briefs across areas.",
       features: [
         "Everything in Professional",
-        "Portfolio dashboard",
-        "Sold prices map",
-        "Development tracker",
-        "Rental demand score",
-        "Client-ready PDF reports (add your name & firm)",
+        "10-year price trend — cross-area comparison",
+        "Rental demand score — letting potential by location",
+        "Rental market snapshot — rents, demand & yield context",
+        "Sold prices map & street price ranking",
+        "Development tracker — pipeline & change signals",
+        "Portfolio dashboard — save, compare & revisit briefs",
+        "Custom report branding (add your name & firm)",
       ],
       cta: "Start Investor",
       highlighted: false,
@@ -599,7 +601,7 @@ export default function Home() {
                 },
                 {
                   audience: "Wealth Managers",
-                  description: "Monitor multiple properties across a portfolio. Identify risk flags and market movements for client reporting.",
+                  description: "Evaluate multiple opportunities at once. Save and compare briefs across areas, track rental demand and pricing trends, and share clean PDF reports with clients.",
                   icon: "\uD83D\uDCBC",
                 },
                 {
@@ -814,7 +816,7 @@ export default function Home() {
               Simple, transparent pricing
             </h2>
             <p className="text-muted-foreground text-sm mb-12 max-w-lg">
-              Start free with 3 briefs a month. Upgrade for unlimited access and the full pre-offer toolkit.
+              Start free. Upgrade to Professional for everything you need before you offer. Upgrade to Investor when you're comparing multiple opportunities at once.
             </p>
 
             <div className="grid gap-6 sm:grid-cols-3">

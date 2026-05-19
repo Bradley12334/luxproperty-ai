@@ -32,8 +32,8 @@ const tiers = [
     name: "Investor",
     price: "£39.99",
     period: "/month",
-    description: "For buyers and advisers running multiple searches or working across a portfolio. More depth, more data, and tools built for heavier use.",
-    badge: "Power Users",
+    description: "For anyone evaluating multiple opportunities at once. Compare areas side by side, track rental demand and pricing across locations, and manage all your briefs in one place. Everything in Professional, plus deeper comparison tools.",
+    badge: "Analyse More",
     style: "investor",
     cta: "Start Investor",
     ctaVariant: "default" as const,
@@ -74,11 +74,14 @@ const features: FeatureRow[] = [
   { feature: "Export to PDF — client-ready format", explorer: false, professional: true, investor: true },
   { feature: "Save & revisit briefs", explorer: false, professional: true, investor: true },
   // ── Investor ─────────────────────────────────────────────────────────────────
-  { feature: "Portfolio dashboard", explorer: false, professional: false, investor: true },
-  { feature: "Sold prices map", explorer: false, professional: false, investor: true },
-  { feature: "Development tracker", explorer: false, professional: false, investor: true },
-  { feature: "Rental demand score", explorer: false, professional: false, investor: true },
-  { feature: "Client-ready PDF reports (add your name & firm)", explorer: false, professional: false, investor: true },
+  { feature: "10-year price trend — long-run Land Registry history for cross-area comparison", explorer: false, professional: false, investor: true },
+  { feature: "Rental demand score — letting potential across locations", explorer: false, professional: false, investor: true },
+  { feature: "Rental market snapshot — rents, demand, and yield context", explorer: false, professional: false, investor: true },
+  { feature: "Sold prices map — visual layout of recent transactions nearby", explorer: false, professional: false, investor: true },
+  { feature: "Street price ranking — relative pricing within the area", explorer: false, professional: false, investor: true },
+  { feature: "Development tracker — pipeline and local change signals", explorer: false, professional: false, investor: true },
+  { feature: "Portfolio dashboard — save, compare, and revisit multiple briefs", explorer: false, professional: false, investor: true },
+  { feature: "Custom report branding — add your name and firm to PDFs", explorer: false, professional: false, investor: true },
 ];
 
 function CellValue({ value, col }: { value: boolean | string; col: string }) {
@@ -122,7 +125,7 @@ export default function PricingPage() {
               Start free. Upgrade when you're ready to buy.
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Explorer screens areas in seconds. Professional answers the question that matters before you offer: <em>Would I seriously consider buying here, and what do I need to know?</em> Start free — 3 briefs a month, no card required.
+              Explorer screens an area in seconds. Professional gives you everything before you offer. Investor is for when you're comparing multiple opportunities — rental demand, 10-year trends, and a portfolio dashboard to manage them all. Start free, no card required.
             </p>
           </div>
         </section>
@@ -268,10 +271,10 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              Know what you need before you offer.
+              From area screen to offer-ready decision.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Professional is a complete buyer decision layer — comparable sales, a negotiation brief, 5-year price trend, crime breakdown, and planning flags, all built on official UK data. Any postcode, any price band. £4.99/month.
+              Explorer tells you whether an area is worth a closer look. Professional gives you everything before you offer. Investor is for heavier use — comparing several opportunities at once, tracking rental demand across locations, and managing multiple briefs in one place.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">

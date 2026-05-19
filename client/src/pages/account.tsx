@@ -31,7 +31,7 @@ const planDetails = {
     label: "Professional",
     price: "£4.99/month",
     color: "text-primary",
-    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend (Land Registry)", "Comparable local sales & valuation range", "Negotiation brief & offer guidance", "Planning activity & risk flags", "Crime context & category breakdown", "Broadband speed & fibre availability", "Rental market context", "Export to PDF & save briefs"],
+    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend — full Land Registry history", "Comparable sales & valuation range", "Negotiation brief — leverage points & offer calibration", "Planning activity & risk flags", "Crime breakdown by category (police.uk)", "Broadband speed & fibre coverage (Ofcom)", "Rental market context — rents & demand signal", "Air quality index (DEFRA)", "Export to PDF & save briefs"],
     upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
     upgradeTo: "Investor — £39.99/month",
   },
@@ -39,7 +39,7 @@ const planDetails = {
     label: "Investor",
     price: "£39.99/month",
     color: "text-amber-600 dark:text-amber-400",
-    features: ["Everything in Professional", "Portfolio dashboard", "Sold prices map", "Development tracker", "Rental demand score", "Client-ready PDF reports (add your name & firm)"],
+    features: ["Everything in Professional", "10-year price trend — cross-area comparison", "Rental demand score — letting potential by location", "Rental market snapshot — rents, demand & yield", "Sold prices map & street price ranking", "Development tracker — pipeline & change signals", "Portfolio dashboard — save, compare & revisit briefs", "Custom report branding (add your name & firm)"],
     upgradeUrl: null,
     upgradeTo: null,
   },
@@ -151,7 +151,7 @@ export default function AccountPage() {
                 <div className="pt-4 border-t border-border/40 flex items-center gap-2">
                   <Shield className="h-4 w-4 text-amber-500 shrink-0" />
                   <p className="text-xs text-muted-foreground">
-                    You're on the Investor plan — full access to all features.
+                    You're on the Investor plan — full comparison toolkit, portfolio dashboard, and 10-year trend data across any UK postcode.
                   </p>
                 </div>
               )}

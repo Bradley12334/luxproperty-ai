@@ -110,7 +110,7 @@ function PropertyCard({
           <p className="font-serif text-lg tracking-tight">{item.averagePrice}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5">Date Saved</p>
+          <p className="text-xs text-muted-foreground mb-0.5">Saved</p>
           <p className="text-sm">{savedDate}</p>
         </div>
       </div>
@@ -138,12 +138,12 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <div className="rounded-full bg-muted p-4 mb-4">
         <Building2 className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="font-serif text-lg mb-2">No properties saved yet</h3>
+      <h3 className="font-serif text-lg mb-2">No briefs saved yet</h3>
       <p className="text-sm text-muted-foreground mb-2 max-w-xs">
-        Save any brief to your portfolio to revisit and compare the areas you're watching.
+        Save briefs here to compare areas, track pricing, and revisit opportunities without starting from scratch.
       </p>
       <p className="text-xs text-muted-foreground mb-6 max-w-xs">
-        Tip: open any brief and tap <span className="font-semibold">Save to Portfolio</span> at the bottom.
+        Tip: open any brief and tap <span className="font-semibold">Save to Portfolio</span> at the bottom of the report.
       </p>
       <Button
         size="sm"
@@ -288,9 +288,9 @@ export default function PortfolioPage() {
             <div className="rounded-full bg-amber-50 dark:bg-amber-950/30 p-4 mx-auto mb-4 w-fit">
               <BarChart3 className="h-8 w-8 text-amber-600" />
             </div>
-            <h2 className="font-serif text-xl mb-2">Portfolio is an Investor feature</h2>
+            <h2 className="font-serif text-xl mb-2">Compare briefs across multiple areas</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
-              Upgrade to the Investor plan to save properties, build a portfolio of briefs, and compare the areas you're considering.
+              The portfolio dashboard is part of the Investor plan. Save briefs, track multiple areas, and compare opportunities side by side.
             </p>
             <Link href="/pricing">
               <Button size="sm" className="font-semibold">View Investor plan — £39.99/month</Button>
@@ -315,7 +315,7 @@ export default function PortfolioPage() {
                 Portfolio
               </h1>
               <p className="text-sm text-muted-foreground">
-                Your saved properties and area reports
+                Save and compare briefs across multiple areas
               </p>
             </div>
 
@@ -334,7 +334,7 @@ export default function PortfolioPage() {
                 <DialogHeader>
                   <DialogTitle className="font-serif">Add to Portfolio</DialogTitle>
                   <DialogDescription>
-                    Enter a postcode or property address to generate a report and add it to your portfolio.
+                    Enter a postcode or address to generate a brief and add it to your comparison list.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddProperty}>
@@ -397,12 +397,12 @@ export default function PortfolioPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <StatCard
               icon={Building2}
-              label="Total Properties"
+              label="Areas saved"
               value={stats.totalProperties}
             />
             <StatCard
               icon={BarChart3}
-              label="Avg. Area Price"
+              label="Avg. asking price"
               value={stats.averagePortfolioValue}
             />
             <StatCard

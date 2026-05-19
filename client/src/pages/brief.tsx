@@ -2443,7 +2443,7 @@ export default function BriefPage() {
               <div className="flex-1 h-px bg-border/60" />
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-[0.12em] bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20 shrink-0">
                 <Building2 className="h-2.5 w-2.5" />
-                For landlords &amp; investors
+                Comparison &amp; market depth
               </span>
               <div className="flex-1 h-px bg-border/60" />
             </div>
@@ -2486,7 +2486,8 @@ export default function BriefPage() {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Investor plan only</p>
+                    <p className="text-xs font-semibold text-foreground">Rental demand — Investor</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Letting potential score and demand context for this postcode.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -2541,7 +2542,8 @@ export default function BriefPage() {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Investor plan only</p>
+                    <p className="text-xs font-semibold text-foreground">Development tracker — Investor</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Pipeline and local-change signals that affect area trajectory.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -2596,7 +2598,8 @@ export default function BriefPage() {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Investor plan only</p>
+                    <p className="text-xs font-semibold text-foreground">Sold prices map — Investor</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Visual layout of recent nearby transactions by price and location.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -2885,7 +2888,7 @@ export default function BriefPage() {
             {user?.plan === "investor" && (
               <div className="mb-6">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Client-Ready Report
+                  Add your name to the PDF <span className="font-normal normal-case tracking-normal">(optional)</span>
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   <div className="space-y-1.5">
