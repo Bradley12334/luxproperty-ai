@@ -751,7 +751,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   // Scotland/NI message
   const scotlandNote = outsideEnglandWales
-    ? `${outcode} is in ${country}. HM Land Registry Price Paid data only covers England and Wales — price trend data is unavailable for this region. The analysis below is based on available postcode metadata.`
+    ? `${outcode} is in ${country}. HM Land Registry Price Paid data covers England and Wales only — price trend data for this region is not available from this source. For Scottish properties, Registers of Scotland (ros.gov.uk) publishes sold-price data; for Welsh properties, the Land Transaction Tax portal is an alternative source. The analysis below is based on available postcode metadata.`
     : "";
 
   // ── Derived analytics ──────────────────────────────────────────────────────
@@ -1228,7 +1228,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const neighDemographics = specificProfile?.demographics ?? demographicsMap[tier] ?? demographicsMap["unknown"];
   const neighNightlife   = specificProfile?.nightlife   ?? nightlifeMap[tier]   ?? nightlifeMap["unknown"];
   const neighMarketComment = specificProfile?.marketComment ?? marketCommentMap[tier] ?? marketCommentMap["unknown"];
-  const neighResidentSentiment = specificProfile?.residentSentiment ?? `Resident sentiment for ${areaName} is not yet included in this report. Community perspectives typically reflect the area's character, local schools, and transport links — covered in detail in the sections above.`;
+  const neighResidentSentiment = specificProfile?.residentSentiment ?? `Verified resident-review coverage for ${areaName} is limited in this dataset. For on-the-ground sentiment, local Facebook groups and Google Reviews for nearby amenities are the most reliable sources — residents are typically vocal about schools, commute reliability, and neighbourhood feel. The character, transport, and schools sections above are drawn from structured data and give a solid directional read on liveability.`;
 
   const sdltEstimate = latestMedian > 500000
     ? fmt((latestMedian - 500000) * 0.1 + 500000 * 0.05)
@@ -1314,7 +1314,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         }));
       }
       return enrichmentProfile?.commuteTable ?? [
-        { destination: "Town / City Centre", time: "Varies", mode: "Road / Rail", via: "Journey time depends on exact address. Live route data not available for this postcode." },
+        { destination: "Town / City Centre", time: "Varies", mode: "Road / Rail", via: "Journey times depend on your exact address and departure point. Use Google Maps or Citymapper for a precise door-to-door estimate — the Nearby Stations section above gives the closest rail connections." },
       ];
     })(),
     planningActivity: livePlanningActivity ?? enrichmentProfile?.planningActivity ?? {
@@ -1347,11 +1347,11 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       providers: liveBroadband.providers,
       note: liveBroadband.note,
     } : enrichmentProfile?.broadband ?? {
-      avgDownloadSpeed: "Not retrieved",
-      fullFibreAvailability: "Varies by address",
+      avgDownloadSpeed: "Check at address",
+      fullFibreAvailability: "Varies by property",
       rating: "Good" as const,
-      providers: "Openreach infrastructure standard. Virgin Media and altnet coverage varies — confirm at address level before exchange.",
-      note: `Broadband data for this postcode was not retrieved from Ofcom for this report. The area is served by standard Openreach infrastructure. Confirm availability and speeds at your specific address via checker.ofcom.org.uk.`,
+      providers: "Openreach infrastructure is standard across this area. Virgin Media and altnet rollout varies street by street — confirm what is available at the specific property before committing.",
+      note: `Postcode-level broadband data could not be retrieved from Ofcom for this report. Ofcom's own guidance notes that coverage can differ between individual buildings in the same postcode — even properties on the same street may have different options depending on building type, landlord permissions, and rollout stage. Verify at address level at checker.ofcom.org.uk before making an offer.`,
     },
     airQuality: (() => {
       const epcNote = liveEpc
@@ -1402,7 +1402,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     crimeStats: liveCrime ?? {
       totalCrimesPerMonth: 0,
       topCategories: [],
-      vsNationalNote: `Crime data for ${areaName} could not be retrieved for this report. Statistics are available at police.uk for reference.`,
+      vsNationalNote: `Police-recorded crime data could not be retrieved for ${areaName} in this report. This is a data-availability issue rather than a signal about crime levels. For current figures, visit data.police.uk and enter this postcode — the tool shows category-level crime counts for the surrounding area by month.`,
       date: "",
     },
   };
@@ -1413,21 +1413,21 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       valuationAssessment: {
         estimatedRange: hasData
           ? `${fmt(latestMedian * 0.9)} – ${fmt(latestMedian * 1.15)} (90–115% of ${areaName} median)`
-          : "Requires independent RICS appraisal",
+          : "Insufficient recent sales data for this postcode — instruct a RICS-regulated surveyor for a binding valuation before offering.",
         priceVsAreaAverage: hasData
           ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · 5-yr: +${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"}`
-          : outsideEnglandWales ? "Price data covers England & Wales only" : "Insufficient comparable data",
+          : outsideEnglandWales ? "Sold-price data is not available for this region via Land Registry — see ros.gov.uk (Scotland) or Welsh Government data for alternatives." : "Fewer than 5 recent transactions at this postcode level. Treat the area median as a directional anchor; commission a surveyor for a property-specific figure.",
         valueScore: hasData
           ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : tier === "mid-market" ? "7.4" : "7.0"} / 10`
-          : "Pending survey",
+          : "Check with surveyor",
       },
       comparableSales: comparables.length > 0 ? comparables : [
-        { address: "No recent sales found in this postcode area", price: "—", date: "—", type: "—" },
+        { address: `Transaction volume in ${areaName} is thin for the period covered — HM Land Registry records fewer recent sales at this postcode level. Use the 5-year price trend and area median as your primary anchors; treat any comparable figures as directional rather than precise.`, price: "—", date: "—", type: "—" },
       ],
       negotiationBrief: {
         suggestedOfferRange: hasData
           ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)} (3–12% below ${areaName} median)`
-          : "Obtain independent RICS valuation before offering",
+          : "Fewer than 5 recent transactions at this postcode — too thin for a model-derived range. Instruct a RICS surveyor before offering to get a property-specific figure.",
         leveragePoints: [
           `Area median is ${fmt(latestMedian)} — use this as your anchor. Any asking price above this requires justification from the agent`,
           `Market momentum is ${yoyChange.startsWith("+") ? "positive but not exceptional" : "softening"} — ${yoyChange.startsWith("+") ? "avoid overpaying by anchoring 5–8% below asking" : "buyers currently have leverage. Push for 8–12% below asking with survey findings as additional justification"}`,

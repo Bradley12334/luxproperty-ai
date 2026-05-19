@@ -541,13 +541,17 @@ function exportToPDF(
       <td style="text-align:right;color:${row.change.startsWith("+") ? "#166534" : row.change === "—" ? "#6b7280" : "#991b1b"}">${row.change}</td>
     </tr>`).join("");
 
-  const comparableRows = isProperty && pd ? pd.comparableSales.map(s => `
+  const comparableRows = isProperty && pd
+    ? pd.comparableSales.length === 1 && pd.comparableSales[0].price === "—"
+      ? `<tr><td colspan="4" style="color:#6b7280;font-style:italic;padding:10px 0">${pd.comparableSales[0].address}</td></tr>`
+      : pd.comparableSales.map(s => `
     <tr>
       <td>${s.address}</td>
       <td style="color:#6b7280">${s.type}</td>
       <td style="font-family:Georgia,serif;font-size:15px">${s.price}</td>
       <td style="text-align:right;color:#6b7280">${s.date}</td>
-    </tr>`).join("") : "";
+    </tr>`).join("")
+    : "";
 
   const leveragePoints = isProperty && pd ? pd.negotiationBrief.leveragePoints.map((p, i) => `
     <li style="margin-bottom:6px"><span style="color:#B8860B;font-family:Georgia,serif">${i+1}.</span> ${p}</li>`).join("") : "";
@@ -850,6 +854,10 @@ function exportToPDF(
       <div class="kpi"><div class="kpi-label">Full Fibre</div><div class="kpi-value" style="font-size:16px">${ai.broadband.fullFibreAvailability}</div></div>
     </div>
     <p class="body-text">${ai.broadband.note}</p>
+    ${ai.broadband.avgDownloadSpeed !== "Check at address"
+      ? `<p style="font-size:11px;color:#9ca3af;margin-top:6px">Ofcom figures are postcode-level averages. Availability and speeds can differ between individual properties — verify at checker.ofcom.org.uk before committing.</p>`
+      : `<p style="font-size:11px;color:#9ca3af;margin-top:6px">Verify broadband availability and speeds at your specific address at checker.ofcom.org.uk.</p>`
+    }
   </div>
 
   <div class="section">
@@ -1569,7 +1577,7 @@ export default function BriefPage() {
                   { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics, fallback: false },
                   { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife, fallback: false },
                   { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment, fallback: false },
-                  { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment, fallback: ai.neighbourhoodProfile.residentSentiment.includes("not yet included") },
+                  { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment, fallback: ai.neighbourhoodProfile.residentSentiment.includes("coverage for") || ai.neighbourhoodProfile.residentSentiment.includes("not yet included") },
                 ].map((item) => (
                   <div key={item.label} className={`flex flex-col gap-1.5 ${item.fallback ? "opacity-60" : ""}`}>
                     <div className="flex items-center gap-1.5">
@@ -1724,7 +1732,7 @@ export default function BriefPage() {
                       <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Planning Applications (past 12 months)</span>
                       {ai.planningActivity.recentApplications > 0
                         ? <span className="text-2xl font-bold text-foreground">{ai.planningActivity.recentApplications.toLocaleString()}</span>
-                        : <span className="text-sm text-muted-foreground italic">Not retrieved for this area</span>
+                        : <span className="text-sm text-muted-foreground">Count not available — check the council portal below for recent applications in this area.</span>
                       }
                     </div>
                     <div className="flex flex-col gap-1">
@@ -1841,13 +1849,16 @@ export default function BriefPage() {
             {/* Broadband & Infrastructure — Pro+ */}
             {isPaid ? (
               <CollapsibleSection title="Broadband & Infrastructure" testId="section-broadband">
-                {ai.broadband.avgDownloadSpeed === "Not retrieved" ? (
+                {ai.broadband.avgDownloadSpeed === "Check at address" ? (
                   <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <Wifi className="h-4 w-4 text-muted-foreground/50 shrink-0" />
-                      <p className="text-sm text-muted-foreground">{ai.broadband.note}</p>
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
+                      <Wifi className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
+                        <p className="text-xs text-muted-foreground/70">{ai.broadband.providers}</p>
+                        <a href="https://checker.ofcom.org.uk/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Check at checker.ofcom.org.uk →</a>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">{ai.broadband.providers}</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
@@ -1880,6 +1891,7 @@ export default function BriefPage() {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
+                    <p className="text-xs text-muted-foreground/60 leading-relaxed">Ofcom figures are postcode-level averages. Actual speeds and availability can differ between properties on the same street — verify at address level at <a href="https://checker.ofcom.org.uk/" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">checker.ofcom.org.uk</a> before offering.</p>
                   </div>
                 )}
               </CollapsibleSection>
@@ -2363,9 +2375,12 @@ export default function BriefPage() {
             {/* ── Crime Statistics ─────────────────────────────────────────────── */}
             {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
               <CollapsibleSection title="Crime Statistics" testId="section-crime-unavailable">
-                <div className="flex items-center gap-3 py-1">
-                  <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0" />
-                  <p className="text-sm text-muted-foreground italic">Crime statistics for this area could not be retrieved for this report.</p>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
+                  <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
+                    <a href="https://www.police.uk/pu/your-area/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start">Check crime data at police.uk →</a>
+                  </div>
                 </div>
               </CollapsibleSection>
             )}
@@ -2495,6 +2510,16 @@ export default function BriefPage() {
 
                 <Card className="p-5 sm:p-6" data-testid="section-comparables">
                   <SectionHeading>Comparable Sales</SectionHeading>
+                  {pd.comparableSales.length === 1 && pd.comparableSales[0].price === "—" ? (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
+                      <FileSearch className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-muted-foreground leading-relaxed">{pd.comparableSales[0].address}</p>
+                        <p className="text-xs text-muted-foreground/70">Use the 5-year price trend and area median above as your pricing anchors. For deeper comparable research, Zoopla and Rightmove both show sold prices at street level.</p>
+                        <a href="https://www.rightmove.co.uk/house-prices.html" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Search sold prices on Rightmove →</a>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
                     <table className="w-full text-sm" data-testid="table-comparables">
                       <thead>
@@ -2517,6 +2542,7 @@ export default function BriefPage() {
                       </tbody>
                     </table>
                   </div>
+                  )}
                 </Card>
 
                 <Card className="p-5 sm:p-6" data-testid="section-negotiation">
