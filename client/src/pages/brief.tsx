@@ -623,6 +623,33 @@ function exportToPDF(
   const leveragePoints = isProperty && pd ? pd.negotiationBrief.leveragePoints.map((p, i) => `
     <li style="margin-bottom:6px"><span style="color:#B8860B;font-family:Georgia,serif">${i+1}.</span> ${p}</li>`).join("") : "";
 
+  const offerStrategyHtml = isProperty && pd?.offerStrategy ? `
+  <div class="section">
+    <div class="section-label">Pre-offer Strategy</div>
+    <p style="font-size:10px;color:#6b7280;margin-bottom:12px">Evidence-led guidance for making and defending an offer. Not a formal valuation — instruct a RICS surveyor before exchange.</p>
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div style="background:#faf8f4;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;flex:1">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px">Fair Value Range</div>
+        <div style="font-family:Georgia,serif;font-size:17px;color:#1a1612">${pd.offerStrategy.fairValueRange}</div>
+      </div>
+      <div style="background:#faf8f4;border:1px solid #B8860B30;border-radius:6px;padding:10px 14px;flex:1">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px">Opening Range</div>
+        <div style="font-family:Georgia,serif;font-size:17px;color:#B8860B">${pd.offerStrategy.openingRange}</div>
+      </div>
+      <div style="background:#faf8f4;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;flex:1">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px">Evidence Quality</div>
+        <div style="font-size:13px;font-weight:600;color:#1a1612">${pd.offerStrategy.confidence}</div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#6b7280;border-left:2px solid #e5e7eb;padding-left:10px;margin-bottom:12px">${pd.offerStrategy.confidenceNote}</p>
+    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">How we got here</p>
+    <p style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:12px">${pd.offerStrategy.rationale}</p>
+    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Factors that may support a firmer stance</p>
+    <ul style="padding-left:0;list-style:none;margin-bottom:12px">${pd.offerStrategy.sellerPressurePoints.map(p => `<li style="margin-bottom:6px;font-size:12px;color:#374151;padding-left:14px;position:relative"><span style="position:absolute;left:0;color:#d97706">‣</span>${p}</li>`).join("")}</ul>
+    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Questions to raise before offering</p>
+    <ol style="padding-left:16px;margin:0">${pd.offerStrategy.preOfferQuestions.map(q => `<li style="margin-bottom:6px;font-size:12px;color:#374151">${q}</li>`).join("")}</ol>
+  </div>` : "";
+
   const riskFlags = ai.investmentOutlook.riskFlags.map(f => `
     <li style="margin-bottom:4px;padding-left:16px;position:relative"><span style="position:absolute;left:0;color:#9ca3af">–</span>${f}</li>`).join("");
 
@@ -851,12 +878,7 @@ function exportToPDF(
     <tbody>${comparableRows}</tbody></table>
   </div>
 
-  <div class="section">
-    <div class="section-label">Negotiation Brief</div>
-    <div class="offer">${pd.negotiationBrief.suggestedOfferRange}</div>
-    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Key Leverage Points</p>
-    <ul>${leveragePoints}</ul>
-  </div>` : ""}
+${offerStrategyHtml}` : ""}
 
 
   <div class="section">
@@ -2738,29 +2760,89 @@ export default function BriefPage() {
                   )}
                 </Card>
 
-                <Card className="p-5 sm:p-6" data-testid="section-negotiation">
-                  <SectionHeading>Negotiation Brief</SectionHeading>
-                  <div className="mb-4">
-                    <p className="text-xs text-muted-foreground mb-1">Suggested Offer Range</p>
-                    <p className="font-serif text-2xl tracking-tight text-primary">
-                      {pd.negotiationBrief.suggestedOfferRange}
-                    </p>
-                    <p className="text-xs text-muted-foreground/70 mt-2 leading-relaxed">
-                      Derived from the postcode median and comparable sales above. Use this as a calibration tool, not a hard ceiling — condition, lease length, EPC rating, and chain status all affect where the right number lands.
-                    </p>
+                {/* Offer Strategy — new evidence-led block */}
+                {pd.offerStrategy && (
+                <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-offer-strategy">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3 mb-5">
+                    <div>
+                      <SectionHeading>Pre-offer Strategy</SectionHeading>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Evidence-led guidance for making and defending an offer. Not a formal valuation — instruct a RICS surveyor before exchange.
+                      </p>
+                    </div>
+                    {/* Confidence badge */}
+                    <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                      pd.offerStrategy.confidence === "Strong"
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-400/30"
+                        : pd.offerStrategy.confidence === "Moderate"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-400/30"
+                        : "bg-muted text-muted-foreground border-border"
+                    }`}>
+                      {pd.offerStrategy.confidence} evidence
+                    </span>
                   </div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-                    Leverage Points
+
+                  {/* Range row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-primary/5 border border-primary/10 mb-5">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">Fair Value Range <EstimateTag /></p>
+                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-fair-value-range">
+                        {pd.offerStrategy.fairValueRange}
+                      </p>
+                    </div>
+                    <div className="sm:border-l sm:border-border/50 sm:pl-4">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">Opening Range <EstimateTag /></p>
+                      <p className="font-serif text-2xl tracking-tight text-primary" data-testid="text-opening-range">
+                        {pd.offerStrategy.openingRange}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Confidence note */}
+                  <p className="text-xs text-muted-foreground/80 leading-relaxed mb-5 border-l-2 border-border pl-3">
+                    {pd.offerStrategy.confidenceNote}
                   </p>
-                  <ul className="space-y-2">
-                    {pd.negotiationBrief.leveragePoints.map((point, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="text-primary font-serif mt-0.5">{i + 1}.</span>
-                        <span className="text-foreground/90">{point}</span>
-                      </li>
-                    ))}
-                  </ul>
+
+                  {/* Rationale */}
+                  <div className="mb-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-2">How we got here</p>
+                    <p className="text-sm text-foreground/90 leading-relaxed">{pd.offerStrategy.rationale}</p>
+                  </div>
+
+                  {/* Seller pressure points */}
+                  <div className="mb-5">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <ShieldAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Factors that may support a firmer stance</p>
+                    </div>
+                    <ul className="space-y-2">
+                      {pd.offerStrategy.sellerPressurePoints.map((point, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="text-amber-600 dark:text-amber-400 mt-1 shrink-0">‣</span>
+                          <span className="text-foreground/90 leading-relaxed">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Pre-offer questions */}
+                  <div className="pt-4 border-t border-border/40">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Questions to raise before offering</p>
+                    </div>
+                    <ul className="space-y-2">
+                      {pd.offerStrategy.preOfferQuestions.map((q, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="text-primary/60 font-serif mt-0.5 shrink-0 tabular-nums">{i + 1}.</span>
+                          <span className="text-foreground/90 leading-relaxed">{q}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </Card>
+                )}
               </>
             )}
 

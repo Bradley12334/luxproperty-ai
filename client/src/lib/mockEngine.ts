@@ -1445,6 +1445,111 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     },
   };
 
+  // ─── Offer strategy engine ───────────────────────────────────────────────────────────────────────
+  // Confidence: Strong ≥ 4 comparable sales; Moderate = 2–3 or 1–2yr data; Thin = 0–1 or no data
+  const compCount = comparables.length;
+  const offerConfidence: "Strong" | "Moderate" | "Thin" =
+    !hasData || outsideEnglandWales ? "Thin"
+    : compCount >= 4 ? "Strong"
+    : compCount >= 2 ? "Moderate"
+    : "Thin";
+
+  const confidenceNote: string =
+    offerConfidence === "Strong"
+      ? `Based on ${compCount} recent comparable sales and ${totalSalesThisYear > 10 ? totalSalesThisYear + " registered transactions" : "Land Registry data"} in ${areaName} — the range is reasonably tight.`
+      : offerConfidence === "Moderate"
+      ? `Based on ${compCount > 0 ? compCount + " comparable sale" + (compCount > 1 ? "s" : "") + " and " : ""}the ${areaName} area median — widen your own margin of safety by at least 5%.`
+      : outsideEnglandWales
+      ? "HM Land Registry does not cover this region — ranges are not available. See ros.gov.uk (Scotland) for sold prices."
+      : `Transaction volume at this postcode level is too low for a model-derived range. Treat any figures as directional only and instruct a RICS surveyor before offering.`;
+
+  // Fair value: anchor to median; if comparables exist, weight them in
+  const compAvg = compCount > 0
+    ? comparables.reduce((sum, c) => sum + parseInt(c.price.replace(/[^0-9]/g, ""), 10), 0) / compCount
+    : 0;
+  const fairValueAnchor = compAvg > 0 && compCount >= 2
+    ? Math.round((latestMedian * 0.4) + (compAvg * 0.6))  // weight comparables more heavily when present
+    : latestMedian;
+  const fvLow  = Math.round(fairValueAnchor * 0.92);
+  const fvHigh = Math.round(fairValueAnchor * 1.08);
+  const fairValueRange: string = hasData && !outsideEnglandWales
+    ? `${fmt(fvLow)} – ${fmt(fvHigh)}`
+    : "Not available — see confidence note";
+
+  // Opening range: 4–10% below fair value anchor, tighter in rising/high-demand markets
+  const isSoftMarket = !yoyChange.startsWith("+") && yoyChange !== "—";
+  const isHighDemand = demandSignal === "High";
+  const openLow  = Math.round(fairValueAnchor * (isSoftMarket ? 0.86 : isHighDemand ? 0.90 : 0.88));
+  const openHigh = Math.round(fairValueAnchor * (isSoftMarket ? 0.94 : isHighDemand ? 0.96 : 0.95));
+  const openingRange: string = hasData && !outsideEnglandWales
+    ? `${fmt(openLow)} – ${fmt(openHigh)}`
+    : "Not available — see confidence note";
+
+  // Rationale: narrative connecting the numbers to the evidence
+  const rationale: string = hasData && !outsideEnglandWales
+    ? [
+        compCount >= 2
+          ? `The fair value range is anchored primarily to ${compCount} comparable sales in this postcode (average: ${fmt(Math.round(compAvg))}), blended with the ${areaName} area median of ${fmt(latestMedian)}.`
+          : `The fair value range is anchored to the ${areaName} area median of ${fmt(latestMedian)} — comparable sales volume is too low to shift this materially.`,
+        `Price movement over the past year was ${yoyChange}, with ${totalSalesThisYear} recorded transactions — indicating ${demandSignal.toLowerCase()} demand.`,
+        isSoftMarket
+          ? `A softening market gives buyers above-average negotiating room. The opening range reflects this, sitting ${Math.round((1 - openLow / fairValueAnchor) * 100)}–${Math.round((1 - openHigh / fairValueAnchor) * 100)}% below fair value anchor.`
+          : isHighDemand
+          ? `High transaction volume suggests sellers are not under unusual pressure. The opening range is intentionally tight — open with a credible number and let survey findings do the rest.`
+          : `Demand is moderate. Open near the lower end of the range and use any condition or leasehold factors to move toward the mid-point or lower.`,
+        `Estimated SDLT at area median: ~${sdltEstimate}. Factor this into your total acquisition cost when setting a maximum.`,
+      ].join(" ")
+    : outsideEnglandWales
+    ? `Sold-price data is not available for this region via HM Land Registry. Ranges cannot be calculated. See ros.gov.uk (Scotland) for alternative data.`
+    : `Transaction volume at this postcode is below the threshold for a statistically grounded range. Use the 5-year trend and district-level median as directional anchors only.`;
+
+  // Seller pressure points: evidence-led, framed carefully
+  const sellerPressurePoints: string[] = [];
+  if (hasData) {
+    if (isSoftMarket)
+      sellerPressurePoints.push(`Prices in ${areaName} are drifting ${yoyChange} year-on-year — a softening trend weakens the seller’s argument that "prices are rising" and supports a patient approach.`);
+    if (demandSignal !== "High")
+      sellerPressurePoints.push(`${totalSalesThisYear} registered transactions last year (${demandSignal.toLowerCase()} demand) — the seller’s buyer pool is not as deep as in peak-demand postcodes. This gives you time to negotiate without fear of being gazumped.`);
+    if (compCount >= 2) {
+      const sortedPrices = comparables
+        .map(c => parseInt(c.price.replace(/[^0-9]/g, ""), 10))
+        .filter(n => n > 0)
+        .sort((a, b) => a - b);
+      if (sortedPrices.length >= 2) {
+        const spread = sortedPrices[sortedPrices.length - 1] - sortedPrices[0];
+        const spreadPct = Math.round((spread / sortedPrices[0]) * 100);
+        if (spreadPct > 15)
+          sellerPressurePoints.push(`Comparable sales in this postcode range from ${fmt(sortedPrices[0])} to ${fmt(sortedPrices[sortedPrices.length - 1])} — a ${spreadPct}% spread. If asking is near the top of this range, ask the agent what specifically justifies it over lower-selling comparables.`);
+      }
+    }
+  }
+  // Static pressure points always applicable to address-level briefs
+  sellerPressurePoints.push(
+    "Look up the seller’s purchase price at gov.uk/search-property-information — understanding their equity position informs how far they can realistically come down.",
+    "Ask directly: how long has it been on the market, and has the asking price changed? Reductions or extended time signal a motivated seller.",
+    "EPC rating affects mortgage lender appetite and future upgrade costs — request the certificate and, if the rating is D or below, build remediation costs into your negotiation.",
+  );
+  if (livePlanningActivity && livePlanningActivity.recentApplications > 3)
+    sellerPressurePoints.push(`${livePlanningActivity.recentApplications} planning applications recorded nearby in the past 12 months — ask the agent what, if anything, has been approved that could affect outlook or quiet enjoyment.`);
+  if (liveFloodRisk && (liveFloodRisk.riskBadge === "High" || liveFloodRisk.riskBadge === "Medium"))
+    sellerPressurePoints.push(`Flood risk for this area is rated ${liveFloodRisk.riskBadge.toLowerCase()} — request the seller’s insurance renewal history. Flood-affected or high-risk properties can carry insurance excess and premium uplift of £1,000–£5,000/year, which you should price into your maximum.`);
+
+  // Pre-offer questions: practical, issue-led
+  const preOfferQuestions: string[] = [
+    "Has there been any survey or structural work done in the last 5 years? Ask for copies of any reports and completion certificates.",
+    "What is the lease length and annual ground rent if leasehold? Anything below 85 years remaining will require extension before or shortly after purchase (budget £10,000–£30,000+).",
+    "Are there any known issues with the roof, damp, subsidence, or drainage? Ask specifically — agents are obligated to pass on material information.",
+    "What is the broadband setup? Ask what provider and type of connection is installed — full-fibre availability varies building to building even in well-connected areas.",
+    "Has the property ever flooded, or has the owner ever claimed on building insurance for water damage? This is a material disclosure question.",
+    "Is the property freehold or leasehold, and if leasehold, what is the annual service charge and what is it used for? Rising service charges are a growing cost risk.",
+  ];
+  if (livePlanningActivity && livePlanningActivity.recentApplications > 0)
+    preOfferQuestions.push(`Planning portal shows ${livePlanningActivity.recentApplications} nearby application${livePlanningActivity.recentApplications > 1 ? "s" : ""} recently. Ask the agent whether any of these affect the immediate view, access, or character of the street.`);
+  preOfferQuestions.push(
+    "How long has the seller owned the property, and what is their reason for selling? You don’t need the full story, but a clear reason helps calibrate how motivated they are.",
+    "What fixtures, fittings, and white goods are included in the asking price? Clarify before offering — exclusions can shift the effective value by thousands.",
+  );
+
   let propertyDeepDive: PropertyDeepDive | undefined;
   if (queryType === "address") {
     propertyDeepDive = {
@@ -1464,20 +1569,18 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ],
       negotiationBrief: {
         suggestedOfferRange: hasData
-          ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)} (3–12% below ${areaName} median)`
-          : "Fewer than 5 recent transactions at this postcode — too thin for a model-derived range. Instruct a RICS surveyor before offering to get a property-specific figure.",
-        leveragePoints: [
-          `Area median is ${fmt(latestMedian)} — use this as your anchor. Any asking price above this requires justification from the agent`,
-          `Market momentum is ${yoyChange.startsWith("+") ? "positive but not exceptional" : "softening"} — ${yoyChange.startsWith("+") ? "avoid overpaying by anchoring 5–8% below asking" : "buyers currently have leverage. Push for 8–12% below asking with survey findings as additional justification"}`,
-          `Demand in ${areaName} is ${demandSignal.toLowerCase()} (${totalSalesThisYear} sales last year) — ${demandSignal === "High" ? "move quickly but don't skip due diligence" : "no urgency pressure. Take time to negotiate"}`,
-          `Request the seller's purchase price via gov.uk/search-property-information to check their equity position and margin for negotiation`,
-          `Estimated SDLT: ~${sdltEstimate} — factor this into your total acquisition cost when setting your maximum offer`,
-          "Commission a RICS Level 2 HomeBuyer Report (£400–£600) or Level 3 Full Structural Survey (£600–£1,200) before exchange — defects found can reduce your offer further",
-          "Verify EPC rating — properties rated D, E, F or G carry upgrade liability. Budget £5,000–20,000 for heat pump or insulation works and use this in negotiation",
-          "For leasehold: demand at least 80 years remaining or budget for lease extension (£10,000–30,000+). Ground rent above £250/year (£1,000 in London) is a mortgage risk",
-          "Check the local planning portal for nearby applications — approved high-density development within 500m typically softens residential values by 3–8%",
-          "If the property has been on the market 60+ days, the seller has already been rejected at current pricing. Open at 10–15% below asking",
-        ],
+          ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)}`
+          : "See offer strategy below.",
+        leveragePoints: [],
+      },
+      offerStrategy: {
+        confidence: offerConfidence,
+        confidenceNote,
+        fairValueRange,
+        openingRange,
+        rationale,
+        sellerPressurePoints,
+        preOfferQuestions,
       },
     };
   }

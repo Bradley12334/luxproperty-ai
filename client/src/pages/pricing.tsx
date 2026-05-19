@@ -21,7 +21,7 @@ const tiers = [
     name: "Professional",
     price: "£4.99",
     period: "/month",
-    description: "Everything you need before you offer. Comparable sales, negotiation brief, 5-year price trend, crime breakdown, planning activity, air quality, and PDF export. Any UK postcode. Unlimited briefs.",
+    description: "Everything you need before you offer. Comparable sales, a pre-offer strategy with fair value range and opening range, 5-year price trend, crime breakdown, planning activity, air quality, and PDF export. Any UK postcode. Unlimited briefs.",
     badge: "Recommended",
     style: "professional",
     cta: "Start Professional",
@@ -65,8 +65,9 @@ const features: FeatureRow[] = [
   { feature: "Property type split", explorer: false, professional: true, investor: true },
   { feature: "Full commute calculator — times to multiple destinations", explorer: false, professional: true, investor: true },
   { feature: "Crime breakdown by category (police.uk)", explorer: false, professional: true, investor: true },
-  { feature: "Comparable sales & valuation range — anchor for your offer", explorer: false, professional: true, investor: true },
-  { feature: "Negotiation brief — leverage points, offer calibration & timing", explorer: false, professional: true, investor: true },
+  { feature: "Comparable sales & valuation range", explorer: false, professional: true, investor: true },
+  { feature: "Pre-offer strategy — fair value range, opening range & seller pressure points", explorer: false, professional: true, investor: true },
+  { feature: "Pre-offer questions — what to ask before committing", explorer: false, professional: true, investor: true },
   { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
   { feature: "Broadband speed & fibre coverage (Ofcom)", explorer: false, professional: true, investor: true },
   { feature: "Rental market context — rents & demand", explorer: false, professional: true, investor: true },
@@ -125,7 +126,7 @@ export default function PricingPage() {
               Professional is the main plan. Start free.
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Professional is the buyer brief for serious homebuyers and advisers — comparable sales, negotiation context, 5-year price history, and everything you need before you offer. Explorer is free to try. Investor adds comparison tools for heavier use.
+              Professional is the buyer brief for serious homebuyers and advisers — comparable sales, a pre-offer strategy, 5-year price history, and everything you need before you offer. Explorer is free to try. Investor adds comparison tools for heavier use.
             </p>
           </div>
         </section>
@@ -275,7 +276,7 @@ export default function PricingPage() {
               Professional is the brief most buyers need.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Comparable sales, a negotiation brief, 5-year price history, crime and planning context, and a PDF you can keep or share. Any UK postcode. £4.99/month — cancel any time.
+              Comparable sales, a pre-offer strategy with fair value range and opening range, 5-year price history, crime and planning context, and a PDF you can keep or share. Any UK postcode. £4.99/month — cancel any time.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">

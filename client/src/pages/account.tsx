@@ -32,7 +32,7 @@ const planDetails = {
     label: "Professional",
     price: "£4.99/month",
     color: "text-primary",
-    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend — full Land Registry history", "Comparable sales & valuation range", "Negotiation brief — leverage points & offer calibration", "Planning activity & risk flags", "Crime breakdown by category (police.uk)", "Broadband speed & fibre coverage (Ofcom)", "Rental market context — rents & demand signal", "Air quality index (DEFRA)", "Export to PDF & save briefs"],
+    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend — full Land Registry history", "Comparable sales & valuation range", "Pre-offer strategy — fair value range, opening range & seller pressure points", "Pre-offer questions — what to ask before committing", "Planning activity & risk flags", "Crime breakdown by category (police.uk)", "Broadband speed & fibre coverage (Ofcom)", "Rental market context — rents & demand signal", "Air quality index (DEFRA)", "Export to PDF & save briefs"],
     upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
     upgradeTo: "Investor — £39.99/month",
     upgradeDescription: "Add 10-year trend data, rental demand scores, a sold prices map, and a portfolio dashboard to compare multiple areas at once.",

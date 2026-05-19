@@ -216,9 +216,27 @@ export interface PropertyDeepDive {
     date: string;
     type: string;
   }>;
+  /** Legacy — preserved for backwards compat with old brief store entries */
   negotiationBrief: {
     suggestedOfferRange: string;
     leveragePoints: string[];
+  };
+  /** New: evidence-led offer strategy block */
+  offerStrategy: {
+    /** How much to trust the numbers: "Strong" | "Moderate" | "Thin" */
+    confidence: "Strong" | "Moderate" | "Thin";
+    /** 1-sentence explanation of what drives the confidence level */
+    confidenceNote: string;
+    /** Fair value range derived from comparables + area median */
+    fairValueRange: string;             // e.g. "£340,000 – £370,000"
+    /** Where a buyer could reasonably open negotiations */
+    openingRange: string;               // e.g. "£315,000 – £330,000"
+    /** Narrative: how we got to these numbers */
+    rationale: string;
+    /** Factors that may support a firmer buyer stance */
+    sellerPressurePoints: string[];
+    /** Questions to raise before making an offer */
+    preOfferQuestions: string[];
   };
 }
 

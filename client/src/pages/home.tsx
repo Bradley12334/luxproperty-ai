@@ -91,13 +91,14 @@ export default function Home() {
       name: "Professional",
       price: "£4.99",
       period: "/month",
-      description: "Everything you need before you offer — comparable sales, negotiation brief, 5-year price trend, crime breakdown, planning flags, and PDF export. Any UK postcode. Unlimited briefs.",
+      description: "Everything you need before you offer — comparable sales, a pre-offer strategy with fair value and opening ranges, 5-year price trend, crime breakdown, planning flags, and PDF export. Any UK postcode. Unlimited briefs.",
       features: [
         "Unlimited briefs",
         "Everything in Explorer",
         "5-year price trend — full Land Registry history",
-        "Comparable sales & valuation range — anchor for your offer",
-        "Negotiation brief — leverage points & timing",
+        "Comparable sales & valuation range",
+        "Pre-offer strategy — fair value range, opening range, seller pressure points",
+        "Pre-offer questions — what to raise before committing",
         "Planning activity & development risk flags",
         "Crime breakdown by category (police.uk)",
         "Broadband speed & fibre availability (Ofcom)",
@@ -277,7 +278,7 @@ export default function Home() {
                 {
                   step: "03",
                   heading: "You get a clear brief",
-                  body: "A structured report: price trends, comparable sales, neighbourhood profile, risk flags, and a negotiation summary — ready to share.",
+                  body: "A structured report: price trends, comparable sales, a pre-offer strategy with fair value and opening ranges, neighbourhood profile, and risk flags — ready to share.",
                 },
               ].map((item, i) => (
                 <div key={item.step} className={`flex flex-col gap-3 px-0 sm:px-6 ${i === 0 ? "sm:pl-0" : ""} ${i === 2 ? "sm:pr-0" : ""} ${i > 0 ? "mt-8 sm:mt-0 pt-8 sm:pt-0 border-t sm:border-t-0 border-border/40" : ""}`}>
@@ -315,7 +316,7 @@ export default function Home() {
                     "Real Land Registry transactions",
                     "Neighbourhood character & lifestyle data",
                     "Flood, planning & EPC risk flags",
-                    "Valuation range & negotiation brief",
+                    "Pre-offer strategy & opening range",
                     "Export to PDF or share as a link",
                   ].map((item) => (
                     <div key={item} className="flex items-center gap-2.5 text-sm">
