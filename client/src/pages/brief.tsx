@@ -1324,6 +1324,33 @@ ${offerStrategyHtml}` : ""}
 
   ${crimeSection}
 
+  ${(() => {
+    const pdfBullets = ai.neighbourhoodProfile.residentSentimentBullets;
+    const pdfCoverageThin = ai.neighbourhoodProfile.coverageThin;
+    if (!pdfBullets || pdfBullets.length === 0) return "";
+    const typeConfig: Record<string, { label: string; bg: string; color: string; borderColor: string }> = {
+      "positive":  { label: "Positive",       bg: "#f0fdf4", color: "#166534", borderColor: "#bbf7d0" },
+      "trade-off": { label: "Trade-off",      bg: "#fffbeb", color: "#92400e", borderColor: "#fde68a" },
+      "lifestyle": { label: "Lifestyle note", bg: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" },
+      "caution":   { label: "Buyer caution",  bg: "#fef2f2", color: "#991b1b", borderColor: "#fecaca" },
+      "note":      { label: "Note",           bg: "#f9fafb", color: "#6b7280", borderColor: "#e5e7eb" },
+    };
+    const bulletRows = pdfBullets.map((b: { type: string; text: string }) => {
+      const cfg = typeConfig[b.type] ?? typeConfig["note"];
+      return `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">
+        <span style="flex-shrink:0;margin-top:1px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:9999px;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.borderColor};white-space:nowrap">${cfg.label}</span>
+        <p style="font-size:12px;color:#374151;line-height:1.6;margin:0">${b.text}</p>
+      </div>`;
+    }).join("");
+    return `
+    <div class="section">
+      <div class="section-label">What Residents Say</div>
+      ${pdfCoverageThin ? `<p style="font-size:10px;color:#9ca3af;margin-bottom:10px;font-style:italic">Coverage limited — bullets derived from available data signals rather than curated resident feedback.</p>` : ""}
+      ${bulletRows}
+    </div>`;
+  })()
+  }
+
   <div class="section">
     <div class="section-label">Market Outlook</div>
     <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Price growth is a forward-looking range derived from the direction of recent Land Registry trends — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Not financial advice.</p>
@@ -1642,6 +1669,96 @@ function StrengthsAndConsiderations({ ai }: { ai: BriefReport["areaIntelligence"
         Synthesised from Land Registry, Environment Agency, Ofsted, and ONS data in this report. Not a substitute for a professional survey.
       </p>
     </Card>
+  );
+}
+
+// ── Resident Sentiment Bullets Block ──────────────────────────────────────────
+type SentimentBullet = {
+  type: "positive" | "trade-off" | "lifestyle" | "caution" | "note";
+  text: string;
+};
+
+const SENTIMENT_TYPE_META: Record<SentimentBullet["type"], {
+  label: string;
+  color: string;
+  dot: string;
+}> = {
+  "positive":  { label: "Positive",      color: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25", dot: "bg-emerald-500" },
+  "trade-off": { label: "Trade-off",     color: "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/25",         dot: "bg-amber-500" },
+  "lifestyle": { label: "Lifestyle note",color: "text-blue-700 dark:text-blue-400 bg-blue-500/10 border-blue-500/25",             dot: "bg-blue-500" },
+  "caution":   { label: "Buyer caution", color: "text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/25",                 dot: "bg-red-500" },
+  "note":      { label: "Note",          color: "text-muted-foreground bg-muted/40 border-border/40",                             dot: "bg-muted-foreground" },
+};
+
+/** Full 3–5 bullet version — Professional tier */
+function ResidentSentimentBlock({ ai }: { ai: BriefReport["areaIntelligence"] }) {
+  const bullets = ai.neighbourhoodProfile.residentSentimentBullets;
+  const coverageThin = ai.neighbourhoodProfile.coverageThin;
+  if (!bullets || bullets.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">What Residents Say</span>
+        {coverageThin && (
+          <span className="ml-auto text-[10px] text-muted-foreground/60 italic">Limited coverage</span>
+        )}
+      </div>
+      <div className={`flex flex-col gap-2 ${coverageThin ? "opacity-75" : ""}`}>
+        {bullets.map((bullet, i) => {
+          const meta = SENTIMENT_TYPE_META[bullet.type];
+          return (
+            <div key={i} className="flex gap-2.5 items-start">
+              <span className={`inline-flex items-center gap-1 shrink-0 mt-[3px] px-1.5 py-0.5 rounded border text-[10px] font-semibold ${meta.color}`}>
+                {meta.label}
+              </span>
+              <p className="text-sm text-muted-foreground leading-relaxed">{bullet.text}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Teaser version — Explorer tier (max 2 bullets: positive + caution) */
+function ResidentSentimentTeaser({ ai }: { ai: BriefReport["areaIntelligence"] }) {
+  const bullets = ai.neighbourhoodProfile.residentSentimentBullets;
+  if (!bullets || bullets.length === 0) return null;
+
+  // Pick one positive and one caution/trade-off for the teaser
+  const positive = bullets.find(b => b.type === "positive");
+  const caution  = bullets.find(b => b.type === "caution") || bullets.find(b => b.type === "trade-off");
+  const teaser   = [positive, caution].filter(Boolean) as SentimentBullet[];
+
+  if (teaser.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">What Residents Say</span>
+        <span className="ml-auto text-[10px] text-muted-foreground/50">Preview</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {teaser.map((bullet, i) => {
+          const meta = SENTIMENT_TYPE_META[bullet.type];
+          return (
+            <div key={i} className="flex gap-2.5 items-start">
+              <span className={`inline-flex items-center gap-1 shrink-0 mt-[3px] px-1.5 py-0.5 rounded border text-[10px] font-semibold ${meta.color}`}>
+                {meta.label}
+              </span>
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">{bullet.text}</p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs text-muted-foreground/50 pt-1">
+        Full resident sentiment — 3–5 categorised bullets — available in{" "}
+        <Link href="/pricing"><span className="text-primary underline underline-offset-2">Professional ↗</span></Link>
+      </p>
+    </div>
   );
 }
 
@@ -2129,24 +2246,27 @@ export default function BriefPage() {
                 /* Professional+: full 9-subsection neighbourhood deep-dive */
                 <div className="grid gap-5 sm:grid-cols-2">
                   {[
-                    { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character, fallback: false },
-                    { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities, fallback: false },
-                    { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport, fallback: false },
-                    { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace, fallback: false },
-                    { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools, fallback: false },
-                    { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics, fallback: false },
-                    { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife, fallback: false },
-                    { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment, fallback: false },
-                    { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment, fallback: ai.neighbourhoodProfile.residentSentiment.includes("coverage for") || ai.neighbourhoodProfile.residentSentiment.includes("not yet included") },
+                    { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
+                    { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities },
+                    { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport },
+                    { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace },
+                    { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
+                    { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics },
+                    { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife },
+                    { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment },
                   ].map((item) => (
-                    <div key={item.label} className={`flex flex-col gap-1.5 ${item.fallback ? "opacity-60" : ""}`}>
+                    <div key={item.label} className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-1.5">
-                        <item.icon className={`h-3.5 w-3.5 shrink-0 ${item.fallback ? "text-muted-foreground" : "text-primary"}`} />
-                        <span className={`text-xs font-semibold uppercase tracking-[0.12em] ${item.fallback ? "text-muted-foreground" : "text-primary"}`}>{item.label}</span>
+                        <item.icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
                       </div>
-                      <p className={`leading-relaxed ${item.fallback ? "text-xs text-muted-foreground italic" : "text-sm text-muted-foreground"}`}>{item.text}</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
                     </div>
                   ))}
+                  {/* What Residents Say — structured bullet component */}
+                  <div className="sm:col-span-2">
+                    <ResidentSentimentBlock ai={ai} />
+                  </div>
                 </div>
               ) : (
                 /* Explorer: 3 key facts — character, transport, schools */
@@ -2164,8 +2284,12 @@ export default function BriefPage() {
                       <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
                     </div>
                   ))}
+                  {/* Sentiment teaser — Explorer gets 1 positive + 1 caution as a preview */}
+                  <div className="border-t border-border/40 pt-4">
+                    <ResidentSentimentTeaser ai={ai} />
+                  </div>
                   <p className="text-xs text-muted-foreground/60 border-t border-border/40 pt-3">
-                    Full neighbourhood detail — shops & amenities, green space, demographics, evening scene, buyer notes, and resident sentiment — available in Professional.
+                    Full neighbourhood detail — shops & amenities, green space, demographics, and evening scene — available in Professional.
                     <Link href="/pricing"> <span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
                   </p>
                 </div>

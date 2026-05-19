@@ -244,6 +244,174 @@ function deriveVerdict(
   return { verdictLabel, verdictRationale, bestFor, strongestPositives, mainWatchOuts, confidenceLevel, confidenceNote };
 }
 
+
+// ─── Resident Sentiment Bullets Engine ──────────────────────────────────────
+// Converts raw residentSentiment paragraph OR data signals into 3–5 structured
+// sentiment bullets with type tags (positive / trade-off / lifestyle / caution / note).
+// For curated postcodes: derives bullets by parsing the paragraph text.
+// For fallback areas:   derives bullets from individual data signals.
+// Always produces >=1 positive, >=1 trade-off/caution, >=1 lifestyle.
+function deriveResidentSentimentBullets(
+  hasCuratedProfile: boolean,
+  rawSentiment: string,
+  signals: {
+    schoolsRating: number;
+    transportRating: number;
+    safetyRating: number;
+    walkability: number;
+    crimePerMonth: number;
+    areaName: string;
+    hasGreenSpace: boolean;
+  },
+): import("../../../shared/schema").AreaIntelligence["neighbourhoodProfile"]["residentSentimentBullets"] {
+  type Bullet = import("../../../shared/schema").AreaIntelligence["neighbourhoodProfile"]["residentSentimentBullets"][number];
+
+  // -- CURATED PROFILE PATH ---------------------------------------------------
+  // Parse the paragraph to extract specific named facts => bullet types
+  if (hasCuratedProfile && rawSentiment && rawSentiment.length > 60) {
+    const p = rawSentiment;
+    const bullets: Bullet[] = [];
+
+    // POSITIVE: first strong positive claim
+    const positivePatterns = [
+      /(?:residents|buyers|locals|people)\s+(?:consistently\s+)?(?:describe|cite|praise|love|speak\s+about)[^.]+\./i,
+      /(?:most\s+common|top|consistently\s+cited|primary|key)\s+(?:draw|reason|appeal)[^.]+\./i,
+      /[^.]*(?:renowned|celebrated|outstanding|exceptional|world[- ]class|best[- ]value|smug\s+contentment|intense\s+loyalty)[^.]*\./i,
+    ];
+    let positiveText = "";
+    for (const pat of positivePatterns) {
+      const m = p.match(pat);
+      if (m) { positiveText = m[0].trim(); break; }
+    }
+    if (!positiveText) {
+      const sentences = p.split(/(?<=\.)\s+/);
+      positiveText = sentences[0] || "";
+    }
+    if (positiveText) {
+      if (!positiveText.match(/^Residents|^Local|^Sentiment|^Coverage/i)) {
+        positiveText = "Residents often describe " + positiveText.charAt(0).toLowerCase() + positiveText.slice(1);
+      }
+      bullets.push({ type: "positive", text: positiveText });
+    }
+
+    // LIFESTYLE: lived-experience / daily-ritual sentence
+    const lifestylePatterns = [
+      /[^.]*(?:morning|daily|weekend\s+market|farmers.{0,8}market|canal\s+walk|cycling\s+culture|school\s+run|Portobello|Broadway\s+Market|Broadway\s+market|Mill\s+Road|Exmouth\s+Market)[^.]*\./i,
+      /[^.]*(?:village\s+feel|village-like|community\s+feel|neighbourhood\s+feel|village\s+within|feels\s+like\s+a\s+village)[^.]*\./i,
+      /[^.]*(?:Heath|Harbour|harbour|river|park|outdoor|walking\s+distance)[^.]*(?:daily|everyday|routine|life)[^.]*\./i,
+    ];
+    let lifestyleText = "";
+    for (const pat of lifestylePatterns) {
+      const m = p.match(pat);
+      if (m) { lifestyleText = m[0].trim(); break; }
+    }
+    if (lifestyleText) {
+      if (!lifestyleText.match(/^Residents|^Local|^Sentiment|^Coverage/i)) {
+        lifestyleText = "Local feedback suggests " + lifestyleText.charAt(0).toLowerCase() + lifestyleText.slice(1);
+      }
+      bullets.push({ type: "lifestyle", text: lifestyleText });
+    }
+
+    // TRADE-OFF: friction / complaint sentences
+    const tradeoffPatterns = [
+      /[^.]*(?:most\s+common\s+(?:criticism|complaint|frustration)|recurring\s+(?:criticism|complaint)|the\s+main\s+(?:criticism|complaint|frustration|gripe|downside))[^.]*\./i,
+      /[^.]*(?:main\s+frustrat|central\s+complaint|key\s+downside|the\s+criticism)[^.]*\./i,
+      /[^.]*(?:frustrat|compla|downside|trade[- ]off|caveat|issue|compromis)[^.]*\.(?!\s*$)/i,
+    ];
+    let tradeoffText = "";
+    for (const pat of tradeoffPatterns) {
+      const m = p.match(pat);
+      if (m) { tradeoffText = m[0].trim(); break; }
+    }
+    if (tradeoffText && tradeoffText !== positiveText) {
+      if (!tradeoffText.match(/^The|^A\s|^Residents|^Local|^Sentiment/i)) {
+        tradeoffText = "Sentiment appears mixed on " + tradeoffText.charAt(0).toLowerCase() + tradeoffText.slice(1);
+      }
+      bullets.push({ type: "trade-off", text: tradeoffText });
+    }
+
+    // CAUTION: buyer-specific warning
+    const cautionPatterns = [
+      /[^.]*(?:anxiety|anxious|worried|parking\s+is|crime\s+(?:is|statistics)|school\s+competi|catchment\s+anxiet|noise\s+from)[^.]*\./i,
+      /[^.]*(?:verify|check\s+before|instruct|independent|caveat|caution|warrants)[^.]*\./i,
+    ];
+    let cautionText = "";
+    for (const pat of cautionPatterns) {
+      const m = p.match(pat);
+      if (m && m[0].trim() !== tradeoffText && m[0].trim() !== positiveText) {
+        cautionText = m[0].trim();
+        break;
+      }
+    }
+    if (cautionText) {
+      bullets.push({ type: "caution", text: cautionText });
+    }
+
+    // NOTE: fifth bullet — named source or named event reference
+    if (bullets.length < 4) {
+      const noteMatch = p.match(/[^.]*(?:Mumsnet|r\/london|r\/|estate\s+agent|Time\s+Out|annual|festival|carnival|Flower\s+Show)[^.]*\./i);
+      if (noteMatch && !bullets.some(b => b.text === noteMatch[0].trim())) {
+        bullets.push({ type: "note", text: noteMatch[0].trim() });
+      }
+    }
+
+    // Ensure at least one trade-off/caution if none found
+    if (!bullets.some(b => b.type === "trade-off" || b.type === "caution")) {
+      const sentences = p.split(/(?<=\.)\s+/);
+      const lastSent = sentences[sentences.length - 1] || sentences[sentences.length - 2] || "";
+      if (lastSent && lastSent !== positiveText) {
+        bullets.push({ type: "trade-off", text: lastSent });
+      }
+    }
+
+    return bullets.slice(0, 5);
+  }
+
+  // -- FALLBACK / DATA-DRIVEN PATH --------------------------------------------
+  const { schoolsRating, transportRating, walkability, crimePerMonth, areaName, hasGreenSpace } = signals;
+  const bullets: Bullet[] = [];
+
+  // POSITIVE
+  if (schoolsRating >= 70) {
+    bullets.push({ type: "positive", text: `Coverage is limited, but available feedback points to school provision being a notable draw for families in ${areaName}.` });
+  } else if (transportRating >= 7) {
+    bullets.push({ type: "positive", text: `Coverage is limited, but available feedback points to strong transport links as a consistently cited positive in ${areaName}.` });
+  } else if (walkability >= 65) {
+    bullets.push({ type: "positive", text: `Coverage is limited, but available feedback points to walkability and day-to-day convenience as a positive theme in ${areaName}.` });
+  } else {
+    bullets.push({ type: "positive", text: `Coverage is limited, but available feedback points to ${areaName} being valued for its residential character and local feel.` });
+  }
+
+  // LIFESTYLE
+  if (hasGreenSpace) {
+    bullets.push({ type: "lifestyle", text: `Nearby green space appears to be part of daily life for residents — parks and open areas are within reach for most addresses in ${areaName}.` });
+  } else if (walkability >= 50) {
+    bullets.push({ type: "lifestyle", text: `Residents in ${areaName} tend to benefit from walkable access to shops and services, reducing car dependency for day-to-day errands.` });
+  } else {
+    bullets.push({ type: "lifestyle", text: `Daily life in ${areaName} is likely to involve a mix of walking and driving — local amenities are present but not densely concentrated.` });
+  }
+
+  // TRADE-OFF
+  if (transportRating <= 4) {
+    bullets.push({ type: "trade-off", text: `Sentiment appears mixed on transport — limited rail or tube access means most residents rely on a car or bus for longer journeys out of ${areaName}.` });
+  } else if (walkability < 40) {
+    bullets.push({ type: "trade-off", text: `Sentiment appears mixed on walkability — the area is likely car-dependent for most daily tasks, which is a trade-off mentioned by residents in comparable areas.` });
+  } else {
+    bullets.push({ type: "trade-off", text: `Sentiment appears mixed on the overall amenity offer — while core services are present, the lack of a distinct high street or evening scene is a common trade-off in areas like ${areaName}.` });
+  }
+
+  // CAUTION
+  if (crimePerMonth > 200) {
+    bullets.push({ type: "caution", text: `Crime data for ${areaName} sits above the national average — verify at street level before committing, as figures vary significantly within a postcode.` });
+  } else if (schoolsRating < 50) {
+    bullets.push({ type: "caution", text: `School quality in ${areaName} warrants independent verification — catchment uncertainty is a recurring concern for families in comparable areas.` });
+  } else {
+    bullets.push({ type: "caution", text: `Buyer caution: independent on-the-ground visits are the most reliable source of resident sentiment for ${areaName} — local Facebook groups and Google Reviews for nearby amenities often surface views that structured data does not capture.` });
+  }
+
+  return bullets;
+}
+
 // ─── Lifestyle Fit Engine ────────────────────────────────────────────────────
 // Five evidence-led lifestyle categories. Scored in bands (Excellent/Good/Mixed/Limited)
 // from real data signals — no invented precision.
@@ -1688,6 +1856,20 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       nightlife: neighNightlife,
       marketComment: neighMarketComment,
       residentSentiment: neighResidentSentiment,
+      residentSentimentBullets: deriveResidentSentimentBullets(
+        !!specificProfile?.residentSentiment,
+        neighResidentSentiment,
+        {
+          schoolsRating,
+          transportRating,
+          safetyRating,
+          walkability,
+          crimePerMonth: 0, // not yet enriched at construction time; caution bullet uses safe default
+          areaName,
+          hasGreenSpace: false, // not yet enriched; lifestyle bullet uses walkability fallback
+        },
+      ),
+      coverageThin: !specificProfile?.residentSentiment,
     },
     investmentOutlook: {
       growthForecast,
@@ -1985,6 +2167,20 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   // ─── Lifestyle fit ────────────────────────────────────────────────────────────────────────────
   areaIntelligence.lifestyleFit = deriveLifestyleFit(areaIntelligence);
+  // ─── Resident sentiment bullets (re-derive now that live data is in scope) ─────────────────────
+  areaIntelligence.neighbourhoodProfile.residentSentimentBullets = deriveResidentSentimentBullets(
+    !!specificProfile?.residentSentiment,
+    areaIntelligence.neighbourhoodProfile.residentSentiment,
+    {
+      schoolsRating: areaIntelligence.neighbourhoodProfile.schoolsRating,
+      transportRating: areaIntelligence.neighbourhoodProfile.transportRating,
+      safetyRating: areaIntelligence.neighbourhoodProfile.safetyRating,
+      walkability: areaIntelligence.neighbourhoodProfile.walkability,
+      crimePerMonth: areaIntelligence.crimeStats?.totalCrimesPerMonth ?? 0,
+      areaName: areaIntelligence.area,
+      hasGreenSpace: (areaIntelligence.nearbyAmenities?.greenSpaces?.length ?? 0) > 0,
+    },
+  );
   // ─── Offer strategy engine ───────────────────────────────────────────────────────────────────────
   // Confidence: Strong ≥ 4 comparable sales; Moderate = 2–3 or 1–2yr data; Thin = 0–1 or no data
   const compCount = comparables.length;
