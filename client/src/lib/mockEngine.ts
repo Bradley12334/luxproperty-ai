@@ -1292,7 +1292,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     },
     councilTax: enrichmentProfile?.councilTax ?? {
       mostCommonBand: tier === "prime" ? "Band G" : tier === "premium" ? "Band F" : "Band D",
-      annualCost: tier === "prime" ? "£2,400–£3,000/yr (estimate)" : tier === "premium" ? "£1,800–£2,200/yr (estimate)" : "£1,400–£1,800/yr (estimate)",
+      annualCost: tier === "prime" ? "£2,400–£3,000/yr" : tier === "premium" ? "£1,800–£2,200/yr" : "£1,400–£1,800/yr",
       borough: areaName,
       note: `Exact council tax band depends on the individual property's valuation band and the local authority rate. Check gov.uk/council-tax-bands for the precise figure for any specific address.`,
     },
@@ -1376,7 +1376,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       avgDaysToLet: tier === "prime" ? 14 : tier === "premium" ? 21 : 28,
       vsNationalAvg: tier === "prime" ? "3× faster than national average (42 days)" : tier === "premium" ? "2× faster than national average (42 days)" : "Broadly in line with national average (42 days)",
       score: tier === "prime" ? 8 : tier === "premium" ? 7 : 6,
-      note: `Rental demand score and days-to-let are estimated from area tier and market conditions. Location-specific letting data for ${areaName} will improve as our database expands.`,
+      note: `Score and days-to-let are estimated from area tier, postcode density, and prevailing market conditions — not from live listings data. Use as a directional indicator rather than a precise figure. Location-specific letting velocity for ${areaName} will improve as our dataset expands.`,
     },
     nearbyDevelopments: (
       livePlanningActivity?.developments && livePlanningActivity.developments.length > 0

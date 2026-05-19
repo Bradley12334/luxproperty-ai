@@ -223,6 +223,15 @@ function CollapsibleSection({ title, children, defaultOpen = true, testId }: {
   );
 }
 
+/** Small inline pill shown next to KPI labels that are modelled/benchmarked rather than directly measured */
+function EstimateTag() {
+  return (
+    <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20 ml-1.5 align-middle">
+      Estimate
+    </span>
+  );
+}
+
 function KpiValue({ label, value }: { label: string; value: string | number }) {
   return (
     <div>
@@ -425,9 +434,10 @@ function exportToPDF(
     <div class="kpi-grid">
       <div class="kpi"><div class="kpi-label">Average Price</div><div class="kpi-value">${ai.marketOverview.averagePrice}</div></div>
       <div class="kpi"><div class="kpi-label">Price Change YoY</div><div class="kpi-value">${ai.marketOverview.priceChangeYoY}</div></div>
-      <div class="kpi"><div class="kpi-label">Avg Days on Market</div><div class="kpi-value">${ai.marketOverview.avgDaysOnMarket}</div></div>
-      <div class="kpi"><div class="kpi-label">Supply Level</div><div class="kpi-value">${ai.marketOverview.supplyLevel}</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Days on Market • Estimate</div><div class="kpi-value">${ai.marketOverview.avgDaysOnMarket}</div></div>
+      <div class="kpi"><div class="kpi-label">Supply Level • Estimate</div><div class="kpi-value">${ai.marketOverview.supplyLevel}</div></div>
     </div>
+    <p style="font-size:10px;color:#9ca3af;margin-top:10px">Average price and YoY change: HM Land Registry postcode data. Days on market and supply level are benchmarked from area tier — not live listing data.</p>
   </div>
 
   <div class="section">
@@ -460,10 +470,10 @@ function exportToPDF(
 
   <div class="section">
     <div class="section-label">Market Outlook</div>
-    <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Indicative ranges based on recent Land Registry trends and ONS rental data. Not financial advice.</p>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Price growth is a forward-looking range derived from the direction of recent Land Registry trends — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Not financial advice.</p>
     <div class="two-col" style="margin-bottom:16px">
-      <div class="kpi"><div class="kpi-label">Price Growth (indicative)</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
-      <div class="kpi"><div class="kpi-label">Rental Yield (indicative)</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
+      <div class="kpi"><div class="kpi-label">Price Growth (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
+      <div class="kpi"><div class="kpi-label">Rental Yield (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
     </div>
     <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Risk Flags</p>
     <ul>${riskFlags}</ul>
@@ -1116,9 +1126,24 @@ export default function BriefPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                 <KpiValue label="Average Price" value={ai.marketOverview.averagePrice} />
                 <KpiValue label="Price Change YoY" value={ai.marketOverview.priceChangeYoY} />
-                <KpiValue label="Time on Market" value={ai.marketOverview.avgDaysOnMarket} />
-                <KpiValue label="Supply Level" value={ai.marketOverview.supplyLevel} />
+                {/* Time on Market — benchmarked, not a live data point */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Time on Market <EstimateTag /></p>
+                  <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-time-on-market">
+                    {ai.marketOverview.avgDaysOnMarket}
+                  </p>
+                </div>
+                {/* Supply Level — derived from transaction volume */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Supply Level <EstimateTag /></p>
+                  <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-supply-level">
+                    {ai.marketOverview.supplyLevel}
+                  </p>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
+                Average price and year-on-year change are postcode-level figures from HM Land Registry (latest available). Time on market and supply level are benchmarked from area tier — not live listing data.
+              </p>
             </Card>
 
             {/* Map — shown when coords available */}
@@ -1269,7 +1294,7 @@ export default function BriefPage() {
                     <span className="text-sm text-foreground font-bold text-lg">{ai.councilTax.mostCommonBand}</span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Annual Cost</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Annual Cost <EstimateTag /></span>
                     <span className="text-sm text-foreground font-bold text-lg">{ai.councilTax.annualCost}</span>
                   </div>
                   <div className="flex flex-col gap-1">
@@ -1413,7 +1438,10 @@ export default function BriefPage() {
                 <div className="flex flex-col gap-5">
                   {/* Asking rents — useful context for all buyers */}
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-3">Asking rents nearby</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Asking rents nearby</p>
+                      <EstimateTag />
+                    </div>
                     <div className="grid grid-cols-3 gap-4">
                       {[
                         { label: "1-Bed", value: ai.rentalMarket.oneBedAskingRent },
@@ -1432,6 +1460,7 @@ export default function BriefPage() {
                     <div className="flex items-center gap-2 mb-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Buy-to-let indicators</p>
                       <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
+                      <EstimateTag />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       {[
@@ -1447,6 +1476,9 @@ export default function BriefPage() {
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{ai.rentalMarket.note}</p>
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                    Rents and yields are ranges derived from ONS Private Rental Market data and VOA 2024 figures for this postcode district. Actual achieved rents vary by property condition and specific street.
+                  </p>
                 </div>
               </CollapsibleSection>
             ) : (
@@ -1553,19 +1585,31 @@ export default function BriefPage() {
                       <Wind className="h-3 w-3" />
                       {ai.airQuality.rating}
                     </span>
+                    {/* Show 'Modelled estimate' tag when values are modelled (not from a live monitor) */}
+                    {ai.airQuality.no2Level?.includes("est.") && (
+                      <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">
+                        Modelled estimate
+                      </span>
+                    )}
                     <span className="text-xs text-muted-foreground">WHO guideline: NO₂ ≤10 µg/m³ · PM2.5 ≤5 µg/m³</span>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ (Nitrogen Dioxide)</span>
-                      <span className="text-xl font-bold text-foreground">{ai.airQuality.no2Level}</span>
+                      {/* Strip the '(est.)' suffix — the Modelled estimate tag already communicates this */}
+                      <span className="text-xl font-bold text-foreground">{String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}</span>
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5 (Fine Particles)</span>
-                      <span className="text-xl font-bold text-foreground">{ai.airQuality.pm25Level}</span>
+                      <span className="text-xl font-bold text-foreground">{String(ai.airQuality.pm25Level).replace(/ \(est\.\)/g, "")}</span>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{ai.airQuality.note}</p>
+                  {ai.airQuality.no2Level?.includes("est.") && (
+                    <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                      Figures are modelled from urban density data — no live monitoring station was available for this postcode. Verify against the DEFRA UK-AIR map for the nearest monitor reading.
+                    </p>
+                  )}
                   <a
                     href="https://uk-air.defra.gov.uk"
                     target="_blank"
@@ -1611,16 +1655,16 @@ export default function BriefPage() {
             {isInvestor ? (
               <CollapsibleSection title="Rental Demand Score" testId="section-rental-demand">
                 <div className="flex flex-col gap-4">
-                  <div className="flex items-end gap-4">
+                  <div className="flex items-end gap-4 flex-wrap">
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Demand Score</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Demand Score <EstimateTag /></span>
                       <div className="flex items-baseline gap-1">
                         <span className="text-4xl font-bold text-[#B8860B]">{ai.rentalDemand.score}</span>
                         <span className="text-lg text-muted-foreground font-medium">/10</span>
                       </div>
                     </div>
                     <div className="flex flex-col gap-1 pb-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Days to Let</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Days to Let <EstimateTag /></span>
                       <span className="text-2xl font-bold text-foreground">{ai.rentalDemand.avgDaysToLet} days</span>
                     </div>
                   </div>
@@ -2092,10 +2136,25 @@ export default function BriefPage() {
                 <Card className="p-5 sm:p-6" data-testid="section-valuation">
                   <SectionHeading>Property Valuation Assessment</SectionHeading>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <KpiValue label="Estimated Range" value={pd.valuationAssessment.estimatedRange} />
+                    {/* Estimated Range — derived from Land Registry median, not an AVM */}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Estimated Range <EstimateTag /></p>
+                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-estimated-range">
+                        {pd.valuationAssessment.estimatedRange}
+                      </p>
+                    </div>
                     <KpiValue label="vs Area Average" value={pd.valuationAssessment.priceVsAreaAverage} />
-                    <KpiValue label="Value Score" value={pd.valuationAssessment.valueScore} />
+                    {/* Value Score — derived ratio, not a surveyor assessment */}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Value Score <EstimateTag /></p>
+                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-value-score">
+                        {pd.valuationAssessment.valueScore}
+                      </p>
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
+                    Range is derived from the Land Registry postcode median and nearby comparable sales — not a formal valuation. For a binding figure, instruct a RICS-regulated surveyor.
+                  </p>
                 </Card>
 
                 <Card className="p-5 sm:p-6" data-testid="section-comparables">
@@ -2154,11 +2213,16 @@ export default function BriefPage() {
                 <Card className="p-5 sm:p-6" data-testid="section-investment-outlook">
                   <SectionHeading>Market Outlook</SectionHeading>
                   <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                    Indicative ranges based on recent Land Registry trends and ONS rental data for this area. Not financial advice.
+                    Price growth is a forward-looking range derived from the direction of recent Land Registry trends for this area — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
                   </p>
                   {/* Price growth — relevant to all buyers */}
                   <div className="mb-4">
-                    <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Price Growth (indicative) <EstimateTag /></p>
+                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-price-growth">
+                        {ai.investmentOutlook.growthForecast}
+                      </p>
+                    </div>
                   </div>
                   {/* Rental yield — investor context */}
                   <div className="pt-4 border-t border-border/40">
@@ -2166,7 +2230,12 @@ export default function BriefPage() {
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Buy-to-let context</p>
                       <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
                     </div>
-                    <KpiValue label="Rental Yield (buy-to-let, indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Rental Yield (buy-to-let, indicative) <EstimateTag /></p>
+                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-rental-yield">
+                        {ai.investmentOutlook.rentalYieldEstimate}
+                      </p>
+                    </div>
                   </div>
                   {ai.investmentOutlook.riskFlags.length > 0 && (
                     <div className="mt-4">
