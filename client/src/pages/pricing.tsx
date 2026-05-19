@@ -10,7 +10,7 @@ const tiers = [
     name: "Explorer",
     price: "Free",
     period: "",
-    description: "Try it with 3 briefs a month. No card required.",
+    description: "For casual browsers and first-time visitors. Run up to 3 briefs a month and see exactly what the product does — no card required.",
     badge: null,
     style: "default",
     cta: "Start Free",
@@ -49,13 +49,20 @@ interface FeatureRow {
 }
 
 const features: FeatureRow[] = [
-  // ── Free ──────────────────────────────────────────────────────────────────────────────
+  // ── Explorer (free) ─────────────────────────────────────────────────────────
   { feature: "Briefs per month", explorer: "3", professional: "Unlimited", investor: "Unlimited" },
-  { feature: "5-year price trend (Land Registry)", explorer: true, professional: true, investor: true },
+  { feature: "Area intelligence report", explorer: true, professional: true, investor: true },
+  { feature: "Market overview (price, YoY change, supply)", explorer: true, professional: true, investor: true },
   { feature: "Neighbourhood profile & local character", explorer: true, professional: true, investor: true },
-  { feature: "Flood risk, council tax & commute data", explorer: true, professional: true, investor: true },
+  { feature: "What residents say", explorer: true, professional: true, investor: true },
+  { feature: "1-year price trend (Land Registry)", explorer: true, professional: true, investor: true },
+  { feature: "Flood & climate risk", explorer: true, professional: true, investor: true },
+  { feature: "Council tax data", explorer: true, professional: true, investor: true },
+  { feature: "Property type split", explorer: true, professional: true, investor: true },
+  { feature: "Commute calculator", explorer: true, professional: true, investor: true },
   { feature: "Nearby schools, stations & parks", explorer: true, professional: true, investor: true },
-  // ── Professional ───────────────────────────────────────────────────────────────────────
+  // ── Professional ─────────────────────────────────────────────────────────────
+  { feature: "5-year price trend (Land Registry)", explorer: false, professional: true, investor: true },
   { feature: "Comparable sales & valuation range", explorer: false, professional: true, investor: true },
   { feature: "Negotiation brief & offer guidance", explorer: false, professional: true, investor: true },
   { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
@@ -63,7 +70,7 @@ const features: FeatureRow[] = [
   { feature: "Broadband & air quality data", explorer: false, professional: true, investor: true },
   { feature: "Export to PDF", explorer: false, professional: true, investor: true },
   { feature: "Save briefs", explorer: false, professional: true, investor: true },
-  // ── Investor ──────────────────────────────────────────────────────────────────────────
+  // ── Investor ─────────────────────────────────────────────────────────────────
   { feature: "Portfolio dashboard", explorer: false, professional: false, investor: true },
   { feature: "Sold prices map", explorer: false, professional: false, investor: true },
   { feature: "Development tracker", explorer: false, professional: false, investor: true },
@@ -113,8 +120,7 @@ export default function PricingPage() {
               Clear pricing, real value
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Start free with 3 briefs a month. Upgrade for unlimited access,
-              comparable sales, negotiation briefs, and PDF export.
+              Free to start — 3 briefs a month, no card required. Covers area intelligence, neighbourhood profile, 1-year price trend, flood risk, council tax, commute calculator, and more. Upgrade when you're ready for comparable sales, PDF export, and unlimited access.
             </p>
           </div>
         </section>

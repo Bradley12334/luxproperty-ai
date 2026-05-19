@@ -23,7 +23,7 @@ const planDetails = {
     label: "Explorer",
     price: "Free",
     color: "text-muted-foreground",
-    features: ["3 briefs per month", "5-year price trend & area data", "Neighbourhood profile & local character"],
+    features: ["3 briefs per month", "Area intelligence report", "Market overview data", "Neighbourhood profile & character", "What residents say", "1-year price trend", "Flood & climate risk", "Council tax, commute & property split"],
     upgradeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00",
     upgradeTo: "Professional — £4.99/month",
   },
