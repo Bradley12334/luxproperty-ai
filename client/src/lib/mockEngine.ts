@@ -1482,6 +1482,145 @@ function deriveMissedInsights(ai: AreaIntelligence, ctx: {
 }
 
 
+// ─── Brief Confidence Derivation ────────────────────────────────────────────
+// Derives per-section confidence levels from evidence quality signals.
+// Runs after all other post-processing so all signals are available.
+function deriveBriefConfidence(
+  totalSalesThisYear: number,
+  compCount: number,
+  hasData: boolean,
+  outsideEnglandWales: boolean,
+  ai: AreaIntelligence,
+  specificProfile: boolean, // true if curated enrichment data exists for this postcode
+  areaName: string,
+  fiveYearGrowth: string,
+): AreaIntelligence["briefConfidence"] {
+
+  // ── Evidence signal inventory ──────────────────────────────────────────────
+  const hasTransactions     = hasData && !outsideEnglandWales && totalSalesThisYear > 0;
+  const strongVolume        = totalSalesThisYear >= 20;
+  const moderateVolume      = totalSalesThisYear >= 8 && totalSalesThisYear < 20;
+  const thinVolume          = totalSalesThisYear < 8;
+  const hasComps            = compCount >= 2;
+  const strongComps         = compCount >= 4;
+  const hasStations         = (ai.nearbyStations?.length ?? 0) > 0;
+  const hasSchools          = (ai.nearbySchools?.length ?? 0) > 0;
+  const hasAmenities        = !!(ai.nearbyAmenities?.supermarkets?.length || ai.nearbyAmenities?.cafesAndRestaurants?.length);
+  const hasCrime            = (ai.crimeStats?.totalCrimesPerMonth ?? 0) > 0;
+  const hasBroadband        = !!ai.broadband?.avgDownloadSpeed;
+  const hasAirQuality       = !!ai.airQuality?.rating;
+  const hasFiveyearTrend    = fiveYearGrowth !== "\u2014" && fiveYearGrowth !== "" && fiveYearGrowth !== "0.0%" && !outsideEnglandWales;
+  const isCoverageRich      = hasStations && hasSchools && hasAmenities && hasCrime;
+  const yoy                 = ai.marketOverview.priceChangeYoY;
+  const yoyNum              = parseFloat(yoy.replace(/[^\d.\-]/g, ""));
+  const yoyValid            = !isNaN(yoyNum);
+
+  // ── Valuation confidence ──────────────────────────────────────────────────
+  // Depends on: transaction volume, comparable count, data coverage
+  let valuation: "High" | "Medium" | "Low";
+  let valuationNote: string;
+  if (outsideEnglandWales) {
+    valuation = "Low";
+    valuationNote = "HM Land Registry does not cover this region — ranges are directional only.";
+  } else if (!hasData || totalSalesThisYear < 3) {
+    valuation = "Low";
+    valuationNote = totalSalesThisYear < 3
+      ? `Only ${totalSalesThisYear} registered transaction${totalSalesThisYear === 1 ? "" : "s"} this year — treat figures as directional, not definitive.`
+      : "Insufficient recent sales data at this postcode — treat figures as directional only.";
+  } else if (strongComps && strongVolume) {
+    valuation = "High";
+    valuationNote = `Based on ${compCount} recent comparable sales and ${totalSalesThisYear} registered transactions — the range is reasonably well-supported.`;
+  } else if (hasComps || moderateVolume) {
+    valuation = "Medium";
+    valuationNote = compCount >= 2
+      ? `Based on ${compCount} comparable sale${compCount > 1 ? "s" : ""} and the ${areaName} median — useful but limited. Widen your own safety margin by at least 5%.`
+      : `${totalSalesThisYear} transactions recorded — enough for directional guidance but not a tight range. Use alongside a RICS survey.`;
+  } else {
+    valuation = "Low";
+    valuationNote = `Limited comparables and low transaction volume for ${areaName} — the range is indicative only. Commission a RICS-regulated surveyor before offering.`;
+  }
+
+  // ── Market trend confidence ───────────────────────────────────────────────
+  // Depends on: YoY validity, 5-year trend, transaction volume
+  let marketTrend: "High" | "Medium" | "Low";
+  let marketTrendNote: string;
+  if (outsideEnglandWales || !hasData) {
+    marketTrend = "Low";
+    marketTrendNote = "No Land Registry trend data available for this region.";
+  } else if (strongVolume && yoyValid && hasFiveyearTrend) {
+    marketTrend = "High";
+    marketTrendNote = `${totalSalesThisYear} registered transactions and a consistent 5-year trend give a reliable picture of price direction in ${areaName}.`;
+  } else if (yoyValid && (moderateVolume || hasFiveyearTrend)) {
+    marketTrend = "Medium";
+    marketTrendNote = thinVolume
+      ? `YoY figure is available but transaction volume is moderate (${totalSalesThisYear} sales) — treat the trend as directional rather than definitive.`
+      : `Year-on-year price data is available. Five-year trend data limited — treat longer-term trajectory as indicative.`;
+  } else {
+    marketTrend = "Low";
+    marketTrendNote = `Price change data is absent or based on very few transactions (${totalSalesThisYear}) — the trajectory is uncertain.`;
+  }
+
+  // ── Lifestyle fit confidence ──────────────────────────────────────────────
+  // Depends on: richness of live data — stations, schools, amenities, crime, broadband, air quality
+  const lifestyleSignalCount = [hasStations, hasSchools, hasAmenities, hasCrime, hasBroadband, hasAirQuality].filter(Boolean).length;
+  let lifestyleFit: "High" | "Medium" | "Low";
+  let lifestyleFitNote: string;
+  if (lifestyleSignalCount >= 5) {
+    lifestyleFit = "High";
+    lifestyleFitNote = `Scores are based on live station, school, amenity, crime, broadband, and air quality data — all key signals are present for this postcode.`;
+  } else if (lifestyleSignalCount >= 3) {
+    lifestyleFit = "Medium";
+    const missing: string[] = [];
+    if (!hasStations) missing.push("station data");
+    if (!hasSchools) missing.push("school data");
+    if (!hasAmenities) missing.push("amenity data");
+    if (!hasCrime) missing.push("crime data");
+    if (!hasBroadband) missing.push("broadband data");
+    lifestyleFitNote = missing.length > 0
+      ? `Most live data signals present — ${missing.join(", ")} unavailable. Scores reflect the available evidence.`
+      : `Good signal coverage. Some categories derived from benchmarks where live data is incomplete.`;
+  } else {
+    lifestyleFit = "Low";
+    lifestyleFitNote = `Live data coverage is limited for this postcode — scores are derived from area-tier benchmarks and should be treated as indicative.`;
+  }
+
+  // ── Local sentiment confidence ────────────────────────────────────────────
+  // Depends on: whether curated enrichment exists, crime data, coverage richness
+  let localSentiment: "High" | "Medium" | "Low";
+  let localSentimentNote: string;
+  if (specificProfile && isCoverageRich) {
+    localSentiment = "High";
+    localSentimentNote = `Local character is based on curated area intelligence combined with live crime, school, amenity, and transport data — a well-rounded picture.`;
+  } else if (specificProfile || isCoverageRich) {
+    localSentiment = "Medium";
+    localSentimentNote = specificProfile
+      ? `Area character draws from curated data, but some live signal coverage is partial — treat as a strong directional read.`
+      : `Live data is present but no curated area narrative is available — character signals are inferred from structural data.`;
+  } else {
+    localSentiment = "Low";
+    localSentimentNote = `Limited curated or live data for this postcode. Local character is derived from area-tier benchmarks — visit in person to validate the feel of the area.`;
+  }
+
+  // ── Overall confidence ────────────────────────────────────────────────────
+  const levels = [valuation, marketTrend, lifestyleFit, localSentiment];
+  const highCount   = levels.filter(l => l === "High").length;
+  const lowCount    = levels.filter(l => l === "Low").length;
+  let overall: "High" | "Medium" | "Low";
+  let overallNote: string;
+  if (lowCount >= 2 || (valuation === "Low" && marketTrend === "Low")) {
+    overall = "Low";
+    overallNote = `Evidence is thin across multiple sections — treat all figures as directional and prioritise on-the-ground research before offering.`;
+  } else if (highCount >= 3) {
+    overall = "High";
+    overallNote = `Strong data across valuation, market trend, and local signals — this brief is well-evidenced for decision-making.`;
+  } else {
+    overall = "Medium";
+    overallNote = `Good coverage in most areas, with some sections based on limited evidence. The brief is useful for decision-making but supplement with professional advice where confidence is medium or low.`;
+  }
+
+  return { overall, overallNote, valuation, valuationNote, marketTrend, marketTrendNote, lifestyleFit, lifestyleFitNote, localSentiment, localSentimentNote };
+}
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -2887,6 +3026,13 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     },
 
     // placeholders — populated immediately below after object construction
+    briefConfidence: {
+      overall: "Medium" as const, overallNote: "",
+      valuation: "Medium" as const, valuationNote: "",
+      marketTrend: "Medium" as const, marketTrendNote: "",
+      lifestyleFit: "Medium" as const, lifestyleFitNote: "",
+      localSentiment: "Medium" as const, localSentimentNote: "",
+    },
     worryBox: { verdict: "", items: [] },
     negotiationLeverage: {
       offerRange: { fairValue: "", openingRange: "", confidence: "Thin" as const, confidenceNote: "" },
@@ -3200,6 +3346,19 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     demandSignal,
     isLondon,
   });
+
+  // ─── Brief Confidence ───────────────────────────────────────────────────────────────────
+  // Runs last — all signals are available at this point
+  areaIntelligence.briefConfidence = deriveBriefConfidence(
+    totalSalesThisYear,
+    compCount,
+    hasData,
+    outsideEnglandWales,
+    areaIntelligence,
+    !!specificProfile,
+    areaName,
+    fiveYearGrowth,
+  );
 
   let propertyDeepDive: PropertyDeepDive | undefined;
   if (queryType === "address") {

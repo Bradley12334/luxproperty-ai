@@ -307,6 +307,30 @@ export interface AreaIntelligence {
   }>;
 
   /**
+   * Per-section confidence levels — derived from evidence quality, transaction
+   * volume, comparable coverage, and data completeness.
+   * Used to surface confidence pills across the brief without each section
+   * needing its own derivation logic.
+   */
+  briefConfidence: {
+    /** Overall evidence quality for this brief */
+    overall: "High" | "Medium" | "Low";
+    overallNote: string;  // 1 sentence: what drives the overall level
+    /** Valuation and offer strategy confidence */
+    valuation: "High" | "Medium" | "Low";
+    valuationNote: string;
+    /** Market trajectory (trend + YoY) confidence */
+    marketTrend: "High" | "Medium" | "Low";
+    marketTrendNote: string;
+    /** Lifestyle fit scoring confidence */
+    lifestyleFit: "High" | "Medium" | "Low";
+    lifestyleFitNote: string;
+    /** Resident sentiment / local character confidence */
+    localSentiment: "High" | "Medium" | "Low";
+    localSentimentNote: string;
+  };
+
+  /**
    * Structured "Would I buy here?" verdict — Professional+.
    * Derived from actual evidence in the brief. Replaces the generic
    * BuyerSummary readout as the headline decision layer.

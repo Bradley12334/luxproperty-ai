@@ -716,6 +716,37 @@ function KpiValue({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+/**
+ * ConfidencePill — subtle indicator showing how much weight to place on a conclusion.
+ * Used across valuation, negotiation, verdict, lifestyle fit, market trend, and sentiment.
+ * Design: compact, readable, never alarming — feels like analytical maturity not a warning label.
+ */
+function ConfidencePill({
+  level,
+  note,
+  className = "",
+}: {
+  level: "High" | "Medium" | "Low";
+  note: string;
+  className?: string;
+}) {
+  const cfg = level === "High"
+    ? { pill: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500", label: "High confidence" }
+    : level === "Medium"
+    ? { pill: "bg-[#B8860B]/10 text-[#B8860B] border-[#B8860B]/20", dot: "bg-[#B8860B]", label: "Medium confidence" }
+    : { pill: "bg-slate-400/10 text-slate-500 dark:text-slate-400 border-slate-400/20", dot: "bg-slate-400", label: "Low confidence" };
+
+  return (
+    <div className={`flex items-start gap-2 ${className}`}>
+      <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.14em] px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${cfg.pill}`}>
+        <span className={`w-1 h-1 rounded-full ${cfg.dot} shrink-0`} />
+        {cfg.label}
+      </span>
+      <p className="text-[11px] text-muted-foreground/80 leading-relaxed">{note}</p>
+    </div>
+  );
+}
+
 
 function exportToPDF(
   report: BriefReport,
@@ -919,8 +950,8 @@ function exportToPDF(
         <div style="font-family:Georgia,serif;font-size:17px;color:#B8860B">${pd.offerStrategy.openingRange}</div>
       </div>
       <div style="background:#faf8f4;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;flex:1">
-        <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px">Evidence Quality</div>
-        <div style="font-size:13px;font-weight:600;color:#1a1612">${pd.offerStrategy.confidence}</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Evidence Quality</div>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:8.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:3px 9px;border-radius:20px;border:1px solid;${pd.offerStrategy.confidence === 'Strong' ? 'background:#f0fdf4;color:#15803d;border-color:#86efac' : pd.offerStrategy.confidence === 'Moderate' ? 'background:#fefce8;color:#B8860B;border-color:#fde047' : 'background:#f8fafc;color:#64748b;border-color:#cbd5e1'}"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>${pd.offerStrategy.confidence} evidence</span>
       </div>
     </div>
     <p style="font-size:11px;color:#6b7280;border-left:2px solid #e5e7eb;padding-left:10px;margin-bottom:12px">${pd.offerStrategy.confidenceNote}</p>
@@ -1385,6 +1416,16 @@ function exportToPDF(
       <div class="kpi"><div class="kpi-label">Supply Level • Estimate</div><div class="kpi-value">${ai.marketOverview.supplyLevel}</div></div>
     </div>
     <p style="font-size:10px;color:#9ca3af;margin-top:10px">Average price and YoY change: HM Land Registry postcode data. Days on market and supply level are benchmarked from area tier — not live listing data.</p>
+    ${ai.briefConfidence ? `<div style="margin-top:10px;display:flex;align-items:flex-start;gap:8px">
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:8px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:2px 8px;border-radius:20px;border:1px solid;flex-shrink:0;${
+        ai.briefConfidence.marketTrend === 'High'
+          ? 'background:#f0fdf4;color:#15803d;border-color:#86efac'
+          : ai.briefConfidence.marketTrend === 'Medium'
+          ? 'background:#fefce8;color:#B8860B;border-color:#fde047'
+          : 'background:#f8fafc;color:#64748b;border-color:#cbd5e1'
+      }"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>${ai.briefConfidence.marketTrend} confidence</span>
+      <span style="font-size:10px;color:#9ca3af;line-height:1.55">${ai.briefConfidence.marketTrendNote}</span>
+    </div>` : ''}
   </div>
 
   ${pdfNegotiationLeverageSection}
@@ -2463,10 +2504,16 @@ function LifestyleFitBlock({ ai }: { ai: BriefReport["areaIntelligence"] }) {
       </div>
 
       {/* Footer */}
-      <div className="px-5 pb-4 pt-3 sm:px-6 border-t border-border/30">
+      <div className="px-5 pb-4 pt-3 sm:px-6 border-t border-border/30 flex flex-col gap-2.5">
         <p className="text-[10px] text-muted-foreground/50 leading-snug">
           Scores are derived from Ofsted ratings, station data, Overpass amenity data, and UK crime statistics sourced for this brief. They reflect the area as a whole — individual streets may vary.
         </p>
+        {ai.briefConfidence && (
+          <ConfidencePill
+            level={ai.briefConfidence.lifestyleFit}
+            note={ai.briefConfidence.lifestyleFitNote}
+          />
+        )}
       </div>
     </Card>
   );
@@ -2668,6 +2715,14 @@ export default function BriefPage() {
               <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
                 Average price and year-on-year change are postcode-level figures from HM Land Registry (latest available). Time on market and supply level are benchmarked from area tier — not live listing data.
               </p>
+              {ai.briefConfidence && (
+                <div className="mt-3 pt-3 border-t border-border/30">
+                  <ConfidencePill
+                    level={ai.briefConfidence.marketTrend}
+                    note={ai.briefConfidence.marketTrendNote}
+                  />
+                </div>
+              )}
             </Card>
 
             {/* Map — shown when coords available */}
@@ -2848,8 +2903,15 @@ export default function BriefPage() {
                     </div>
                   ))}
                   {/* What Residents Say — structured bullet component */}
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 flex flex-col gap-3">
                     <ResidentSentimentBlock ai={ai} />
+                    {ai.briefConfidence && (
+                      <ConfidencePill
+                        level={ai.briefConfidence.localSentiment}
+                        note={ai.briefConfidence.localSentimentNote}
+                        className="mt-1"
+                      />
+                    )}
                   </div>
                 </div>
               ) : (
