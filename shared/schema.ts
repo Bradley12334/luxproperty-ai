@@ -236,6 +236,40 @@ export interface AreaIntelligence {
     }>;
   };
 
+  /**
+   * Negotiation Leverage — Professional+.
+   * Synthesises valuation, comparables, demand conditions, and risk signals
+   * into practical buyer negotiation guidance.
+   */
+  negotiationLeverage: {
+    /** Derived offer range: fair value anchor + opening range */
+    offerRange: {
+      fairValue: string;       // e.g. "£340,000 – £370,000"
+      openingRange: string;    // e.g. "£315,000 – £330,000"
+      confidence: "Strong" | "Moderate" | "Thin";
+      confidenceNote: string;
+    };
+    /** Seller position signal: calibrated read of seller strength/vulnerability */
+    sellerPosition: {
+      label: "Strong position" | "Balanced" | "Some vulnerability" | "Signs of pressure" | "Uncertain";
+      rationale: string;  // 1–2 sentences explaining the call
+    };
+    /** Demand temperature: local market conditions */
+    demandTemperature: {
+      label: "Competitive" | "Balanced" | "Soft" | "Very soft";
+      rationale: string;  // 1–2 sentences of plain-English interpretation
+    };
+    /** What local sales imply about pricing */
+    localSalesRead: string;  // 2–3 sentences connecting comps to asking price
+    /** Specific leverage points a buyer could raise */
+    leveragePoints: Array<{
+      point: string;     // concise phrase
+      strength: "strong" | "moderate" | "weak";  // how much weight this carries
+    }>;
+    /** Overall negotiation stance */
+    stance: "Firm buyer — you have leverage" | "Balanced — play it carefully" | "Limited leverage — seller holds ground" | "Thin data — proceed cautiously";
+  };
+
   /** Red-flag summary — Professional+. Material risks surfaced prominently. */
   redFlags: Array<{
     label: string;

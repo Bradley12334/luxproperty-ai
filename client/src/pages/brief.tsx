@@ -69,6 +69,7 @@ import { StreetPriceRanking } from "@/components/street-price-ranking";
 import { NearbyDevelopmentTracker, sortDevs, IMPACT_META, fmtDistance } from "@/components/nearby-development-tracker";
 import { ClimateResilienceCard } from "@/components/climate-resilience-card";
 import { WhatWouldWorryMe } from "@/components/what-would-worry-me";
+import { NegotiationLeverage } from "@/components/negotiation-leverage";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 
 function SkeletonReport() {
@@ -801,6 +802,85 @@ function exportToPDF(
   </div>`;
   })();
 
+  // —— Negotiation Leverage PDF section ——
+  const pdfNegotiationLeverageSection = (() => {
+    const nl = ai.negotiationLeverage;
+    if (!nl) return "";
+    const stanceColors: Record<string, string> = {
+      "Firm buyer — you have leverage": "#166534",
+      "Balanced — play it carefully": "#B8860B",
+      "Limited leverage — seller holds ground": "#92400e",
+      "Thin data — proceed cautiously": "#6b7280",
+    };
+    const stanceBgs: Record<string, string> = {
+      "Firm buyer — you have leverage": "#f0fdf4",
+      "Balanced — play it carefully": "#fefce8",
+      "Limited leverage — seller holds ground": "#fffbeb",
+      "Thin data — proceed cautiously": "#f9fafb",
+    };
+    const stanceColor = stanceColors[nl.stance] ?? "#374151";
+    const stanceBg = stanceBgs[nl.stance] ?? "#f9fafb";
+    const demandColors: Record<string, string> = { Competitive: "#991b1b", Balanced: "#1e4d8c", Soft: "#92400e", "Very soft": "#166534" };
+    const sellerColors: Record<string, string> = { "Strong position": "#991b1b", "Balanced": "#1e4d8c", "Some vulnerability": "#92400e", "Signs of pressure": "#166534", "Uncertain": "#6b7280" };
+    const strengthColors: Record<string, string> = { strong: "#166534", moderate: "#92400e", weak: "#6b7280" };
+    const strengthBgs: Record<string, string> = { strong: "#dcfce7", moderate: "#fef3c7", weak: "#f3f4f6" };
+    const confColors: Record<string, string> = { Strong: "#166534", Moderate: "#92400e", Thin: "#6b7280" };
+    const leverageRows = nl.leveragePoints.map(lp =>
+      `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top">
+        <div style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between">
+          <p style="font-size:11px;color:#374151;margin:0;line-height:1.55">${lp.point}</p>
+          <span style="flex-shrink:0;font-size:8px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;background:${strengthBgs[lp.strength]};color:${strengthColors[lp.strength]}">${lp.strength === "strong" ? "Strong" : lp.strength === "moderate" ? "Moderate" : "Tactical"}</span>
+        </div>
+      </td></tr>`
+    ).join("");
+    return `
+  <div class="section" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:24px;padding:0">
+    <div style="padding:10px 16px;background:#f8f9fa;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:8px">
+      <span style="font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#B8860B">⌖ NEGOTIATION LEVERAGE</span>
+      <span style="font-size:8.5px;color:#9ca3af;margin-left:auto">Buyer strategy</span>
+    </div>
+    <div style="padding:10px 16px;background:${stanceBg};border-bottom:1px solid #e5e7eb">
+      <span style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${stanceColor}">${nl.stance}</span>
+    </div>
+    <div style="padding:14px 16px">
+      <div style="display:flex;gap:12px;margin-bottom:14px">
+        <div style="flex:1;background:#faf8f4;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
+          <div style="font-size:8.5px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px">Fair Value</div>
+          <div style="font-family:Georgia,serif;font-size:16px;color:#1a1612">${nl.offerRange.fairValue}</div>
+        </div>
+        <div style="flex:1;background:#faf8f4;border:1px solid #B8860B30;border-radius:6px;padding:10px 12px">
+          <div style="font-size:8.5px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px">Opening Range</div>
+          <div style="font-family:Georgia,serif;font-size:16px;color:#B8860B">${nl.offerRange.openingRange}</div>
+        </div>
+        <div style="flex:1;background:#faf8f4;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px">
+          <div style="font-size:8.5px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px">Evidence</div>
+          <div style="font-size:12px;font-weight:600;color:${confColors[nl.offerRange.confidence]}">${nl.offerRange.confidence}</div>
+        </div>
+      </div>
+      <p style="font-size:10px;color:#6b7280;border-left:2px solid #e5e7eb;padding-left:8px;margin-bottom:12px">${nl.offerRange.confidenceNote}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div style="background:#f9fafb;border-radius:6px;padding:10px 12px;border:1px solid #f3f4f6">
+          <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${demandColors[nl.demandTemperature.label] ?? "#374151"};margin-bottom:4px">Market Demand: ${nl.demandTemperature.label}</div>
+          <p style="font-size:10.5px;color:#374151;margin:0;line-height:1.55">${nl.demandTemperature.rationale}</p>
+        </div>
+        <div style="background:#f9fafb;border-radius:6px;padding:10px 12px;border:1px solid #f3f4f6">
+          <div style="font-size:8px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${sellerColors[nl.sellerPosition.label] ?? "#374151"};margin-bottom:4px">Seller Position: ${nl.sellerPosition.label}</div>
+          <p style="font-size:10.5px;color:#374151;margin:0;line-height:1.55">${nl.sellerPosition.rationale}</p>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:8px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">What Local Sales Imply</div>
+        <p style="font-size:11px;color:#374151;line-height:1.6;margin:0">${nl.localSalesRead}</p>
+      </div>
+      <div style="border-top:1px solid #f3f4f6;padding-top:10px">
+        <div style="font-size:8px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Leverage Points to Use</div>
+        <table style="width:100%;border-collapse:collapse">${leverageRows}</table>
+      </div>
+      <p style="font-size:8.5px;color:#9ca3af;margin-top:8px">Offer ranges derived from Land Registry data and area benchmarks. Not a formal valuation. Instruct a RICS surveyor before exchange.</p>
+    </div>
+  </div>`;
+  })();
+
   // Red-flag section for PDF
   const redFlagsForPdf = ai.redFlags ?? [];
   const pdfHasFlags = redFlagsForPdf.length > 0;
@@ -1231,6 +1311,8 @@ function exportToPDF(
     </div>
     <p style="font-size:10px;color:#9ca3af;margin-top:10px">Average price and YoY change: HM Land Registry postcode data. Days on market and supply level are benchmarked from area tier — not live listing data.</p>
   </div>
+
+  ${pdfNegotiationLeverageSection}
 
   <div class="section">
     <div class="section-label">5-Year Price Trend</div>
@@ -2356,6 +2438,13 @@ export default function BriefPage() {
                   Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">OpenStreetMap</a> contributors
                 </p>
               </Card>
+            )}
+
+            {/* —— Negotiation Leverage — Professional+.
+                 Flagship feature: synthesises valuation, comps, demand, and risk signals
+                 into practical buyer negotiation strategy. */}
+            {isPaid && ai.negotiationLeverage && (
+              <NegotiationLeverage leverage={ai.negotiationLeverage} />
             )}
 
             {/* Price Trend — Explorer shows last 1 year; Professional shows full 5-year */}

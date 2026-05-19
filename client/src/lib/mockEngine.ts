@@ -1114,6 +1114,211 @@ function deriveWorryBox(
 }
 
 
+
+// ─── Negotiation Leverage derivation ──────────────────────────────────────────
+// Runs after the offer-strategy engine variables are computed so we can
+// re-use compCount, fairValueAnchor, comparables, isSoftMarket, etc.
+// Parameters passed directly (not from areaIntelligence) since engine vars
+// are in-scope at call site.
+function deriveNegotiationLeverage(
+  ai: import("../../../shared/schema").AreaIntelligence,
+  opts: {
+    areaName: string;
+    hasData: boolean;
+    outsideEnglandWales: boolean;
+    totalSalesThisYear: number;
+    compCount: number;
+    compAvg: number;          // 0 when no comps
+    fairValueAnchor: number;  // area median when no comps
+    latestMedian: number;
+    fairValueRange: string;
+    openingRange: string;
+    offerConfidence: "Strong" | "Moderate" | "Thin";
+    confidenceNote: string;
+    isSoftMarket: boolean;
+    isHighDemand: boolean;
+    demandSignal: string;     // "High" | "Moderate" | "Low"
+    yoyChange: string;        // e.g. "+3.2%" or "-1.8%"
+    tier: string;             // "prime" | "premium" | "mid-market" | "standard"
+    comparables: Array<{ price: string; address: string; date: string; type: string }>;
+    worryItems: import("../../../shared/schema").AreaIntelligence["worryBox"]["items"];
+    fmt: (n: number) => string;
+  }
+): import("../../../shared/schema").AreaIntelligence["negotiationLeverage"] {
+  const {
+    areaName, hasData, outsideEnglandWales, totalSalesThisYear,
+    compCount, compAvg, fairValueAnchor, latestMedian,
+    fairValueRange, openingRange, offerConfidence, confidenceNote,
+    isSoftMarket, isHighDemand, demandSignal, yoyChange, tier,
+    comparables, worryItems, fmt,
+  } = opts;
+
+  type LeveragePoint = import("../../../shared/schema").AreaIntelligence["negotiationLeverage"]["leveragePoints"][number];
+
+  // ── OFFER RANGE ──────────────────────────────────────────────────────────
+  const offerRange: import("../../../shared/schema").AreaIntelligence["negotiationLeverage"]["offerRange"] = {
+    fairValue: fairValueRange,
+    openingRange,
+    confidence: offerConfidence,
+    confidenceNote,
+  };
+
+  // ── DEMAND TEMPERATURE ───────────────────────────────────────────────────
+  let demandLabel: import("../../../shared/schema").AreaIntelligence["negotiationLeverage"]["demandTemperature"]["label"];
+  let demandRationale: string;
+
+  if (!hasData || outsideEnglandWales) {
+    demandLabel = "Balanced";
+    demandRationale = outsideEnglandWales
+      ? "Land Registry data is not available for this region — demand temperature cannot be derived from sold-price evidence. Use local agent intelligence."
+      : `Transaction volume at this postcode is too low to characterise demand temperature. Treat as indicative only.`;
+  } else if (isHighDemand && yoyChange.startsWith("+")) {
+    demandLabel = "Competitive";
+    demandRationale = `Demand in ${areaName} looks competitive: ${totalSalesThisYear} registered transactions last year with positive price momentum (${yoyChange}). Sellers here are unlikely to face unusual pressure, and well-priced stock tends to move quickly.`;
+  } else if (isSoftMarket && totalSalesThisYear < 10) {
+    demandLabel = "Very soft";
+    demandRationale = `Market conditions in ${areaName} look soft: prices are trending ${yoyChange} YoY and transaction volume is thin (${totalSalesThisYear} registered sales). Buyers are relatively scarce, which shifts negotiating power meaningfully in your favour.`;
+  } else if (isSoftMarket || demandSignal === "Low") {
+    demandLabel = "Soft";
+    demandRationale = `Conditions in ${areaName} appear softer than peak — ${yoyChange} YoY price movement and ${totalSalesThisYear} transactions recorded. Sellers are unlikely to receive multiple competing offers, giving patient buyers room to negotiate.`;
+  } else {
+    demandLabel = "Balanced";
+    demandRationale = `Demand in ${areaName} appears broadly balanced: ${yoyChange} price change YoY and ${totalSalesThisYear} registered transactions. Neither buyers nor sellers hold a structural advantage — preparation and comparable evidence are your edge.`;
+  }
+
+  // ── SELLER POSITION ──────────────────────────────────────────────────────
+  let sellerLabel: import("../../../shared/schema").AreaIntelligence["negotiationLeverage"]["sellerPosition"]["label"];
+  let sellerRationale: string;
+
+  // Count negative signals
+  const negativeSignals: string[] = [];
+  if (isSoftMarket) negativeSignals.push("declining price trend");
+  if (demandSignal === "Low" || totalSalesThisYear < 5) negativeSignals.push("thin buyer pool");
+  if (worryItems.some(w => w.severity === "high")) negativeSignals.push("high-severity risk factor");
+  if (worryItems.filter(w => w.severity !== "low").length >= 2) negativeSignals.push("multiple material concerns");
+  if (offerConfidence === "Thin") negativeSignals.push("low transaction evidence");
+
+  const positiveSignals: string[] = [];
+  if (isHighDemand) positiveSignals.push("high demand");
+  if (yoyChange.startsWith("+") && parseFloat(yoyChange) > 3) positiveSignals.push("strong appreciation");
+  if (tier === "prime") positiveSignals.push("prime market — limited supply");
+
+  if (negativeSignals.length >= 3 || (isSoftMarket && worryItems.some(w => w.severity === "high"))) {
+    sellerLabel = "Signs of pressure";
+    sellerRationale = `Several factors combine to weaken the seller's position: ${negativeSignals.slice(0, 3).join(", ")}. This does not mean a forced sale, but the evidence supports a measured offer below asking and patience in negotiations.`;
+  } else if (negativeSignals.length >= 2) {
+    sellerLabel = "Some vulnerability";
+    sellerRationale = `The evidence suggests some vulnerability in the seller's position — ${negativeSignals.slice(0, 2).join(" and ")} both weigh in the buyer's favour. There is room to open below the asking price and see how the seller responds.`;
+  } else if (positiveSignals.length >= 2) {
+    sellerLabel = "Strong position";
+    sellerRationale = `${positiveSignals.join(" and ")} in ${areaName} support a seller's strong position. Significant discounts are unlikely on well-priced stock — focus negotiation on condition and survey findings rather than headline price.`;
+  } else if (offerConfidence === "Thin") {
+    sellerLabel = "Uncertain";
+    sellerRationale = `Transaction evidence is too thin to characterise the seller's position with confidence. Commission a RICS survey before making any offer — that report often provides the most credible basis for renegotiating downward.`;
+  } else {
+    sellerLabel = "Balanced";
+    sellerRationale = `No strong signals of seller pressure or strength. The market in ${areaName} looks broadly balanced — a credible, evidence-backed offer at or slightly below asking is likely the most effective opening move.`;
+  }
+
+  // ── LOCAL SALES READ ─────────────────────────────────────────────────────
+  let localSalesRead: string;
+  if (!hasData || outsideEnglandWales) {
+    localSalesRead = outsideEnglandWales
+      ? `Land Registry sold-price data does not cover this region. For comparable evidence, see ros.gov.uk (Scotland) or the Welsh Government sold-price tool. Without local comps, lean heavily on a RICS valuation before settling on a maximum offer.`
+      : `Transaction volume at this postcode is below the statistical threshold. The ${areaName} area median (${fmt(latestMedian)}) is your best available anchor — treat it as directional and supplement with Rightmove/Zoopla street-level sold prices.`;
+  } else if (compCount >= 4) {
+    const compValues = comparables.map(c => parseInt(c.price.replace(/[^0-9]/g, ""), 10)).filter(n => n > 0).sort((a, b) => a - b);
+    const lo = fmt(compValues[0]);
+    const hi = fmt(compValues[compValues.length - 1]);
+    const avg = fmt(Math.round(compAvg));
+    localSalesRead = `Recent comparable sales in this postcode range from ${lo} to ${hi} (average: ${avg}). ${compValues[compValues.length - 1] > fairValueAnchor * 1.08 ? `The highest sale significantly exceeds the fair value anchor — consider whether that premium is justified by specification, size, or location advantage over the subject property.` : `The spread is relatively tight, giving a reasonable basis for your opening range.`} Ask the agent to explain any asking price that sits materially above the upper comparable.`;
+  } else if (compCount >= 2) {
+    const compValues = comparables.map(c => parseInt(c.price.replace(/[^0-9]/g, ""), 10)).filter(n => n > 0).sort((a, b) => a - b);
+    localSalesRead = `With ${compCount} recent sales in this postcode (${comparables.map(c => c.price).join(", ")}), evidence is limited but directional. The area median of ${fmt(latestMedian)} provides a broader anchor. If the asking price sits above both, request a specific justification from the agent before moving forward.`;
+  } else {
+    localSalesRead = `Comparable sales at this postcode level are too few for tight pricing conclusions. The ${areaName} area median of ${fmt(latestMedian)} (${yoyChange} YoY) is the primary evidence base. For a tighter range, search sold prices at street level on Rightmove or Zoopla before finalising your offer.`;
+  }
+
+  // ── LEVERAGE POINTS ──────────────────────────────────────────────────────
+  const leveragePoints: LeveragePoint[] = [];
+
+  if (isSoftMarket && hasData) {
+    leveragePoints.push({ point: `Prices trending ${yoyChange} YoY — seller cannot credibly argue values are rising`, strength: "strong" });
+  }
+  if (compCount >= 2) {
+    const compValues = comparables.map(c => parseInt(c.price.replace(/[^0-9]/g, ""), 10)).filter(n => n > 0).sort((a, b) => a - b);
+    if (compValues.length >= 2 && fairValueAnchor > 0) {
+      const lowestComp = compValues[0];
+      const lowestPct = Math.round(((fairValueAnchor - lowestComp) / fairValueAnchor) * 100);
+      if (lowestPct > 5) {
+        leveragePoints.push({ point: `Comparable sales include ${fmt(lowestComp)} — ${lowestPct}% below the area median`, strength: "strong" });
+      }
+    }
+  }
+  if (demandSignal === "Low" || totalSalesThisYear < 5) {
+    leveragePoints.push({ point: `Thin buyer pool — ${totalSalesThisYear} registered sale${totalSalesThisYear === 1 ? "" : "s"} last year limits competing-offer risk`, strength: demandSignal === "Low" ? "strong" : "moderate" });
+  } else if (!isHighDemand && hasData) {
+    leveragePoints.push({ point: `Moderate demand — no evidence of multiple competing offers in this postcode`, strength: "moderate" });
+  }
+  const floodItem = worryItems.find(w => w.category === "flood" && w.severity !== "low");
+  if (floodItem) {
+    leveragePoints.push({ point: `Elevated flood or environmental risk — insurance uplift and survey findings can support a lower offer`, strength: floodItem.severity === "high" ? "strong" : "moderate" });
+  }
+  const epcItem = worryItems.find(w => w.category === "epc");
+  if (epcItem) {
+    leveragePoints.push({ point: `Poor EPC — likely retrofit cost to reach Band C (est. £5,000–£20,000 depending on specification)`, strength: "moderate" });
+  }
+  const devItem = worryItems.find(w => w.category === "development");
+  if (devItem) {
+    leveragePoints.push({ point: `Nearby development — construction disruption or outlook change reduces comparable market appeal`, strength: "moderate" });
+  }
+  const crimeItem = worryItems.find(w => w.category === "crime" && w.severity !== "low");
+  if (crimeItem) {
+    leveragePoints.push({ point: `Crime above local benchmark — ask agent to address buyer perception and reflect it in pricing`, strength: "moderate" });
+  }
+  if (offerConfidence === "Thin") {
+    leveragePoints.push({ point: `Low transaction evidence — pricing conclusions are uncertain, justifying a cautious opening bid`, strength: "moderate" });
+  }
+  if (worryItems.some(w => w.category === "environment" && w.severity === "high")) {
+    leveragePoints.push({ point: `Very poor air quality — material consideration that some buyers will price into their maximum`, strength: "moderate" });
+  }
+  // Always-available tactical points
+  leveragePoints.push({ point: `Ask for the seller's purchase price (gov.uk/search-property-information) — their equity position guides their floor`, strength: "weak" });
+  leveragePoints.push({ point: `Time on market and any prior price reductions signal motivation — ask the agent directly`, strength: "weak" });
+
+  // Cap at 6 leverage points, strongest first
+  const strengthOrder: Record<string, number> = { strong: 0, moderate: 1, weak: 2 };
+  leveragePoints.sort((a, b) => strengthOrder[a.strength] - strengthOrder[b.strength]);
+  const cappedPoints = leveragePoints.slice(0, 6);
+
+  // ── OVERALL STANCE ───────────────────────────────────────────────────────
+  let stance: import("../../../shared/schema").AreaIntelligence["negotiationLeverage"]["stance"];
+  const strongPoints = cappedPoints.filter(p => p.strength === "strong").length;
+  const moderatePoints = cappedPoints.filter(p => p.strength === "moderate").length;
+
+  if (offerConfidence === "Thin" || !hasData) {
+    stance = "Thin data — proceed cautiously";
+  } else if (sellerLabel === "Strong position" && demandLabel === "Competitive") {
+    stance = "Limited leverage — seller holds ground";
+  } else if (strongPoints >= 2 || (sellerLabel === "Signs of pressure") || (isSoftMarket && moderatePoints >= 2)) {
+    stance = "Firm buyer — you have leverage";
+  } else if (strongPoints >= 1 || moderatePoints >= 2) {
+    stance = "Balanced — play it carefully";
+  } else {
+    stance = "Limited leverage — seller holds ground";
+  }
+
+  return {
+    offerRange,
+    sellerPosition: { label: sellerLabel, rationale: sellerRationale },
+    demandTemperature: { label: demandLabel, rationale: demandRationale },
+    localSalesRead,
+    leveragePoints: cappedPoints,
+    stance,
+  };
+}
+
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -2520,6 +2725,14 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
     // placeholders — populated immediately below after object construction
     worryBox: { verdict: "", items: [] },
+    negotiationLeverage: {
+      offerRange: { fairValue: "", openingRange: "", confidence: "Thin" as const, confidenceNote: "" },
+      sellerPosition: { label: "Uncertain" as const, rationale: "" },
+      demandTemperature: { label: "Balanced" as const, rationale: "" },
+      localSalesRead: "",
+      leveragePoints: [],
+      stance: "Thin data — proceed cautiously" as const,
+    },
     redFlags: [],
     lifestyleFit: [],
     buyerVerdict: {
@@ -2782,6 +2995,34 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   preOfferQuestions.push(
     "How long has the seller owned the property, and what is their reason for selling? You don’t need the full story, but a clear reason helps calibrate how motivated they are.",
     "What fixtures, fittings, and white goods are included in the asking price? Clarify before offering — exclusions can shift the effective value by thousands.",
+  );
+
+  // ─── Negotiation Leverage ─────────────────────────────────────────────────────────────────────────────
+  // Runs after offer strategy so compCount, fairValueAnchor, etc. are in scope
+  areaIntelligence.negotiationLeverage = deriveNegotiationLeverage(
+    areaIntelligence,
+    {
+      areaName,
+      hasData,
+      outsideEnglandWales,
+      totalSalesThisYear,
+      compCount,
+      compAvg,
+      fairValueAnchor,
+      latestMedian,
+      fairValueRange,
+      openingRange,
+      offerConfidence,
+      confidenceNote,
+      isSoftMarket,
+      isHighDemand,
+      demandSignal,
+      yoyChange,
+      tier,
+      comparables,
+      worryItems: areaIntelligence.worryBox.items,
+      fmt,
+    },
   );
 
   let propertyDeepDive: PropertyDeepDive | undefined;
