@@ -1319,6 +1319,138 @@ function deriveNegotiationLeverage(
 }
 
 
+
+// ─── What People Miss ─────────────────────────────────────────────────────────
+// Combines multiple signals into 2–4 sharp, non-obvious trade-off insights.
+// Only fires when at least 2 signals genuinely support the observation.
+// No generic lifestyle copy — each insight must name a real tension.
+function deriveMissedInsights(ai: AreaIntelligence, ctx: {
+  areaName: string;
+  tier: string;
+  yoyChange: string;
+  totalSalesThisYear: number;
+  isSoftMarket: boolean;
+  demandSignal: string;
+  isLondon: boolean;
+}): AreaIntelligence["missedInsights"] {
+  const insights: AreaIntelligence["missedInsights"] = [];
+
+  const transport     = ai.neighbourhoodProfile?.transportRating ?? 5;
+  const safety        = ai.neighbourhoodProfile?.safetyRating    ?? 70;
+  const schools       = ai.neighbourhoodProfile?.schoolsRating   ?? 5;
+  const walkability   = ai.neighbourhoodProfile?.walkability      ?? 50;
+  const airRating     = ai.airQuality?.rating ?? "Good";
+  const broadband     = ai.broadband;
+  const cafeCount     = (ai.nearbyAmenities?.cafesAndRestaurants ?? []).length;
+  const greenSpaces   = ai.nearbyAmenities?.greenSpaces ?? [];
+  const hasGreen      = greenSpaces.length > 0;
+  const floodBadge    = ai.floodRisk?.riskBadge ?? "Low";
+  const resilienceLabel = (ai.floodRisk as any)?.resilienceLabel as string | undefined;
+  const devs          = ai.nearbyDevelopments ?? [];
+  const activeDev     = devs.some(d => d.status === "Under construction" || d.status === "Approved");
+  const { areaName, tier, yoyChange, totalSalesThisYear, isSoftMarket, demandSignal, isLondon } = ctx;
+
+  // ── 1. Strong transport + poor air quality → corridor noise/pollution ──────
+  const isAirPoor = airRating === "Poor" || airRating === "Very Poor";
+  const isTransitRich = transport >= 7 || (ai.nearbyStations?.[0]?.walkingMinutes ?? 99) <= 8;
+  if (isTransitRich && isAirPoor) {
+    const worst = airRating === "Very Poor" ? "very poor" : "poor";
+    insights.push({
+      insight: `The strong transport links come with a cost: ${worst} air quality is typical of high-traffic transit corridors — relevant for families with young children or anyone with respiratory sensitivities.`,
+      category: "noise",
+    });
+  }
+
+  // ── 2. Family credentials (schools + green) + crime caveat ───────────────
+  const schoolsStrong = schools >= 7;
+  const crimeHigh = (ai.crimeStats?.totalCrimesPerMonth ?? 0) > 60 && safety < 50;
+  if (schoolsStrong && hasGreen && crimeHigh) {
+    insights.push({
+      insight: `${areaName} ticks the family checklist — good schools, green space nearby — but crime rates run above typical family-area benchmarks. The postcode may be fine; the next street over may not be.`,
+      category: "safety",
+    });
+  }
+
+  // ── 3. Prime/premium pricing + below-average YoY growth ─────────────────
+  const isHighTier = tier === "prime" || tier === "premium";
+  const growthWeak = !yoyChange.startsWith("+") && yoyChange !== "—";
+  if (isHighTier && growthWeak) {
+    insights.push({
+      insight: `Prices here sit in the ${tier} bracket, but year-on-year movement (${yoyChange}) is not keeping pace with that premium. You are paying for prestige; recent price performance is not justifying the extra cost on its own.`,
+      category: "market",
+    });
+  }
+
+  // ── 4. Affordable pricing + poor connectivity ─────────────────────────────
+  const isLowTier = tier === "standard" || tier === "affordable";
+  const poorTransport = transport < 5 || (ai.nearbyStations?.[0]?.walkingMinutes ?? 0) > 22;
+  if (isLowTier && poorTransport && !isHighTier) {
+    insights.push({
+      insight: `The lower price point reflects more than just property type — connectivity is limited here. Factor in commute costs (time and money) before treating the headline price as straightforward value.`,
+      category: "transport",
+    });
+  }
+
+  // ── 5. Good green space + thin evening amenity ────────────────────────────
+  const hasGoodGreen = hasGreen && greenSpaces.some(g => g.distanceMetres <= 600);
+  const eveningThin = cafeCount < 2;
+  if (hasGoodGreen && eveningThin && insights.length < 4) {
+    insights.push({
+      insight: `Plenty of green space, but the evening and café offer is thin. ${areaName} is a morning-walk and weekend-retreat kind of area — if you need a local restaurant or bar scene on your doorstep, it is not here.`,
+      category: "amenity",
+    });
+  }
+
+  // ── 6. Strong walkability + poor air quality ──────────────────────────────
+  const isWalkable = walkability >= 65;
+  if (isWalkable && isAirPoor && !insights.some(i => i.category === "noise") && insights.length < 4) {
+    insights.push({
+      insight: `High walkability scores can be misleading here — the same density that makes everything accessible also drives ${airRating.toLowerCase()} air quality. Walking is convenient, but air conditions make it less pleasant than the score implies.`,
+      category: "environment",
+    });
+  }
+
+  // ── 7. Safe + poor broadband (WFH trade-off) ─────────────────────────────
+  const isSafe = safety >= 75;
+  const broadbandPoor = broadband?.rating === "Poor" || broadband?.rating === "Limited";
+  if (isSafe && broadbandPoor && insights.length < 4) {
+    insights.push({
+      insight: `${areaName} scores well on safety and quality-of-life metrics, but broadband infrastructure lags behind. If you work from home even occasionally, verify the actual line speed at the specific property before committing.`,
+      category: "amenity",
+    });
+  }
+
+  // ── 8. Active nearby development upside + disruption coexist ─────────────
+  if (activeDev && insights.length < 4) {
+    const impactLabels = devs
+      .filter(d => d.status === "Under construction" || d.status === "Approved")
+      .map(d => (d as any).impactLabel as string | undefined)
+      .filter(Boolean);
+    const hasUpsideAndDisruption = impactLabels.some(l => l && l.toLowerCase().includes("uplift") || l && l.toLowerCase().includes("positive"))
+      && impactLabels.some(l => l && l.toLowerCase().includes("disruption") || l && l.toLowerCase().includes("construction"));
+    if (hasUpsideAndDisruption || (activeDev && devs.filter(d => d.status === "Under construction").length >= 1)) {
+      insights.push({
+        insight: `Active nearby development creates a genuine split picture: longer-term upside if projects complete as planned, but construction noise and access disruption are the near-term reality for anyone buying now.`,
+        category: "market",
+      });
+    }
+  }
+
+  // ── 9. Climate/resilience exposure + high family demand ──────────────────
+  const climateExposed = resilienceLabel === "Some exposure" || resilienceLabel === "Elevated exposure";
+  const familyDemand = schoolsStrong && hasGreen && demandSignal !== "Low";
+  if (climateExposed && familyDemand && insights.length < 4) {
+    insights.push({
+      insight: `${areaName} combines strong family appeal with ${resilienceLabel?.toLowerCase() ?? "some climate exposure"}. This combination means insurance and maintenance costs are likely to rise over a typical ownership horizon — a risk that rarely comes up in viewings.`,
+      category: "environment",
+    });
+  }
+
+  // Return max 4, prioritise already-inserted order (most signal-rich first)
+  return insights.slice(0, 4);
+}
+
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -2733,6 +2865,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       leveragePoints: [],
       stance: "Thin data — proceed cautiously" as const,
     },
+    missedInsights: [],
     redFlags: [],
     lifestyleFit: [],
     buyerVerdict: {
@@ -3024,6 +3157,18 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       fmt,
     },
   );
+
+  // ─── What People Miss ─────────────────────────────────────────────────────────────────────
+  // Runs after lifestyleFit, offer engine and negotiationLeverage so all signals are available
+  areaIntelligence.missedInsights = deriveMissedInsights(areaIntelligence, {
+    areaName,
+    tier,
+    yoyChange,
+    totalSalesThisYear,
+    isSoftMarket,
+    demandSignal,
+    isLondon,
+  });
 
   let propertyDeepDive: PropertyDeepDive | undefined;
   if (queryType === "address") {

@@ -70,6 +70,7 @@ import { NearbyDevelopmentTracker, sortDevs, IMPACT_META, fmtDistance } from "@/
 import { ClimateResilienceCard } from "@/components/climate-resilience-card";
 import { WhatWouldWorryMe } from "@/components/what-would-worry-me";
 import { NegotiationLeverage } from "@/components/negotiation-leverage";
+import { WhatPeopleMiss } from "@/components/what-people-miss";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 
 function SkeletonReport() {
@@ -1206,6 +1207,39 @@ function exportToPDF(
     </div>`;
   })();
 
+  // ── What People Miss PDF section ──────────────────────────────────────────
+  const pdfMissedInsightsSection = (() => {
+    const missed = ai.missedInsights;
+    if (!missed || missed.length === 0) return "";
+    const categoryLabels: Record<string, string> = {
+      transport: "Transport", noise: "Noise & Air", environment: "Climate",
+      schools: "Schools", safety: "Safety", green: "Green Space",
+      market: "Market", amenity: "Amenities", value: "Value", demand: "Demand",
+    };
+    const rows = missed.map(item => `
+      <tr style="border-bottom:1px solid #f3f4f6">
+        <td style="padding:9px 10px 9px 0;white-space:nowrap">
+          <span style="display:inline-block;padding:3px 9px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:#fffbeb;color:#92400e;border:1px solid #fde68a">${categoryLabels[item.category] ?? item.category}</span>
+        </td>
+        <td style="padding:9px 0 9px 8px;font-size:12px;color:#374151;line-height:1.55">${item.insight}</td>
+      </tr>
+    `).join("");
+    return `
+    <div class="section">
+      <div class="section-label">What People Miss About This Area</div>
+      <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Non-obvious trade-offs derived by combining multiple data signals — not found in listing copy.</p>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:2px solid #e5e7eb">
+            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px;width:110px">Signal</th>
+            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px">Insight</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  })();
+
   // HS2 flags
   const hs2Flags = (() => {
     const outcode = ai.location.trim().toUpperCase().split(" ")[0].replace(/\d[A-Z]{2}$/, "").trim();
@@ -1300,6 +1334,8 @@ function exportToPDF(
   ${pdfSCSSection}
 
   ${pdfLifestyleFitSection}
+
+  ${pdfMissedInsightsSection}
 
   <div class="section">
     <div class="section-label">Market Overview</div>
@@ -2382,6 +2418,12 @@ export default function BriefPage() {
               <>
                 <LifestyleFitBlock ai={ai} />
                 <StrengthsAndConsiderations ai={ai} />
+                {/* What People Miss — editorial insight layer, Professional+.
+                     Surfaces non-obvious trade-offs by combining multiple signals.
+                     Placed after lifestyle/strengths as contextual depth layer. */}
+                {(ai.missedInsights?.length ?? 0) > 0 && (
+                  <WhatPeopleMiss missedInsights={ai.missedInsights} areaName={ai.area} />
+                )}
               </>
             )}
 

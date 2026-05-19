@@ -270,6 +270,16 @@ export interface AreaIntelligence {
     stance: "Firm buyer — you have leverage" | "Balanced — play it carefully" | "Limited leverage — seller holds ground" | "Thin data — proceed cautiously";
   };
 
+  /**
+   * "What people miss about this area" — Professional+.
+   * 2–4 concise insights connecting multiple signals into non-obvious trade-offs.
+   * Each insight combines at least two data points into a specific local truth.
+   */
+  missedInsights: Array<{
+    insight: string;   // One sharp sentence (max ~120 chars)
+    category: "transport" | "schools" | "green" | "market" | "noise" | "amenity" | "safety" | "environment" | "value" | "demand";
+  }>;
+
   /** Red-flag summary — Professional+. Material risks surfaced prominently. */
   redFlags: Array<{
     label: string;
