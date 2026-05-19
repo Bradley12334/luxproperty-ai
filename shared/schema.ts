@@ -202,6 +202,13 @@ export interface AreaIntelligence {
     vsNationalNote: string;
     date: string;
   };
+
+  /** Red-flag summary — Professional+. Material risks surfaced prominently. */
+  redFlags: Array<{
+    label: string;
+    detail: string;
+    severity: "high" | "medium";
+  }>;
 }
 
 export interface PropertyDeepDive {

@@ -433,6 +433,98 @@ function deriveBuyerSummary(
   return { bestFor, mainStrengths, watchOuts, buyerTakeaway };
 }
 
+// ── Red Flag Summary Block ────────────────────────────────────────────────
+function RedFlagSummaryBlock({
+  flags,
+}: {
+  flags: BriefReport["areaIntelligence"]["redFlags"];
+}) {
+  const hasFlags = flags && flags.length > 0;
+  const highCount = hasFlags ? flags.filter(f => f.severity === "high").length : 0;
+
+  // Colour scheme: red border if any high-severity, amber if only medium
+  const borderColor = highCount > 0
+    ? "border-red-500/40"
+    : "border-amber-500/35";
+  const headerBg = highCount > 0
+    ? "bg-red-500/[0.06]"
+    : "bg-amber-500/[0.06]";
+  const headerBorder = highCount > 0
+    ? "border-red-500/25"
+    : "border-amber-500/25";
+  const iconColor = highCount > 0
+    ? "text-red-600 dark:text-red-400"
+    : "text-amber-600 dark:text-amber-400";
+  const labelColor = highCount > 0
+    ? "text-red-700 dark:text-red-400"
+    : "text-amber-700 dark:text-amber-400";
+
+  return (
+    <div
+      className={`rounded-xl border ${borderColor} overflow-hidden shadow-sm`}
+      data-testid="section-red-flags"
+    >
+      {/* Header strip */}
+      <div className={`px-5 sm:px-6 py-3.5 ${headerBg} border-b ${headerBorder} flex items-center gap-2.5`}>
+        <AlertTriangle className={`h-3.5 w-3.5 shrink-0 ${iconColor}`} />
+        <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${labelColor}`}>
+          Risk Summary
+        </span>
+        {hasFlags && (
+          <span className={`ml-1 text-[10px] font-semibold ${labelColor} opacity-70`}>
+            {flags.length} flag{flags.length > 1 ? "s" : ""} identified
+          </span>
+        )}
+        <span className="ml-auto text-[10px] text-muted-foreground/50 font-medium tracking-wide hidden sm:block">
+          Material risks
+        </span>
+      </div>
+
+      {/* Content */}
+      {!hasFlags ? (
+        <div className="px-5 sm:px-6 py-4 flex items-start gap-3">
+          <div className="mt-0.5 h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+          <p className="text-sm text-foreground/80 leading-relaxed">
+            No major immediate red flags identified from available data.
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border/30">
+          {flags.map((flag, i) => {
+            const isHigh = flag.severity === "high";
+            return (
+              <div
+                key={i}
+                className={`px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start ${
+                  isHigh
+                    ? "bg-red-50/40 dark:bg-red-950/15"
+                    : "bg-amber-50/30 dark:bg-amber-950/10"
+                }`}
+              >
+                {/* Severity dot + label */}
+                <div className={`flex items-center gap-1.5 min-w-[130px] sm:min-w-[150px] pt-0.5 shrink-0 ${
+                  isHigh ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"
+                }`}>
+                  <div className={`h-1.5 w-1.5 rounded-full shrink-0 mt-0.5 ${
+                    isHigh ? "bg-red-500" : "bg-amber-500"
+                  }`} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">
+                    {flag.label}
+                  </span>
+                </div>
+                {/* Detail */}
+                <p className="text-sm text-foreground/80 leading-relaxed">
+                  {flag.detail}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Buyer Summary Block component ────────────────────────────────────────────
 function BuyerSummaryBlock({
   ai,
@@ -622,6 +714,28 @@ function exportToPDF(
 
   const leveragePoints = isProperty && pd ? pd.negotiationBrief.leveragePoints.map((p, i) => `
     <li style="margin-bottom:6px"><span style="color:#B8860B;font-family:Georgia,serif">${i+1}.</span> ${p}</li>`).join("") : "";
+
+  // Red-flag section for PDF
+  const redFlagsForPdf = ai.redFlags ?? [];
+  const pdfHasFlags = redFlagsForPdf.length > 0;
+  const pdfHighCount = redFlagsForPdf.filter(f => f.severity === "high").length;
+  const pdfRedFlagSection = `
+  <div class="section">
+    <div class="section-label" style="color:${pdfHighCount > 0 ? "#dc2626" : "#d97706"}">Risk Summary${pdfHasFlags ? ` — ${redFlagsForPdf.length} flag${redFlagsForPdf.length > 1 ? "s" : ""} identified` : ""}</div>
+    ${!pdfHasFlags
+      ? `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f0fdf4;border-left:3px solid #22c55e;border-radius:0 4px 4px 0">
+           <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>
+           <p style="font-size:12px;color:#374151;margin:0">No major immediate red flags identified from available data.</p>
+         </div>`
+      : `<table style="width:100%;border-collapse:collapse">${redFlagsForPdf.map(flag => {
+          const isHigh = flag.severity === "high";
+          return `<tr><td style="padding:10px 14px;border-left:3px solid ${isHigh ? "#ef4444" : "#f59e0b"};border-bottom:1px solid #f3f4f6;background:${isHigh ? "#fef2f2" : "#fffbeb"};vertical-align:top">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${isHigh ? "#b91c1c" : "#92400e"};margin-bottom:4px">${flag.label}</div>
+            <p style="font-size:12px;line-height:1.6;color:#374151;margin:0">${flag.detail}</p>
+          </td></tr>`;
+        }).join("")}</table>`
+    }
+  </div>`;
 
   const offerStrategyHtml = isProperty && pd?.offerStrategy ? `
   <div class="section">
@@ -833,6 +947,8 @@ function exportToPDF(
   </div>
 
   ${pdfOneGlanceSection}
+
+  ${pdfRedFlagSection}
 
   <div style="margin-bottom:24px;padding:12px 16px;background:#faf8f4;border-left:3px solid #B8860B;font-size:11px;color:#6b7280;line-height:1.65">
     <strong style="color:#1a1612;display:block;margin-bottom:4px">How to read this brief</strong>
@@ -1549,6 +1665,11 @@ export default function BriefPage() {
           </div>
 
           <div className="space-y-6">
+            {/* Red Flag Summary — Professional+. Material risks surfaced first, before any positive framing */}
+            {isPaid && (
+              <RedFlagSummaryBlock flags={ai.redFlags ?? []} />
+            )}
+
             {/* Buyer Summary — decision-oriented executive readout, always first */}
             <BuyerSummaryBlock ai={ai} isPropertyReport={!!isPropertyReport} />
 

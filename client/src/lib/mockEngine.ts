@@ -1443,7 +1443,102 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       vsNationalNote: `Police-recorded crime data could not be retrieved for ${areaName} in this report. This is a data-availability issue rather than a signal about crime levels. For current figures, visit data.police.uk and enter this postcode — the tool shows category-level crime counts for the surrounding area by month.`,
       date: "",
     },
+
+    // placeholder — populated immediately below after object construction
+    redFlags: [],
   };
+
+  // ─── Red-flag derivation ─────────────────────────────────────────────
+  // Computed after areaIntelligence is assembled so all live-data variables are
+  // in scope. Flags surface material risks a buyer should see before reading
+  // the full report. Only include flags where evidence actually supports them.
+  {
+    const flags: AreaIntelligence["redFlags"] = [];
+
+    // Flood risk — Medium or High is material
+    const fr = areaIntelligence.floodRisk;
+    if (fr.riskBadge === "High") {
+      flags.push({
+        label: "High flood risk",
+        detail: `${areaName} is in ${fr.zone}. Standard building insurance may be restricted or significantly more expensive. Confirm mortgage lender's appetite and request the seller's insurance history before offering.`,
+        severity: "high",
+      });
+    } else if (fr.riskBadge === "Medium") {
+      flags.push({
+        label: "Medium flood risk",
+        detail: `${areaName} carries medium flood risk (${fr.zone}). Insurance excess and premiums can be elevated. Request the seller's renewal history and check the EA flood map for the specific plot.`,
+        severity: "medium",
+      });
+    }
+
+    // Negative year-on-year price movement
+    const yoy = areaIntelligence.marketOverview.priceChangeYoY;
+    if (hasData && yoy && !yoy.startsWith("+") && yoy !== "—") {
+      flags.push({
+        label: "Price decline year-on-year",
+        detail: `Registered transactions show ${yoy} price movement in ${areaName} over the past year. A declining market may continue — build a wider margin of safety into your maximum offer.`,
+        severity: "medium",
+      });
+    }
+
+    // Thin transaction data — low evidence quality
+    if (hasData && totalSalesThisYear < 5) {
+      flags.push({
+        label: "Thin market data",
+        detail: `Only ${totalSalesThisYear} registered transaction${totalSalesThisYear === 1 ? "" : "s"} in ${areaName} in the most recent year on record. Comparable sales and valuation ranges carry higher uncertainty — commission a RICS surveyor before offering.`,
+        severity: "medium",
+      });
+    }
+
+    // High planning activity — more than 5 applications in 12 months
+    const planning = areaIntelligence.planningActivity;
+    if (planning.recentApplications > 5) {
+      flags.push({
+        label: "Elevated planning activity",
+        detail: `${planning.recentApplications} planning applications recorded nearby in the past 12 months. Check the council portal for any approved schemes that could affect outlook, light, or quiet enjoyment.`,
+        severity: "medium",
+      });
+    }
+
+    // Air quality — Poor or Very Poor
+    const aq = areaIntelligence.airQuality;
+    if (aq.rating === "Very Poor") {
+      flags.push({
+        label: "Very poor air quality",
+        detail: `Air quality readings for ${areaName} are rated Very Poor. NO₂: ${aq.no2Level}; PM2.5: ${aq.pm25Level}. This is a material consideration for households with respiratory sensitivities and may affect long-term desirability.`,
+        severity: "high",
+      });
+    } else if (aq.rating === "Poor") {
+      flags.push({
+        label: "Poor air quality",
+        detail: `Air quality in ${areaName} is rated Poor (NO₂: ${aq.no2Level}). Worth noting if you have respiratory health concerns or plan to spend significant time outdoors.`,
+        severity: "medium",
+      });
+    }
+
+    // Broadband — Limited or Poor
+    const bb = areaIntelligence.broadband;
+    if (bb.rating === "Poor" || bb.rating === "Limited") {
+      flags.push({
+        label: `${bb.rating} broadband coverage`,
+        detail: `Broadband in ${areaName} is rated ${bb.rating} (avg. ${bb.avgDownloadSpeed}). If you work from home or rely on fast connectivity, verify availability at the specific property before committing.`,
+        severity: "medium",
+      });
+    }
+
+    // Nearby developments with monitoring impact
+    const negativeDev = areaIntelligence.nearbyDevelopments.filter(d => d.impact === "Monitor");
+    if (negativeDev.length > 0) {
+      const names = negativeDev.slice(0, 2).map(d => d.name).join(", ");
+      flags.push({
+        label: negativeDev.length > 1 ? `${negativeDev.length} nearby developments to monitor` : "Nearby development — monitor",
+        detail: `${names}${negativeDev.length > 2 ? " and others" : ""} — ${negativeDev.length > 1 ? "these schemes are" : "this scheme is"} flagged for monitoring. Assess whether construction, increased density, or change of character could affect the property’s value or liveability.`,
+        severity: "medium",
+      });
+    }
+
+    areaIntelligence.redFlags = flags;
+  }
 
   // ─── Offer strategy engine ───────────────────────────────────────────────────────────────────────
   // Confidence: Strong ≥ 4 comparable sales; Moderate = 2–3 or 1–2yr data; Thin = 0–1 or no data
