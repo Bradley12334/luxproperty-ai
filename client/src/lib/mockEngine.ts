@@ -947,6 +947,173 @@ function deriveClimateResilience(
 }
 
 
+
+// ─── "What would worry me here?" derivation ────────────────────────────────────
+// Runs AFTER redFlags, buyerVerdict, and climate layer are assembled so all
+// signals are available. Surfaces the most decision-relevant negatives in
+// concise, plain-English buyer language. Max 4 items.
+function deriveWorryBox(
+  ai: import("../../../shared/schema").AreaIntelligence,
+  areaName: string,
+  totalSalesThisYear: number,
+  hasData: boolean,
+): import("../../../shared/schema").AreaIntelligence["worryBox"] {
+  type WorryItem = import("../../../shared/schema").AreaIntelligence["worryBox"]["items"][number];
+
+  const items: WorryItem[] = [];
+
+  // ── 1. FLOOD / ENVIRONMENTAL ─────────────────────────────────────────────
+  const fr = ai.floodRisk;
+  const resLabel = fr.resilienceLabel;
+  if (resLabel === "High risk") {
+    items.push({
+      headline: "High flood and climate risk",
+      detail: `${areaName} is in ${fr.zone} with surface water risk rated ${fr.surfaceWater}. Buildings insurance may be restricted or significantly more expensive — check the EA flood map for the specific plot and ask the seller for their insurance history.`,
+      severity: "high",
+      category: "flood",
+    });
+  } else if (resLabel === "Elevated risk") {
+    items.push({
+      headline: "Elevated environmental exposure",
+      detail: fr.riskBadge === "Medium"
+        ? `${areaName} carries medium flood risk (${fr.zone}). Insurance excess and premiums can be elevated — request the seller's renewal history before offering.`
+        : `Multiple climate signals flag this area: ${fr.climateSignals.filter(s => s.flagged).map(s => s.label.toLowerCase()).join(", ")}. Factor these into due diligence.`,
+      severity: "medium",
+      category: "flood",
+    });
+  } else if (resLabel === "Some exposure") {
+    const flagged = fr.climateSignals.filter(s => s.flagged);
+    if (flagged.length > 0) {
+      items.push({
+        headline: "Climate signal worth noting",
+        detail: flagged[0].context,
+        severity: "low",
+        category: "flood",
+      });
+    }
+  }
+
+  // ── 2. MARKET / PRICE GROWTH ─────────────────────────────────────────────
+  const yoy = ai.marketOverview.priceChangeYoY;
+  const isDecline = yoy && !yoy.startsWith("+") && yoy !== "—" && yoy !== "Insufficient data";
+  if (isDecline && hasData) {
+    items.push({
+      headline: "Weak recent price growth",
+      detail: `Registered transactions show ${yoy} price movement over the past year in ${areaName}. A falling market may require a wider margin of safety — benchmark comparables carefully before finalising any offer.`,
+      severity: "medium",
+      category: "market",
+    });
+  }
+
+  // ── 3. THIN DATA ─────────────────────────────────────────────────────────
+  if (hasData && totalSalesThisYear < 5) {
+    items.push({
+      headline: "Low transaction volume",
+      detail: `Only ${totalSalesThisYear} registered sale${totalSalesThisYear === 1 ? "" : "s"} on record for this postcode this year. Pricing conclusions carry higher uncertainty — a RICS survey is strongly advisable before offering.`,
+      severity: totalSalesThisYear < 2 ? "medium" : "low",
+      category: "data",
+    });
+  }
+
+  // ── 4. CRIME ─────────────────────────────────────────────────────────────
+  const crime = ai.crimeStats;
+  const safety = ai.neighbourhoodProfile?.safetyRating ?? 70;
+  if (crime && crime.totalCrimesPerMonth > 80 && safety < 50) {
+    const topCat = crime.topCategories?.[0];
+    items.push({
+      headline: "Crime runs high versus similar areas",
+      detail: `Monthly crime incidents in ${areaName}: ${crime.totalCrimesPerMonth}. ${topCat ? `Highest category: ${topCat.category} (${topCat.pct}%). ` : ""}${crime.vsNationalNote || "Review the crime detail section before deciding."}`,
+      severity: safety < 35 ? "high" : "medium",
+      category: "crime",
+    });
+  } else if (crime && crime.totalCrimesPerMonth > 50 && safety < 60) {
+    items.push({
+      headline: "Crime levels above average",
+      detail: `Crime volume in ${areaName} is above the median for comparable areas — ${crime.vsNationalNote || "check the crime detail section for category breakdown."}`,
+      severity: "low",
+      category: "crime",
+    });
+  }
+
+  // ── 5. EPC / ENERGY EFFICIENCY ───────────────────────────────────────────
+  const epcSignal = fr.climateSignals.find(s => s.label.toLowerCase().includes("epc") || s.label.toLowerCase().includes("energy"));
+  if (epcSignal?.flagged) {
+    items.push({
+      headline: "Poor EPC — likely upgrade costs",
+      detail: epcSignal.context,
+      severity: "medium",
+      category: "epc",
+    });
+  }
+
+  // ── 6. NEARBY DEVELOPMENT ────────────────────────────────────────────────
+  const disruptionDevs = (ai.nearbyDevelopments ?? []).filter(
+    d => d.impactLabel === "disruption",
+  );
+  const mixedDevs = (ai.nearbyDevelopments ?? []).filter(
+    d => d.impactLabel === "mixed" && d.name !== "No major schemes on record",
+  );
+  if (disruptionDevs.length > 0 && !items.find(i => i.category === "development")) {
+    const names = disruptionDevs.slice(0, 2).map(d => d.name).join(", ");
+    items.push({
+      headline: disruptionDevs.length === 1 ? "Nearby development — disruption risk" : `${disruptionDevs.length} nearby schemes — disruption risk`,
+      detail: `${names}${disruptionDevs.length > 2 ? " and others" : ""} — likely to bring construction noise and local change. Check the development tracker for timeline and proximity before offering.`,
+      severity: "medium",
+      category: "development",
+    });
+  } else if (mixedDevs.length >= 2 && !items.find(i => i.category === "development")) {
+    items.push({
+      headline: `${mixedDevs.length} nearby developments — mixed impact`,
+      detail: `${mixedDevs.slice(0, 2).map(d => d.name).join(", ")} — impact unclear. Review the development tracker section for detail before committing.`,
+      severity: "low",
+      category: "development",
+    });
+  }
+
+  // ── 7. AIR QUALITY ────────────────────────────────────────────────────────
+  const aq = ai.airQuality;
+  if (aq?.rating === "Very Poor" && !items.find(i => i.category === "environment")) {
+    items.push({
+      headline: "Very poor air quality",
+      detail: `Readings for ${areaName}: NO\u2082 ${aq.no2Level}, PM2.5 ${aq.pm25Level}. This is a material consideration for health-conscious buyers and may affect long-term area desirability.`,
+      severity: "high",
+      category: "environment",
+    });
+  } else if (aq?.rating === "Poor" && !items.find(i => i.category === "environment")) {
+    items.push({
+      headline: "Poor air quality",
+      detail: `Air quality in ${areaName} is rated Poor (NO\u2082: ${aq.no2Level}). Worth noting if you or your household have respiratory health considerations.`,
+      severity: "medium",
+      category: "environment",
+    });
+  }
+
+  // ── PRIORITY RANKING ──────────────────────────────────────────────────────
+  // High severity first, then medium, then low. Within same tier, preserve
+  // order: flood > market > crime > epc > development > data > environment > other
+  const priorityOrder: Record<WorryItem["category"], number> = {
+    flood: 1, crime: 2, environment: 3, epc: 4, development: 5, market: 6, data: 7, other: 8,
+  };
+  const severityScore: Record<WorryItem["severity"], number> = { high: 0, medium: 10, low: 20 };
+  items.sort((a, b) => {
+    const sA = severityScore[a.severity] + priorityOrder[a.category];
+    const sB = severityScore[b.severity] + priorityOrder[b.category];
+    return sA - sB;
+  });
+
+  // Cap at 4
+  const capped = items.slice(0, 4);
+
+  const verdict = capped.length === 0
+    ? "No major immediate concerns identified from available data — standard due diligence applies."
+    : capped.length === 1 && capped[0].severity === "low"
+    ? "One minor concern is worth noting — see below."
+    : "";
+
+  return { verdict, items: capped };
+}
+
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -2352,6 +2519,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     },
 
     // placeholders — populated immediately below after object construction
+    worryBox: { verdict: "", items: [] },
     redFlags: [],
     lifestyleFit: [],
     buyerVerdict: {
@@ -2490,6 +2658,13 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     areaIntelligence.airQuality?.rating,
   );
   areaIntelligence.floodRisk = { ...areaIntelligence.floodRisk, ...climateLayer };
+  // ─── Worry box (runs after climate layer + redFlags so all signals are available) ──────────
+  areaIntelligence.worryBox = deriveWorryBox(
+    areaIntelligence,
+    areaName,
+    totalSalesThisYear,
+    hasData,
+  );
   // ─── Resident sentiment bullets (re-derive now that live data is in scope) ─────────────────────
   areaIntelligence.neighbourhoodProfile.residentSentimentBullets = deriveResidentSentimentBullets(
     !!specificProfile?.residentSentiment,

@@ -220,6 +220,22 @@ export interface AreaIntelligence {
     date: string;
   };
 
+  /**
+   * "What would worry me here?" — top-of-brief risk box, Professional+.
+   * 1–4 decision-relevant concerns surfaced before any positive framing.
+   * Each item is concise, plain-English, and buyer-action oriented.
+   * "verdict" is the fallback phrase when no major concerns are found.
+   */
+  worryBox: {
+    verdict: string;  // e.g. "No major immediate concerns identified from available data."
+    items: Array<{
+      headline: string;   // 3–6 word label e.g. "Elevated flood exposure"
+      detail: string;     // 1 sentence of plain-English context/action
+      severity: "high" | "medium" | "low"; // drives colour treatment
+      category: "flood" | "market" | "crime" | "epc" | "development" | "data" | "environment" | "other";
+    }>;
+  };
+
   /** Red-flag summary — Professional+. Material risks surfaced prominently. */
   redFlags: Array<{
     label: string;

@@ -68,6 +68,7 @@ import { MortgageCalculator } from "@/components/mortgage-calculator";
 import { StreetPriceRanking } from "@/components/street-price-ranking";
 import { NearbyDevelopmentTracker, sortDevs, IMPACT_META, fmtDistance } from "@/components/nearby-development-tracker";
 import { ClimateResilienceCard } from "@/components/climate-resilience-card";
+import { WhatWouldWorryMe } from "@/components/what-would-worry-me";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 
 function SkeletonReport() {
@@ -746,6 +747,60 @@ function exportToPDF(
   const leveragePoints = isProperty && pd ? pd.negotiationBrief.leveragePoints.map((p, i) => `
     <li style="margin-bottom:6px"><span style="color:#B8860B;font-family:Georgia,serif">${i+1}.</span> ${p}</li>`).join("") : "";
 
+  // —— Worry box section for PDF ——
+  const pdfWorryBoxSection = (() => {
+    const wb = ai.worryBox;
+    if (!wb) return "";
+    const hasItems = wb.items.length > 0;
+    const worstSeverity = wb.items[0]?.severity ?? "low";
+    const headerBg = worstSeverity === "high" ? "#fef2f2" : worstSeverity === "medium" ? "#fffbeb" : "#f9fafb";
+    const headerBorderColor = worstSeverity === "high" ? "#ef4444" : worstSeverity === "medium" ? "#f59e0b" : "#d1d5db";
+    const headerLabelColor = worstSeverity === "high" ? "#b91c1c" : worstSeverity === "medium" ? "#92400e" : "#6b7280";
+    const outerBorder = worstSeverity === "high" ? "#ef444480" : worstSeverity === "medium" ? "#f59e0b80" : "#d1d5db";
+    const severityRowBg: Record<string, string> = { high: "#fef2f2", medium: "#fffbeb", low: "#f9fafb" };
+    const severityLabelColor: Record<string, string> = { high: "#b91c1c", medium: "#92400e", low: "#4b5563" };
+    const severityDotColor: Record<string, string> = { high: "#ef4444", medium: "#f59e0b", low: "#9ca3af" };
+    const categoryEmoji: Record<string, string> = { flood: "\u{1F30A}", market: "\u{1F4C9}", crime: "\u26A0", epc: "\u26A1", development: "\u{1F3D7}", data: "\u{1F4CA}", environment: "\u{1F4A8}", other: "\u2022" };
+    const rows = hasItems
+      ? wb.items.map(item => {
+          const rowBg = severityRowBg[item.severity] ?? "#f9fafb";
+          const labelColor = severityLabelColor[item.severity] ?? "#374151";
+          const dotColor = severityDotColor[item.severity] ?? "#9ca3af";
+          const emoji = categoryEmoji[item.category] ?? "\u2022";
+          return `<tr>
+  <td style="padding:11px 14px;border-left:3px solid ${dotColor};border-bottom:1px solid #f3f4f6;background:${rowBg};vertical-align:top">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="flex-shrink:0;padding-top:2px">
+        <div style="display:inline-flex;align-items:center;gap:5px">
+          <span style="font-size:9px;color:${dotColor}">●</span>
+          <span style="font-size:7.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${labelColor}">${emoji} ${item.headline}</span>
+        </div>
+      </div>
+      <p style="font-size:11px;line-height:1.65;color:#374151;margin:0">${item.detail}</p>
+    </div>
+  </td>
+</tr>`;
+        }).join("")
+      : `<tr><td style="padding:12px 16px">
+           <div style="display:flex;align-items:center;gap:10px">
+             <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>
+             <p style="font-size:12px;color:#374151;margin:0">${wb.verdict || "No major immediate concerns identified from available data \u2014 standard due diligence applies."}</p>
+           </div>
+         </td></tr>`;
+    return `
+  <div class="section" style="border:2px solid ${outerBorder};border-radius:8px;overflow:hidden;margin-bottom:24px;padding:0">
+    <div style="padding:11px 16px;background:${headerBg};border-bottom:2px solid ${headerBorderColor}40;display:flex;align-items:center;gap:10px">
+      <span style="font-size:13px">${hasItems ? "\u26A0\uFE0F" : "\u{1F6E1}\uFE0F"}</span>
+      <span style="font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:${headerLabelColor}">What would worry me here?</span>
+      ${hasItems ? `<span style="font-size:9px;color:${headerLabelColor};opacity:0.7;margin-left:4px">${wb.items.length} concern${wb.items.length > 1 ? "s" : ""} to check</span>` : ""}
+    </div>
+    <table style="width:100%;border-collapse:collapse">${rows}</table>
+    <div style="padding:7px 14px;border-top:1px solid #f3f4f6;background:#fafafa">
+      <p style="font-size:9px;color:#9ca3af;margin:0">Concerns drawn from Land Registry, EA flood data, DEFRA, and area enrichment signals. Always commission independent surveys before offering.</p>
+    </div>
+  </div>`;
+  })();
+
   // Red-flag section for PDF
   const redFlagsForPdf = ai.redFlags ?? [];
   const pdfHasFlags = redFlagsForPdf.length > 0;
@@ -1147,6 +1202,8 @@ function exportToPDF(
   </div>
 
   ${pdfOneGlanceSection}
+
+  ${pdfWorryBoxSection}
 
   ${pdfRedFlagSection}
 
@@ -2218,14 +2275,21 @@ export default function BriefPage() {
           </div>
 
           <div className="space-y-6">
-            {/* Red Flag Summary — Professional+. Material risks surfaced first, before any positive framing */}
-            {isPaid && (
-              <RedFlagSummaryBlock flags={ai.redFlags ?? []} />
+            {/* —— What Would Worry Me — top-of-brief risk box, Professional+.
+                 Surfaces the most decision-relevant concerns BEFORE any positive framing.
+                 Signature differentiator: tells buyers the bad news fast. */}
+            {isPaid && ai.worryBox && (
+              <WhatWouldWorryMe worryBox={ai.worryBox} />
             )}
 
             {/* Buyer Verdict — structured "Would I buy here?" decision layer, Professional+ */}
             {isPaid && (
               <BuyerVerdictBlock ai={ai} />
+            )}
+
+            {/* Red Flag Summary — Professional+. Detailed risk breakdown, shown after worry box */}
+            {isPaid && (
+              <RedFlagSummaryBlock flags={ai.redFlags ?? []} />
             )}
 
             {/* Explorer Verdict — shown to all users, top-level area screening judgement */}
