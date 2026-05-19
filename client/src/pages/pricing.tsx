@@ -109,7 +109,7 @@ function CellValue({ value, col }: { value: boolean | string; col: string }) {
 }
 
 export default function PricingPage() {
-  useDocumentTitle("Pricing");
+  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 3 briefs/month. Professional at £4.99/month. Investor at £39.99/month. No contracts, cancel anytime.");
   return (
     <div className="flex min-h-screen flex-col">
       <Header />

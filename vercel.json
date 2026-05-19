@@ -3,6 +3,14 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "luxproperty.ai" }],
+      "destination": "https://www.luxproperty.ai/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }

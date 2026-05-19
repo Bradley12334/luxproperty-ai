@@ -35,7 +35,7 @@ import {
 import type { BriefReport } from "@shared/schema";
 
 export default function Home() {
-  useDocumentTitle("");
+  useDocumentTitle("", "AI-powered property intelligence for UK buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data.");
   const [query, setQuery] = useState("");
   const [, navigate] = useLocation();
 

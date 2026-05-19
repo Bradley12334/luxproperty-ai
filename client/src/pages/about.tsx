@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 export default function AboutPage() {
-  useDocumentTitle("About");
+  useDocumentTitle("About", "LuxProperty.ai is a UK property intelligence platform built to give every buyer instant access to the kind of market analysis previously only available to professionals.");
   return (
     <div className="flex min-h-screen flex-col">
       <Header />

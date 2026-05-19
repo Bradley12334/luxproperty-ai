@@ -15,7 +15,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function PrivacyPage() {
-  useDocumentTitle("Privacy Policy");
+  useDocumentTitle("Privacy Policy", "Read the LuxProperty.ai privacy policy. How we collect, use, and protect your data in line with UK GDPR and the Data Protection Act 2018.");
   return (
     <div className="flex min-h-screen flex-col">
       <Header />

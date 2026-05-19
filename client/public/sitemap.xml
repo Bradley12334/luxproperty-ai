@@ -3,124 +3,126 @@
 
   <!-- Core pages -->
   <url>
-    <loc>https://luxproperty.ai/</loc>
+    <loc>https://www.luxproperty.ai/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/pricing</loc>
+    <loc>https://www.luxproperty.ai/pricing</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/about</loc>
+    <loc>https://www.luxproperty.ai/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/privacy</loc>
+    <loc>https://www.luxproperty.ai/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/terms</loc>
+    <loc>https://www.luxproperty.ai/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
 
-  <!-- Area intelligence pages -->
+  <!-- Area intelligence pages — London prime -->
   <url>
-    <loc>https://luxproperty.ai/#/area/SW1</loc>
+    <loc>https://www.luxproperty.ai/area/SW3</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/SW3</loc>
+    <loc>https://www.luxproperty.ai/area/SW1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/W1</loc>
+    <loc>https://www.luxproperty.ai/area/W1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/W8</loc>
+    <loc>https://www.luxproperty.ai/area/W8</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/W11</loc>
+    <loc>https://www.luxproperty.ai/area/W11</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/E1</loc>
+    <loc>https://www.luxproperty.ai/area/E1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/E8</loc>
+    <loc>https://www.luxproperty.ai/area/E8</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/N1</loc>
+    <loc>https://www.luxproperty.ai/area/N1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/SE1</loc>
+    <loc>https://www.luxproperty.ai/area/SE1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
+
+  <!-- Area intelligence pages — regional -->
   <url>
-    <loc>https://luxproperty.ai/#/area/M1</loc>
+    <loc>https://www.luxproperty.ai/area/M1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/M2</loc>
+    <loc>https://www.luxproperty.ai/area/M2</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/B1</loc>
+    <loc>https://www.luxproperty.ai/area/B1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/LS1</loc>
+    <loc>https://www.luxproperty.ai/area/LS1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/BS1</loc>
+    <loc>https://www.luxproperty.ai/area/BS1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/EH1</loc>
+    <loc>https://www.luxproperty.ai/area/EH1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/OX1</loc>
+    <loc>https://www.luxproperty.ai/area/OX1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/CB1</loc>
+    <loc>https://www.luxproperty.ai/area/CB1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/GL1</loc>
+    <loc>https://www.luxproperty.ai/area/GL1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luxproperty.ai/#/area/RG1</loc>
+    <loc>https://www.luxproperty.ai/area/RG1</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

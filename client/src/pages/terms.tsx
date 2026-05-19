@@ -15,7 +15,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function TermsPage() {
-  useDocumentTitle("Terms of Service");
+  useDocumentTitle("Terms of Service", "Terms of service for LuxProperty.ai — the UK property intelligence platform operated by LuxProperty AI Ltd (Company No. 17158079).");
   return (
     <div className="flex min-h-screen flex-col">
       <Header />

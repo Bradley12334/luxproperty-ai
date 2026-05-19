@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://luxproperty.ai/sitemap.xml
+Sitemap: https://www.luxproperty.ai/sitemap.xml

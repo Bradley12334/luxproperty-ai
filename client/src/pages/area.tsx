@@ -62,7 +62,12 @@ export default function AreaPage() {
   const postcode = params.postcode?.toUpperCase() || "";
   const area = AREA_DATA[postcode];
 
-  useDocumentTitle(area ? `${area.name} (${postcode}) Property Report` : `${postcode} Property Market`);
+  useDocumentTitle(
+    area ? `${area.name} (${postcode}) Property Report` : `${postcode} Property Market`,
+    area
+      ? `Property market data for ${postcode} — ${area.name}. Average prices, price trends, comparable sales and buyer intelligence. Powered by HM Land Registry data.`
+      : `Property market intelligence for ${postcode}. Browse price trends, comparable sales and local insights on LuxProperty.ai.`
+  );
 
   if (!area) {
     // Unknown postcode — redirect to home with the postcode pre-filled
