@@ -127,7 +127,7 @@ export async function signUp(
   notify();
 
   // Send welcome email (fire and forget — don't block sign-up)
-  fetch("/api/send-welcome", {
+  fetch("/api/auth-email?action=welcome", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: name.trim(), email: key }),

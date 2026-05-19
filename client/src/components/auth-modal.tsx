@@ -37,7 +37,7 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
     if (!forgotEmail.trim()) return;
     setForgotLoading(true);
     try {
-      await fetch("/api/forgot-password", {
+      await fetch("/api/auth-email?action=forgot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail.trim() }),
