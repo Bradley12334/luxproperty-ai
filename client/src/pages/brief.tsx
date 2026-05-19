@@ -245,13 +245,21 @@ function deriveOneGlance(
   const transportRating = ai.neighbourhoodProfile?.transportRating ?? 5;
   const schoolsRating = ai.neighbourhoodProfile?.schoolsRating ?? 5;
   const closestStation = ai.nearbyStations?.slice().sort((a, b) => a.walkMins - b.walkMins)?.[0];
+  const stationWalkMins = closestStation?.walkMins ?? 999;
   const closestPark = ai.nearbyAmenities?.greenSpaces?.[0];
   const topSchool = ai.nearbySchools?.find(s => s.ofstedRating === "Outstanding" || s.ofstedRating === "Good");
   const floodRisk = ai.floodRisk?.riskBadge ?? "Low";
   const airRating = ai.airQuality?.rating ?? "Good";
   const crimePerMonth = ai.crimeStats?.totalCrimesPerMonth ?? 0;
+  const cafeCount = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
 
-  // ── Who it suits ────────────────────────────────────────────────────────
+  // Derived context signals
+  const isTransitRich = transportRating >= 7 || stationWalkMins <= 8;
+  const isTransitLight = transportRating < 5 || stationWalkMins > 20;
+  const isAmenityLight = cafeCount === 0;
+  const hasBroadbandStrength = ai.broadband?.rating === "Excellent" || ai.broadband?.rating === "Very Good";
+
+  // ── Who it suits ─────────────────────────────────────────────────────────
   let suitedTo: string;
   const character = ai.neighbourhoodProfile?.character ?? "";
   const demographics = ai.neighbourhoodProfile?.demographics ?? "";
@@ -260,8 +268,9 @@ function deriveOneGlance(
   const suitedParts: string[] = [];
 
   if (topSchool && schoolsRating >= 7) suitedParts.push("families with school-age children");
-  if (closestStation && closestStation.walkMins <= 8 && transportRating >= 7) suitedParts.push("commuters who value walkable transport links");
+  if (closestStation && stationWalkMins <= 8 && transportRating >= 7) suitedParts.push("commuters who value walkable transport links");
   if (closestPark && closestPark.walkMins <= 6) suitedParts.push("buyers who want outdoor space nearby");
+  if (hasBroadbandStrength && isTransitLight) suitedParts.push("remote workers who rely on fast home broadband");
 
   // Tier-based signals from price level
   const priceNum = parseFloat(avgPrice.replace(/[^\d]/g, ""));
@@ -273,6 +282,15 @@ function deriveOneGlance(
     suitedTo = suitedParts.length > 0
       ? `Established buyers, professionals, and ${suitedParts[0]} looking for a premium location without prime prices.`
       : "Professionals and upsizers looking for quality without the top-tier price tag.";
+  } else if (isTransitLight && isAmenityLight) {
+    // Low-density area: fewer services and limited transit
+    suitedTo = "Better suited to families seeking space, countryside access, or lower price-per-sq-ft. Buyers who depend on a walkable high street or daily train commute will find options here more limited.";
+  } else if (isTransitLight) {
+    // Transit-light but may have amenities
+    const extraSignal = suitedParts.filter(p => !p.includes("commuter")).slice(0, 1);
+    suitedTo = extraSignal.length > 0
+      ? `Good fit for ${extraSignal[0]} and buyers comfortable with car-dependent commuting — the nearest station is ${stationWalkMins < 999 ? `${stationWalkMins} minutes away` : "not within easy walking distance"}.`
+      : `A quieter residential area suited to buyers comfortable with car-dependent commuting — worth weighing up if a daily train commute is part of your plans.`;
   } else if (suitedParts.length >= 2) {
     suitedTo = `${suitedParts.slice(0, 2).join(" and ").replace(/^./, c => c.toUpperCase())} will find a lot to like here.`;
   } else if (suitedParts.length === 1) {
@@ -285,7 +303,7 @@ function deriveOneGlance(
       : "A broad range of buyers, from first-time buyers to families, depending on budget and priorities.";
   }
 
-  // ── Price & demand situation ─────────────────────────────────────────────
+  // ── Price & demand situation ──────────────────────────────────────────────
   let priceAndDemand: string;
   const isRising = !isNaN(yoyNum) && yoyNum > 0;
   const isFalling = !isNaN(yoyNum) && yoyNum < 0;
@@ -310,12 +328,12 @@ function deriveOneGlance(
     priceAndDemand = `Average price is ${avgPrice} with ${supply} supply. The market here is broadly stable with no strong upward or downward pressure.`;
   }
 
-  // ── Main upsides ─────────────────────────────────────────────────────────
+  // ── Main upsides ──────────────────────────────────────────────────────────
   const upsideParts: string[] = [];
 
-  if (closestStation && closestStation.walkMins <= 8) {
+  if (closestStation && stationWalkMins <= 8) {
     const lineNote = closestStation.lines.length > 0 ? ` (${closestStation.lines.slice(0, 2).join(", ")})` : "";
-    upsideParts.push(`${closestStation.name}${lineNote} is a ${closestStation.walkMins}-minute walk`);
+    upsideParts.push(`${closestStation.name}${lineNote} is a ${stationWalkMins}-minute walk`);
   }
   if (topSchool) {
     upsideParts.push(`${topSchool.name} is rated ${topSchool.ofstedRating} by Ofsted and ${topSchool.walkMins <= 12 ? `${topSchool.walkMins} minutes away` : "within reach"}`);
@@ -326,8 +344,16 @@ function deriveOneGlance(
   if (airRating === "Good") {
     upsideParts.push("clean air — NO₂ and PM2.5 within WHO guidelines");
   }
+  // For transit-light areas: broadband is a meaningful upside (remote working viability)
+  if (isTransitLight && hasBroadbandStrength) {
+    upsideParts.push(`${ai.broadband!.rating.toLowerCase()} broadband (${ai.broadband!.avgDownloadSpeed}) — strong connectivity for home working`);
+  }
   if (closestPark && closestPark.walkMins <= 7) {
-    upsideParts.push(`${closestPark.name} is ${closestPark.walkMins} minutes on foot`);
+    // For amenity-light areas, frame the park as making up for lighter lifestyle options
+    const parkNote = isAmenityLight
+      ? `${closestPark.name} is ${closestPark.walkMins} minutes on foot — makes up for lighter amenity density`
+      : `${closestPark.name} is ${closestPark.walkMins} minutes on foot`;
+    upsideParts.push(parkNote);
   }
   if (!isNaN(yoyNum) && yoyNum >= 4) {
     upsideParts.push(`strong ${yoy} annual price growth`);
@@ -339,10 +365,13 @@ function deriveOneGlance(
   } else if (upsideParts.length === 1) {
     upsides = upsideParts[0].charAt(0).toUpperCase() + upsideParts[0].slice(1) + ". " + "The wider area has a solid foundation for long-term ownership.";
   } else {
-    upsides = "Solid residential foundations — check the full sections below for transport, schools, and environment details.";
+    // Concrete fallback using price and flood data rather than a generic placeholder
+    const floodNote = floodRisk === "Low" ? "low flood risk" : "flood risk worth checking";
+    const priceNote = !isNaN(yoyNum) && yoyNum > 0 ? `prices up ${yoy}` : `average price of ${avgPrice}`;
+    upsides = `${priceNote.charAt(0).toUpperCase() + priceNote.slice(1)} and ${floodNote} — a stable base for ownership. Review the full sections below for transport, schools, and environment details.`;
   }
 
-  // ── Main watch-outs ──────────────────────────────────────────────────────
+  // ── Main watch-outs ───────────────────────────────────────────────────────
   const watchParts: string[] = [];
 
   if (floodRisk === "High") {
@@ -359,6 +388,17 @@ function deriveOneGlance(
   }
   if (airRating === "Poor" || airRating === "Very Poor") {
     watchParts.push(`${airRating.toLowerCase()} air quality (NO₂ at ${String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}) — relevant for families and those with respiratory sensitivities`);
+  }
+  // Transit-light signal: flag car dependency explicitly
+  if (isTransitLight && !watchParts.some(w => w.includes("station") || w.includes("transport"))) {
+    const stationNote = stationWalkMins < 999
+      ? `the nearest station is ${stationWalkMins} minutes away`
+      : "there is no station within easy walking distance";
+    watchParts.push(`${stationNote} — most daily journeys will require a car`);
+  }
+  // Amenity-light signal: distinguish "few options" from "no essentials"
+  if (isAmenityLight && !watchParts.some(w => w.includes("amenity") || w.includes("café") || w.includes("restaurant"))) {
+    watchParts.push("few walkable cafés or restaurants — daily essentials are covered but lifestyle options are limited");
   }
   if (ai.investmentOutlook?.riskFlags?.length > 0) {
     watchParts.push(ai.investmentOutlook.riskFlags[0].replace(/^[A-Z]/, c => c.toLowerCase()));
@@ -949,9 +989,14 @@ function deriveStrengthsAndConsiderations(ai: BriefReport["areaIntelligence"]): 
   // Strong transport
   const transportRating = ai.neighbourhoodProfile?.transportRating ?? 0;
   const closestStation = ai.nearbyStations?.slice().sort((a, b) => a.walkMins - b.walkMins)?.[0];
-  if (transportRating >= 7 || (closestStation && closestStation.walkMins <= 8)) {
+  const stationWalkMins = closestStation?.walkMins ?? 999;
+  const isTransitLight = transportRating < 5 || stationWalkMins > 20;
+  const cafeCount = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
+  const isAmenityLight = cafeCount === 0;
+  const hasBroadbandStrength = ai.broadband?.rating === "Excellent" || ai.broadband?.rating === "Very Good";
+  if (transportRating >= 7 || (closestStation && stationWalkMins <= 8)) {
     const stationNote = closestStation
-      ? `${closestStation.name} is ${closestStation.walkMins} minutes on foot.`
+      ? `${closestStation.name} is ${stationWalkMins} minutes on foot.`
       : "Several stations are within easy walking distance.";
     strengths.push({
       label: "Well connected for commuters",
@@ -967,11 +1012,14 @@ function deriveStrengthsAndConsiderations(ai: BriefReport["areaIntelligence"]): 
     });
   }
 
-  // Good broadband
+  // Good broadband — for transit-light areas, frame as remote-working viability
   if (ai.broadband?.rating === "Excellent" || ai.broadband?.rating === "Very Good") {
+    const broadbandDetail = isTransitLight
+      ? `Average download speeds of ${ai.broadband.avgDownloadSpeed}, with ${ai.broadband.fullFibreAvailability} full-fibre availability — a meaningful upside if you work from home.`
+      : `Average download speeds of ${ai.broadband.avgDownloadSpeed}, with ${ai.broadband.fullFibreAvailability} full-fibre availability.`;
     strengths.push({
-      label: `${ai.broadband.rating.toLowerCase()} broadband`,
-      detail: `Average download speeds of ${ai.broadband.avgDownloadSpeed}, with ${ai.broadband.fullFibreAvailability} full-fibre availability.`,
+      label: isTransitLight ? "Strong broadband — well suited to home working" : `${ai.broadband.rating.toLowerCase()} broadband`,
+      detail: broadbandDetail,
     });
   }
 
@@ -1066,6 +1114,25 @@ function deriveStrengthsAndConsiderations(ai: BriefReport["areaIntelligence"]): 
     considerations.push({
       label: "School ratings to consider",
       detail: `No Outstanding or Good-rated Ofsted schools within a 20-minute walk. Worth checking the wider catchment if schools are a priority.`,
+    });
+  }
+
+  // Rail access limited — flag car dependency
+  if (isTransitLight) {
+    const stationNote = stationWalkMins < 999
+      ? `The nearest station is a ${stationWalkMins}-minute walk — most daily journeys will require a car.`
+      : "There is no station within easy walking distance — car dependency is high for commuting.";
+    considerations.push({
+      label: "Rail access limited",
+      detail: stationNote + (hasBroadbandStrength ? " Strong broadband partly offsets this for home workers." : ""),
+    });
+  }
+
+  // Lighter amenity density — distinguish essentials vs lifestyle
+  if (isAmenityLight) {
+    considerations.push({
+      label: "Lighter amenity density",
+      detail: "Few walkable cafés or restaurants in the immediate area. Daily essentials are covered, but lifestyle options — coffee shops, dining, evening venues — are limited within walking distance.",
     });
   }
 
