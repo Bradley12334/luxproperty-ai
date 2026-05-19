@@ -154,12 +154,15 @@ export interface AreaIntelligence {
     note: string;
   };
 
-  /** Nearby Development Tracker — Investor */
+  /** Nearby Development Tracker — Professional+ */
   nearbyDevelopments: Array<{
     name: string;
-    type: string;               // "Residential", "Transport", "Commercial", "Mixed-use"
-    status: string;             // "Under construction", "Planning approved", "Proposed"
-    impact: "Positive" | "Neutral" | "Monitor";
+    type: string;               // "Residential", "Transport", "Commercial", "Mixed-use", "Road/Access", "Infrastructure"
+    status: string;             // "Under construction", "Planning approved", "Proposed", "Pre-application"
+    impact: "Positive" | "Neutral" | "Monitor";  // legacy compat
+    impactLabel: "upside" | "disruption" | "mixed" | "unclear"; // NEW: buyer-facing classification
+    impactRationale: string;    // NEW: plain-English sentence explaining why it matters
+    distanceM?: number;         // NEW: approximate metres from subject property/postcode
     detail: string;
   }>;
 

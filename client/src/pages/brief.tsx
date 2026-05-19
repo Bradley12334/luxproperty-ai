@@ -66,6 +66,7 @@ import { WalkScore, calculateWalkScore } from "@/components/walk-score";
 import { CrimeSparkline } from "@/components/crime-sparkline";
 import { MortgageCalculator } from "@/components/mortgage-calculator";
 import { StreetPriceRanking } from "@/components/street-price-ranking";
+import { NearbyDevelopmentTracker, sortDevs, IMPACT_META, fmtDistance } from "@/components/nearby-development-tracker";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 
 function SkeletonReport() {
@@ -884,6 +885,47 @@ function exportToPDF(
   </div>`;
   })();
 
+  // ── Development Tracker PDF section ──────────────────────────────────────────
+  const pdfDevelopmentTrackerSection = (() => {
+    const devs = ai.nearbyDevelopments;
+    if (!devs || devs.length === 0) return "";
+    const real = devs.filter(d => d.name !== "No major schemes on record");
+    if (real.length === 0) return "";
+    const sorted = sortDevs(devs);
+    const IMPACT_COLOURS: Record<string, { bg: string; text: string; label: string }> = {
+      upside:    { bg: "#d1fae5", text: "#065f46", label: "Likely upside" },
+      disruption:{ bg: "#fee2e2", text: "#991b1b", label: "Disruption risk" },
+      mixed:     { bg: "#fef3c7", text: "#92400e", label: "Mixed impact" },
+      unclear:   { bg: "#f3f4f6", text: "#374151", label: "Impact unclear" },
+    };
+    const rows = sorted
+      .filter(d => d.name !== "No major schemes on record")
+      .map(dev => {
+        const col = IMPACT_COLOURS[dev.impactLabel ?? "unclear"] ?? IMPACT_COLOURS.unclear;
+        const dist = dev.distanceM ? (dev.distanceM < 1000 ? `~${Math.round(dev.distanceM / 50) * 50}m` : `~${(dev.distanceM / 1000).toFixed(1)}km`) : "";
+        return `
+          <div style="border-left:3px solid ${col.text};background:${col.bg}20;border-radius:6px;padding:10px 12px;margin-bottom:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:700;color:#111827">${dev.name}</span>
+              <span style="font-size:10px;font-weight:600;background:${col.bg};color:${col.text};padding:2px 7px;border-radius:999px">${col.label}</span>
+              ${dev.type !== "—" ? `<span style="font-size:10px;font-weight:600;background:#e5e7eb;color:#374151;padding:2px 7px;border-radius:999px">${dev.type}</span>` : ""}
+              <span style="font-size:10px;color:#6b7280">${dev.status}</span>
+              ${dist ? `<span style="font-size:10px;color:#6b7280;margin-left:auto">${dist}</span>` : ""}
+            </div>
+            <p style="font-size:11px;color:#1f2937;line-height:1.55;margin:0 0 4px">${dev.impactRationale}</p>
+            <p style="font-size:10px;color:#6b7280;line-height:1.5;margin:0">${dev.detail}</p>
+          </div>`;
+      })
+      .join("");
+    return `
+  <div class="section">
+    <div class="section-label">Nearby Development Tracker</div>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:10px">Major consented and in-progress schemes near this property, classified by likely buyer impact.</p>
+    ${rows}
+    <p style="font-size:10px;color:#9ca3af;margin-top:8px">Development data is derived from curated major schemes and live planning registers. Minor applications and early-stage proposals may not appear here. Always verify with the council planning portal before exchange.</p>
+  </div>`;
+  })();
+
   const crimeSection = ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 ? `
   <div class="section">
     <div class="section-label">Crime Statistics</div>
@@ -1156,6 +1198,8 @@ function exportToPDF(
 ${offerStrategyHtml}` : ""}
 
   ${pdfSoldPricesSection}
+
+  ${pdfDevelopmentTrackerSection}
 
   <div class="section">
     <div class="section-label">Flood &amp; Climate Risk</div>
@@ -3346,56 +3390,33 @@ export default function BriefPage() {
               </div>
             )}
 
-            {/* Nearby Development Tracker — Investor */}
-            {isInvestor ? (
-              <CollapsibleSection title="Development Tracker" testId="section-developments">
-                <div className="flex flex-col gap-3">
-                  {ai.nearbyDevelopments.map((dev, i) => {
-                    const isNoSchemesEntry = dev.name === "No major schemes on record";
-                    return isNoSchemesEntry ? (
-                      <div key={i} className="flex items-center gap-3 py-2">
-                        <Construction className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-                        <p className="text-sm text-muted-foreground italic">{dev.detail}</p>
-                      </div>
-                    ) : (
-                      <div key={i} className="flex gap-3 p-3 rounded-lg border border-border bg-card">
-                        <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
-                          dev.impact === "Positive" ? "bg-green-500" : dev.impact === "Monitor" ? "bg-amber-500" : "bg-muted-foreground"
-                        }`} />
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">{dev.name}</span>
-                            {dev.type !== "—" && <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{dev.type}</span>}
-                            <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
-                              dev.impact === "Positive" ? "bg-green-500/15 text-green-700 dark:text-green-400" :
-                              dev.impact === "Monitor" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                              "bg-muted text-muted-foreground"
-                            }`}>{dev.impact}</span>
-                          </div>
-                          {dev.status !== "—" && <span className="text-xs text-muted-foreground">{dev.status}</span>}
-                          <p className="text-xs text-muted-foreground leading-relaxed">{dev.detail}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            {/* ── Nearby Development Tracker — Professional+ ───────────────────── */}
+            {isPaid ? (
+              <CollapsibleSection title="Nearby Development Tracker" testId="section-developments">
+                <NearbyDevelopmentTracker
+                  developments={ai.nearbyDevelopments}
+                  councilPortalUrl={ai.planningActivity?.councilPortalUrl}
+                />
               </CollapsibleSection>
             ) : (
               <div className="relative" data-testid="section-developments-locked">
                 <div className="blur-sm pointer-events-none select-none opacity-60">
                   <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2 mb-3">
                       <Construction className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Development Tracker</h3>
+                      <h3 className="font-semibold text-sm">Nearby Development Tracker</h3>
                     </div>
-                    <div className="h-24 bg-muted rounded" />
+                    <div className="flex flex-col gap-2">
+                      <div className="h-14 bg-muted rounded-lg" />
+                      <div className="h-14 bg-muted/60 rounded-lg" />
+                    </div>
                   </Card>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
-                    <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Development tracker — Investor</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Pipeline and local-change signals that affect area trajectory.</p>
+                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[240px]">
+                    <Construction className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                    <p className="text-xs font-semibold text-foreground">Development tracker — Professional</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Major nearby schemes with impact classification — upside, disruption, or mixed.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>

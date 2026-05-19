@@ -651,6 +651,119 @@ function deriveLifestyleFit(
 }
 
 
+// ─── Development Tracker Impact Engine ──────────────────────────────────────
+// Classifies each nearby development with a buyer-facing impactLabel and a
+// plain-English impactRationale sentence. Works on both curated enrichment data
+// and live API results from planning-activity.js.
+// Rules:
+//   Residential large → more homes nearby; can be upside (regeneration) or mixed (density/supply)
+//   Transport upgrade  → upside; connectivity improvement, long-run value signal
+//   Commercial/Mixed   → mixed or upside depending on scale and existing context
+//   Road/Infrastructure → often disruption in short term, may be mixed long-term
+//   Monitor impact     → always classifies as disruption
+//   Neutral impact     → maps to unclear or upside based on type
+type DevEntry = {
+  name: string;
+  type: string;
+  status: string;
+  impact: "Positive" | "Neutral" | "Monitor";
+  impactLabel?: "upside" | "disruption" | "mixed" | "unclear";
+  impactRationale?: string;
+  distanceM?: number;
+  detail: string;
+};
+
+function enrichDevelopments(devs: DevEntry[]): Required<DevEntry>[] {
+  return devs.map(dev => {
+    // If already enriched, pass through
+    if (dev.impactLabel && dev.impactRationale) {
+      return dev as Required<DevEntry>;
+    }
+
+    const t = dev.type.toLowerCase();
+    const s = dev.status.toLowerCase();
+    const leg = dev.impact;
+    const d = dev.detail.toLowerCase();
+
+    // 1. legacy "Monitor" always = disruption
+    if (leg === "Monitor") {
+      const label: DevEntry["impactLabel"] = "disruption";
+      let rationale = "Likely to increase short-term disruption — construction noise, access changes, or character shift are possible while this scheme progresses.";
+      if (t.includes("transport") || t.includes("road")) {
+        rationale = "Road or transport works typically mean construction noise and disruption during delivery. Long-run connectivity gain is possible but not certain — worth checking the scheme timeline before offering.";
+      } else if (t.includes("residential")) {
+        rationale = "Significant additional homes nearby may alter area density, increase parking pressure, and change the local feel. Worth assessing the scale and proximity before committing.";
+      } else if (t.includes("commercial")) {
+        rationale = "A commercial scheme close by may bring construction disruption, increased traffic, and noise during build-out. The longer-term impact on local convenience and footfall is uncertain at this stage.";
+      }
+      return { ...dev, impactLabel: label, impactRationale: rationale, distanceM: dev.distanceM ?? undefined };
+    }
+
+    // 2. Positive legacy + type classification
+    if (leg === "Positive") {
+      if (t.includes("transport") || t.includes("infrastructure")) {
+        return {
+          ...dev,
+          impactLabel: "upside",
+          impactRationale: "Transport upgrades typically improve accessibility, reduce commute times, and support long-run value growth. A confirmed scheme is a strong positive signal for buyers with connectivity priorities.",
+          distanceM: dev.distanceM ?? undefined,
+        };
+      }
+      if (t.includes("residential")) {
+        // Large residential — nuanced. Upside if regeneration context, mixed if supply risk
+        const isRegen = d.includes("regenerat") || d.includes("affordable") || d.includes("legacy") || d.includes("masterplan");
+        if (isRegen) {
+          return {
+            ...dev,
+            impactLabel: "upside",
+            impactRationale: "A regeneration-led residential scheme in the area can improve local amenity, attract investment, and strengthen long-run appeal. New public space and facilities often accompany large consented schemes.",
+            distanceM: dev.distanceM ?? undefined,
+          };
+        }
+        return {
+          ...dev,
+          impactLabel: "mixed",
+          impactRationale: "More homes nearby may increase local density and affect parking, but can also bring new amenity and footfall. Net impact depends on scheme scale and proximity — worth checking distance and construction timeline.",
+          distanceM: dev.distanceM ?? undefined,
+        };
+      }
+      if (t.includes("commercial") || t.includes("mixed")) {
+        return {
+          ...dev,
+          impactLabel: "mixed",
+          impactRationale: "Commercial and mixed-use schemes can improve local convenience, jobs, and long-run vibrancy. There is typically construction disruption during delivery and some schemes create sustained traffic or noise — worth checking the proximity and access routes.",
+          distanceM: dev.distanceM ?? undefined,
+        };
+      }
+      if (t.includes("road") || t.includes("access")) {
+        return {
+          ...dev,
+          impactLabel: "mixed",
+          impactRationale: "Road improvements may improve local access and traffic flow over time but often involve construction disruption, temporary access restrictions, and noise during build. Monitor the scheme timeline.",
+          distanceM: dev.distanceM ?? undefined,
+        };
+      }
+      // Generic positive
+      return {
+        ...dev,
+        impactLabel: "upside",
+        impactRationale: "This scheme is expected to improve local conditions. Verify the timeline and construction programme before committing, as there may be short-term disruption before the benefit materialises.",
+        distanceM: dev.distanceM ?? undefined,
+      };
+    }
+
+    // 3. Neutral legacy
+    // Transport neutral = unclear, residential neutral = unclear
+    return {
+      ...dev,
+      impactLabel: "unclear",
+      impactRationale: "The likely impact of this scheme on the immediate area is not yet clear. Where impact is uncertain, buyers should check the council portal for the current application status before offering.",
+      distanceM: dev.distanceM ?? undefined,
+    };
+  });
+}
+
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -2022,13 +2135,15 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       score: tier === "prime" ? 8 : tier === "premium" ? 7 : 6,
       note: `Score and days-to-let are estimated from area tier, postcode density, and prevailing market conditions — not from live listings data. Use as a directional indicator rather than a precise figure. Location-specific letting velocity for ${areaName} will improve as our dataset expands.`,
     },
-    nearbyDevelopments: (
-      livePlanningActivity?.developments && livePlanningActivity.developments.length > 0
-        ? livePlanningActivity.developments
-        : enrichmentProfile?.nearbyDevelopments
-    ) ?? [
-      { name: "No major schemes on record", type: "—", status: "Current", impact: "Neutral" as const, detail: `No significant consented schemes were found near ${areaName} in our current dataset. Use the planning portal link in the Planning Activity section to verify recent applications.` },
-    ],
+    nearbyDevelopments: enrichDevelopments(
+      (
+        livePlanningActivity?.developments && livePlanningActivity.developments.length > 0
+          ? livePlanningActivity.developments
+          : enrichmentProfile?.nearbyDevelopments
+      ) ?? [
+        { name: "No major schemes on record", type: "—", status: "Current", impact: "Neutral" as const, impactLabel: "unclear" as const, impactRationale: `No significant consented schemes were identified near ${areaName}. Use the council portal link to check for recent applications before exchange.`, detail: `No significant consented schemes were found near ${areaName} in our current dataset. Use the planning portal link in the Planning Activity section to verify recent applications.` },
+      ]
+    ),
     recentSoldPrices: liveSoldPrices.length > 0 ? liveSoldPrices : (enrichmentProfile?.recentSoldPrices ?? []),
 
     // ── Live Local Amenities ──────────────────────────────────────────────────
@@ -2142,13 +2257,25 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       });
     }
 
-    // Nearby developments with monitoring impact
-    const negativeDev = areaIntelligence.nearbyDevelopments.filter(d => d.impact === "Monitor");
-    if (negativeDev.length > 0) {
-      const names = negativeDev.slice(0, 2).map(d => d.name).join(", ");
+    // Nearby developments — disruption or uncertain material schemes
+    const disruptionDevs = areaIntelligence.nearbyDevelopments.filter(
+      d => d.impactLabel === "disruption" || (d.impactLabel === undefined && d.impact === "Monitor")
+    );
+    const mixedDevs = areaIntelligence.nearbyDevelopments.filter(
+      d => d.impactLabel === "mixed" && d.name !== "No major schemes on record"
+    );
+    if (disruptionDevs.length > 0) {
+      const names = disruptionDevs.slice(0, 2).map(d => d.name).join(", ");
       flags.push({
-        label: negativeDev.length > 1 ? `${negativeDev.length} nearby developments to monitor` : "Nearby development — monitor",
-        detail: `${names}${negativeDev.length > 2 ? " and others" : ""} — ${negativeDev.length > 1 ? "these schemes are" : "this scheme is"} flagged for monitoring. Assess whether construction, increased density, or change of character could affect the property’s value or liveability.`,
+        label: disruptionDevs.length > 1 ? `${disruptionDevs.length} nearby developments — disruption risk` : "Nearby development — disruption risk",
+        detail: `${names}${disruptionDevs.length > 2 ? " and others" : ""} — ${disruptionDevs.length > 1 ? "these schemes are" : "this scheme is"} likely to bring construction disruption, noise, or local character change. Check proximity, timeline, and construction programme before offering.`,
+        severity: "medium",
+      });
+    } else if (mixedDevs.length >= 2) {
+      const names = mixedDevs.slice(0, 2).map(d => d.name).join(", ");
+      flags.push({
+        label: `${mixedDevs.length} nearby development${mixedDevs.length > 1 ? "s" : ""} — mixed impact`,
+        detail: `${names}${mixedDevs.length > 2 ? " and others" : ""} — ${mixedDevs.length > 1 ? "these schemes have" : "this scheme has"} uncertain net impact. Review the development tracker section for detail before committing.`,
         severity: "medium",
       });
     }
