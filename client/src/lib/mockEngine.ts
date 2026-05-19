@@ -1283,6 +1283,44 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         ? `${areaName} is outside England and Wales. HM Land Registry data does not apply. Engage a local solicitor and RICS-accredited surveyor familiar with ${country} conveyancing law.`
         : `${areaName} is an established residential area. Low transaction volume limits statistical confidence — supplement this report with local agent intelligence and Rightmove sold prices before committing.`,
 
+    // ── Explorer Verdict ────────────────────────────────────────────────────
+    explorerVerdict: (() => {
+      // Derive a simple Good fit / Mixed / Limited fit label from signals
+      const floodBad = (liveFloodRisk?.riskBadge === "High" || liveFloodRisk?.riskBadge === "Medium");
+      const priceUp = yoyChange.startsWith("+");
+      const highTier = tier === "prime" || tier === "premium";
+      const lowVolume = !hasData;
+      const strongDemand = demandSignal === "High" || demandSignal === "Very High";
+
+      let label: "Good fit" | "Mixed" | "Limited fit";
+      let rationale: string;
+
+      if (outsideEnglandWales || lowVolume) {
+        label = "Mixed";
+        rationale = `${areaName} has limited Land Registry data available. The area may be worth exploring further, but independent price research via Rightmove and local agents is advised before drawing conclusions.`;
+      } else if (floodBad && !priceUp) {
+        label = "Limited fit";
+        rationale = `${areaName} shows ${yoyChange} price movement over the past year and carries ${liveFloodRisk?.riskBadge ?? "elevated"} flood risk. These factors together reduce its attractiveness as a first-choice area — worth investigating alternatives before committing further.`;
+      } else if (highTier && priceUp && !floodBad) {
+        label = "Good fit";
+        rationale = `${areaName} is a ${tier} market with ${yoyChange} year-on-year price movement and strong demand signals. It appears worth looking at further — run a Professional brief before making any offer.`;
+      } else if (priceUp && strongDemand && !floodBad) {
+        label = "Good fit";
+        rationale = `${areaName} shows positive price momentum (${yoyChange} year-on-year) and ${demandSignal.toLowerCase()} demand. The area passes a basic screen — it looks worth exploring further with a full buyer brief.`;
+      } else if (!priceUp && !floodBad) {
+        label = "Mixed";
+        rationale = `${areaName} shows ${yoyChange} year-on-year price movement in a ${tier} market. Conditions are mixed — there may be buying opportunity here, but verify comparable prices and local context before proceeding.`;
+      } else if (floodBad) {
+        label = "Mixed";
+        rationale = `${areaName} carries ${liveFloodRisk?.riskBadge ?? "elevated"} flood risk, though price momentum is ${priceUp ? "positive" : "soft"} (${yoyChange} year-on-year). Factor insurance costs and mortgage lender restrictions into your assessment before going further.`;
+      } else {
+        label = "Mixed";
+        rationale = `${areaName} is an established ${tier} market. Nothing stands out as a strong signal either way — run a Professional brief for the full picture before committing.`;
+      }
+
+      return { label, rationale };
+    })(),
+
     // ── Enrichment Data ─────────────────────────────────────────────────────
     floodRisk: liveFloodRisk ?? enrichmentProfile?.floodRisk ?? {
       zone: isLondon ? "Zone 1 (Low)" : "Zone 1 (Low)",

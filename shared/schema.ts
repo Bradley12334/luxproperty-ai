@@ -62,6 +62,12 @@ export interface AreaIntelligence {
   };
   verdict: string;
 
+  /** Explorer verdict — simple area screening judgement for free tier */
+  explorerVerdict: {
+    label: "Good fit" | "Mixed" | "Limited fit";
+    rationale: string; // 1–2 sentences, plain English
+  };
+
   // ── Enrichment Data (Phase 2) ─────────────────────────────────────────────
 
   /** Flood & Climate Risk — EA flood zone + surface water */

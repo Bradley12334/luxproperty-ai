@@ -527,6 +527,49 @@ function BuyerSummaryBlock({
   );
 }
 
+// ── Explorer Verdict Block ───────────────────────────────────────────────────
+// Prominently shown to all users (including free). Simple area screening judgement.
+function ExplorerVerdictBlock({
+  explorerVerdict,
+}: {
+  explorerVerdict: BriefReport["areaIntelligence"]["explorerVerdict"];
+}) {
+  const { label, rationale } = explorerVerdict;
+  const isGood = label === "Good fit";
+  const isLimited = label === "Limited fit";
+
+  const colors = isGood
+    ? { pill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", border: "border-emerald-500/20", bg: "bg-emerald-50/30 dark:bg-emerald-950/10", dot: "bg-emerald-500" }
+    : isLimited
+    ? { pill: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25", border: "border-red-400/20", bg: "bg-red-50/20 dark:bg-red-950/10", dot: "bg-red-500" }
+    : { pill: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30", border: "border-amber-500/20", bg: "bg-amber-50/30 dark:bg-amber-950/10", dot: "bg-amber-500" };
+
+  return (
+    <div
+      className={`rounded-xl border ${colors.border} ${colors.bg} px-5 sm:px-6 py-4 sm:py-5`}
+      data-testid="section-explorer-verdict"
+    >
+      <div className="flex items-start gap-3.5">
+        {/* Coloured dot */}
+        <div className={`mt-1.5 h-2.5 w-2.5 rounded-full shrink-0 ${colors.dot}`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              Area Screen
+            </span>
+            <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${colors.pill}`}>
+              {label}
+            </span>
+          </div>
+          <p className="text-sm text-foreground/90 leading-relaxed">
+            {rationale}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Small inline pill shown next to KPI labels that are modelled/benchmarked rather than directly measured */
 function EstimateTag() {
   return (
@@ -1488,11 +1531,16 @@ export default function BriefPage() {
             {/* Buyer Summary — decision-oriented executive readout, always first */}
             <BuyerSummaryBlock ai={ai} isPropertyReport={!!isPropertyReport} />
 
-            {/* At a Glance — lifestyle panel */}
-            <LifestyleGlance ai={ai} report={report} />
+            {/* Explorer Verdict — shown to all users, top-level area screening judgement */}
+            <ExplorerVerdictBlock explorerVerdict={ai.explorerVerdict} />
 
-            {/* Strengths & Considerations — synthesised from report data */}
-            <StrengthsAndConsiderations ai={ai} />
+            {/* At a Glance + Strengths & Considerations — paid only (Explorer stays lean) */}
+            {isPaid && (
+              <>
+                <LifestyleGlance ai={ai} report={report} />
+                <StrengthsAndConsiderations ai={ai} />
+              </>
+            )}
 
             {/* Executive Summary */}
             <Card className="p-5 sm:p-6" data-testid="section-executive-summary">
@@ -1544,9 +1592,14 @@ export default function BriefPage() {
               </Card>
             )}
 
-            {/* Price Trend */}
+            {/* Price Trend — Explorer shows last 1 year; Professional shows full 5-year */}
             <Card className="p-5 sm:p-6" data-testid="section-price-trend">
-              <SectionHeading>5-Year Price Trend</SectionHeading>
+              <SectionHeading>{isPaid ? "5-Year Price Trend" : "1-Year Price Trend"}</SectionHeading>
+              {!isPaid && (
+                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                  Most recent Land Registry price data for this postcode. Professional unlocks the full 5-year history.
+                </p>
+              )}
               <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
                 <table className="w-full text-sm" data-testid="table-price-trend">
                   <thead>
@@ -1557,7 +1610,7 @@ export default function BriefPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ai.priceTrend.map((row) => (
+                    {(isPaid ? ai.priceTrend : ai.priceTrend.slice(-1)).map((row) => (
                       <tr key={row.year} className="border-b border-border/30 last:border-0">
                         <td className="py-2.5 pr-4 tabular-nums">{row.year}</td>
                         <td className="py-2.5 pr-4 font-serif text-lg">{row.averagePrice}</td>
@@ -1571,11 +1624,18 @@ export default function BriefPage() {
                   </tbody>
                 </table>
               </div>
+              {!isPaid && (
+                <Link href="/pricing">
+                  <p className="text-xs text-primary underline underline-offset-2 mt-3">
+                    Unlock 5-year history with Professional →
+                  </p>
+                </Link>
+              )}
             </Card>
 
-            {/* Neighbourhood Profile — collapsible */}
+            {/* Neighbourhood Profile — Explorer: ratings + 3 key facts; Professional: full detail */}
             <CollapsibleSection title="Neighbourhood Profile" testId="section-neighbourhood">
-              {/* Ratings strip */}
+              {/* Ratings strip — shown to all */}
               <div className="space-y-3 mb-6 pb-6 border-b border-border/40">
                 {[
                   { icon: GraduationCap, label: "Schools", value: ai.neighbourhoodProfile.schoolsRating },
@@ -1593,7 +1653,7 @@ export default function BriefPage() {
                 ))}
               </div>
 
-              {/* Walk Score — computed from live data */}
+              {/* Walk Score — shown to all */}
               {(ai.nearbyStations?.length > 0 || ai.nearbySchools?.length > 0 || ai.nearbyAmenities) && (
                 <div className="mb-6 pb-6 border-b border-border/40">
                   <WalkScore
@@ -1604,28 +1664,51 @@ export default function BriefPage() {
                 </div>
               )}
 
-              {/* Rich descriptions grid */}
-              <div className="grid gap-5 sm:grid-cols-2">
-                {[
-                  { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character, fallback: false },
-                  { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities, fallback: false },
-                  { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport, fallback: false },
-                  { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace, fallback: false },
-                  { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools, fallback: false },
-                  { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics, fallback: false },
-                  { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife, fallback: false },
-                  { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment, fallback: false },
-                  { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment, fallback: ai.neighbourhoodProfile.residentSentiment.includes("coverage for") || ai.neighbourhoodProfile.residentSentiment.includes("not yet included") },
-                ].map((item) => (
-                  <div key={item.label} className={`flex flex-col gap-1.5 ${item.fallback ? "opacity-60" : ""}`}>
-                    <div className="flex items-center gap-1.5">
-                      <item.icon className={`h-3.5 w-3.5 shrink-0 ${item.fallback ? "text-muted-foreground" : "text-primary"}`} />
-                      <span className={`text-xs font-semibold uppercase tracking-[0.12em] ${item.fallback ? "text-muted-foreground" : "text-primary"}`}>{item.label}</span>
+              {isPaid ? (
+                /* Professional+: full 9-subsection neighbourhood deep-dive */
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {[
+                    { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character, fallback: false },
+                    { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities, fallback: false },
+                    { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport, fallback: false },
+                    { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace, fallback: false },
+                    { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools, fallback: false },
+                    { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics, fallback: false },
+                    { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife, fallback: false },
+                    { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment, fallback: false },
+                    { icon: MessageSquare, label: "What Residents Say", text: ai.neighbourhoodProfile.residentSentiment, fallback: ai.neighbourhoodProfile.residentSentiment.includes("coverage for") || ai.neighbourhoodProfile.residentSentiment.includes("not yet included") },
+                  ].map((item) => (
+                    <div key={item.label} className={`flex flex-col gap-1.5 ${item.fallback ? "opacity-60" : ""}`}>
+                      <div className="flex items-center gap-1.5">
+                        <item.icon className={`h-3.5 w-3.5 shrink-0 ${item.fallback ? "text-muted-foreground" : "text-primary"}`} />
+                        <span className={`text-xs font-semibold uppercase tracking-[0.12em] ${item.fallback ? "text-muted-foreground" : "text-primary"}`}>{item.label}</span>
+                      </div>
+                      <p className={`leading-relaxed ${item.fallback ? "text-xs text-muted-foreground italic" : "text-sm text-muted-foreground"}`}>{item.text}</p>
                     </div>
-                    <p className={`leading-relaxed ${item.fallback ? "text-xs text-muted-foreground italic" : "text-sm text-muted-foreground"}`}>{item.text}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                /* Explorer: 3 key facts — character, transport, schools */
+                <div className="flex flex-col gap-5">
+                  {[
+                    { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
+                    { icon: Train, label: "Transport", text: ai.neighbourhoodProfile.transport },
+                    { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
+                  ].map((item) => (
+                    <div key={item.label} className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <item.icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground/60 border-t border-border/40 pt-3">
+                    Full neighbourhood detail — shops & amenities, green space, demographics, evening scene, buyer notes, and resident sentiment — available in Professional.
+                    <Link href="/pricing"> <span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                  </p>
+                </div>
+              )}
             </CollapsibleSection>
 
             {/* ── FREE TIER SECTIONS ──────────────────────────────────────── */}
@@ -1702,8 +1785,8 @@ export default function BriefPage() {
               </div>
             </CollapsibleSection>
 
-            {/* Property Type Split */}
-            <CollapsibleSection title="Property Type Split" testId="section-property-types">
+            {/* Property Type Split — Professional+ only */}
+            {isPaid && <CollapsibleSection title="Property Type Split" testId="section-property-types">
               <div className="flex flex-col gap-4">
                 <p className={`text-sm ${ai.propertyTypeSplit.dominantType.includes("Indicative") || ai.propertyTypeSplit.dominantType.includes("indicative") || ai.propertyTypeSplit.dominantType.includes("limited") ? "text-muted-foreground italic text-xs" : "text-muted-foreground"}`}>{ai.propertyTypeSplit.dominantType}</p>
                 <div className="flex flex-col gap-2.5">
@@ -1729,44 +1812,68 @@ export default function BriefPage() {
                   ))}
                 </div>
               </div>
-            </CollapsibleSection>
+            </CollapsibleSection>}
 
-            {/* Commute Calculator */}
-            <CollapsibleSection title="Commute Calculator" testId="section-commute">
-              <div className="flex flex-col gap-3">
-                <p className="text-xs text-muted-foreground">Journey times from the postcode centre to key destinations.</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Destination</th>
-                        <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Time</th>
-                        <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Mode</th>
-                        <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2">Via</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ai.commuteTable.map((row, i) => (
-                        <tr key={i} className="border-b border-border/50 last:border-0">
-                          <td className="py-2.5 pr-4 font-medium text-foreground">{row.destination}</td>
-                          <td className="py-2.5 pr-4">
-                            <span className="inline-flex items-center gap-1 text-[#B8860B] font-bold">
-                              <Clock className="h-3 w-3" />
-                              {row.time}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-4 text-muted-foreground">{row.mode}</td>
-                          <td className="py-2.5 text-muted-foreground text-xs">{row.via}</td>
+            {/* Commute — Explorer: simple note; Professional+: full calculator */}
+            {isPaid ? (
+              /* Professional+: full commute calculator */
+              <CollapsibleSection title="Commute Calculator" testId="section-commute">
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs text-muted-foreground">Journey times from the postcode centre to key destinations.</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Destination</th>
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Time</th>
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Mode</th>
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2">Via / Notes</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {ai.commuteTable.map((row, i) => (
+                          <tr key={i} className="border-b border-border/40 last:border-0">
+                            <td className="py-2.5 pr-4 font-medium">{row.destination}</td>
+                            <td className="py-2.5 pr-4">{row.time}</td>
+                            <td className="py-2.5 pr-4 text-muted-foreground">{row.mode}</td>
+                            <td className="py-2.5 text-muted-foreground text-xs">{row.via}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3 mt-2">
+                    Commute times are indicative journey planning estimates. For a specific address, verify via Google Maps or National Rail using the actual departure point.
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3 mt-2">
-                  Commute times are indicative journey planning estimates. For a specific address, verify via Google Maps or National Rail using the actual departure point.
-                </p>
-              </div>
-            </CollapsibleSection>
+              </CollapsibleSection>
+            ) : (
+              /* Explorer: simple commute note */
+              <CollapsibleSection title="Commute" testId="section-commute">
+                <div className="flex flex-col gap-3">
+                  {ai.commuteTable.length > 0 && ai.commuteTable[0].destination !== "Town / City Centre" ? (
+                    <div className="flex items-start gap-3">
+                      <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm text-foreground font-medium">{ai.commuteTable[0].destination}</p>
+                        <p className="text-sm text-muted-foreground">{ai.commuteTable[0].time} by {ai.commuteTable[0].mode}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <p className="text-sm text-muted-foreground">
+                        Journey times depend on your exact address. Check the Nearby Stations section for the closest rail connections, then verify door-to-door via Google Maps.
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground/60">
+                    Full commute calculator with times to multiple destinations available in Professional.{" "}
+                    <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                  </p>
+                </div>
+              </CollapsibleSection>
+            )}
 
 
             {/* ── UNIVERSAL DATA SECTIONS ──────────────────────────────── */}
@@ -1985,8 +2092,8 @@ export default function BriefPage() {
               </CollapsibleSection>
             )}
 
-            {/* ── Crime Statistics ─────────────────────────────────────────────── */}
-            {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
+            {/* ── Crime Statistics — Professional+ ────────────────────────────── */}
+            {isPaid && ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
               <CollapsibleSection title="Crime Statistics" testId="section-crime-unavailable">
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
                   <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
@@ -1997,7 +2104,7 @@ export default function BriefPage() {
                 </div>
               </CollapsibleSection>
             )}
-            {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 && (
+            {isPaid && ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 && (
               <CollapsibleSection title="Crime Statistics" testId="section-crime">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -2724,10 +2831,10 @@ export default function BriefPage() {
                       <Lock className="h-5 w-5 text-primary" />
                     </div>
                     <h3 className="font-serif text-lg tracking-tight mb-2">
-                      Complete your buyer brief
+                      Ready to go deeper?
                     </h3>
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                      You're seeing the free layers. Professional adds the sections that matter most before an offer: 5-year price trend, comparable sales, valuation range, planning activity, crime context, negotiation brief, and PDF export. Any UK postcode. £4.99/month.
+                      Explorer gives you the area screen. Professional gives you the full buyer brief: 5-year price trend, crime breakdown, comparable sales, planning activity, negotiation brief, and PDF export. Any UK postcode. £4.99/month.
                     </p>
                     <div className="space-y-2">
                       <a href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00" target="_blank" rel="noopener noreferrer">

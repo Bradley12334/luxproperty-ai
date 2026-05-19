@@ -10,7 +10,7 @@ const tiers = [
     name: "Explorer",
     price: "Free",
     period: "",
-    description: "For casual browsers and first-time visitors. Run up to 3 briefs a month and see exactly what the product does — no card required.",
+    description: "Run a quick area screen on any UK postcode. Is it worth looking at further? You'll know within seconds. 3 briefs a month, no card required.",
     badge: null,
     style: "default",
     cta: "Start Free",
@@ -51,22 +51,23 @@ interface FeatureRow {
 const features: FeatureRow[] = [
   // ── Explorer (free) ─────────────────────────────────────────────────────────
   { feature: "Briefs per month", explorer: "3", professional: "Unlimited", investor: "Unlimited" },
-  { feature: "Area intelligence report", explorer: true, professional: true, investor: true },
-  { feature: "Market overview (price, YoY change, supply)", explorer: true, professional: true, investor: true },
-  { feature: "Neighbourhood profile & local character", explorer: true, professional: true, investor: true },
-  { feature: "What residents say", explorer: true, professional: true, investor: true },
+  { feature: "Area screening brief — Good fit / Mixed / Limited fit verdict", explorer: true, professional: true, investor: true },
+  { feature: "Executive summary", explorer: true, professional: true, investor: true },
+  { feature: "Market overview (average price, YoY change)", explorer: true, professional: true, investor: true },
   { feature: "1-year price trend (Land Registry)", explorer: true, professional: true, investor: true },
+  { feature: "Neighbourhood profile — schools, transport, safety, walkability", explorer: true, professional: true, investor: true },
+  { feature: "Named schools, stations, parks & amenities", explorer: true, professional: true, investor: true },
   { feature: "Flood & climate risk", explorer: true, professional: true, investor: true },
-  { feature: "Council tax data", explorer: true, professional: true, investor: true },
-  { feature: "Property type split", explorer: true, professional: true, investor: true },
-  { feature: "Commute calculator", explorer: true, professional: true, investor: true },
-  { feature: "Nearby schools, stations & parks", explorer: true, professional: true, investor: true },
+  { feature: "Council tax band", explorer: true, professional: true, investor: true },
+  { feature: "Simple commute note", explorer: true, professional: true, investor: true },
   // ── Professional ─────────────────────────────────────────────────────────────
-  { feature: "5-year price trend — Land Registry (any UK postcode)", explorer: false, professional: true, investor: true },
+  { feature: "5-year price trend — full Land Registry history", explorer: false, professional: true, investor: true },
+  { feature: "Property type split", explorer: false, professional: true, investor: true },
+  { feature: "Full commute calculator — times to multiple destinations", explorer: false, professional: true, investor: true },
+  { feature: "Crime breakdown by category (police.uk)", explorer: false, professional: true, investor: true },
   { feature: "Comparable local sales & valuation range", explorer: false, professional: true, investor: true },
   { feature: "Negotiation brief — leverage points & offer guidance", explorer: false, professional: true, investor: true },
-  { feature: "Planning activity & risk flags (council portal)", explorer: false, professional: true, investor: true },
-  { feature: "Crime breakdown by category (police.uk data)", explorer: false, professional: true, investor: true },
+  { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
   { feature: "Broadband speed & fibre coverage (Ofcom)", explorer: false, professional: true, investor: true },
   { feature: "Rental market context — rents & demand", explorer: false, professional: true, investor: true },
   { feature: "Air quality index", explorer: false, professional: true, investor: true },
@@ -118,10 +119,10 @@ export default function PricingPage() {
               Pricing
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-3">
-              A buyer brief for any UK postcode
+              Start free. Upgrade when you're ready to buy.
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Free to start — 3 briefs a month, no card required. Professional at £4.99/month unlocks the full pre-offer toolkit: Land Registry price history, comparable sales, planning activity, crime context, negotiation brief, and PDF export. Works across ordinary UK towns, suburbs, and rural postcodes — not just London.
+              Explorer is a fast, free area screen: is this postcode worth looking at further? Professional is the full buyer brief: comparable sales, 5-year price history, crime context, planning activity, and a negotiation brief for any UK postcode. 3 free briefs a month — no card required.
             </p>
           </div>
         </section>
@@ -267,10 +268,10 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              One brief. Any UK postcode. Everything you need before making an offer.
+              From area screen to full buyer brief in one step.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Professional gives you a structured buyer brief with comparable sales, 5-year price trend, flood risk, planning activity, crime context, and a negotiation brief — built on official UK data sources that work across any postcode, not just London.
+              Explorer tells you whether an area is worth looking at. Professional tells you whether a property is worth buying — with comparable sales, 5-year price history, crime breakdown, planning activity, and a negotiation brief built on official UK data.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">
