@@ -3055,12 +3055,109 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       climateSignals: [],
       nextSteps: [],
     },
-    councilTax: enrichmentProfile?.councilTax ?? {
-      mostCommonBand: tier === "prime" ? "Band G" : tier === "premium" ? "Band F" : "Band D",
-      annualCost: tier === "prime" ? "£2,400–£3,000/yr" : tier === "premium" ? "£1,800–£2,200/yr" : "£1,400–£1,800/yr",
-      borough: areaName,
-      note: `Exact council tax band depends on the individual property's valuation band and the local authority rate. Check gov.uk/council-tax-bands for the precise figure for any specific address.`,
-    },
+    councilTax: enrichmentProfile?.councilTax ?? (() => {
+      // Use the local authority name from postcodes.io metadata where available.
+      // Fall back to areaName as last resort.
+      const authority = meta?.district || areaName;
+      const country = meta?.country || "England";
+      const isScotland = country === "Scotland";
+      const isWales = country === "Wales";
+
+      // Postcode area → approximate band guidance lookup.
+      // Derived from VOA / Scottish Assessors data for common urban areas.
+      // Not exhaustive — falls through to tier-based estimate for unknown areas.
+      const outcode = getOutcode(postcode);
+      const postcodeArea = outcode.replace(/[0-9].*/,''); // e.g. "SW" from "SW10"
+
+      type BandHint = { band: string; cost: string; confidence: "Guidance" | "Estimate" };
+      const bandByArea: Record<string, BandHint> = {
+        // Inner London
+        "SW": { band: "Band E–G", cost: "£1,600–£2,600/yr (est.)", confidence: "Estimate" },
+        "W":  { band: "Band E–G", cost: "£1,600–£2,600/yr (est.)", confidence: "Estimate" },
+        "NW": { band: "Band D–F", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
+        "N":  { band: "Band D–E", cost: "£1,600–£1,900/yr (est.)", confidence: "Estimate" },
+        "E":  { band: "Band C–D", cost: "£1,200–£1,700/yr (est.)", confidence: "Estimate" },
+        "SE": { band: "Band C–D", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
+        "EC": { band: "Band C–D", cost: "£1,400–£2,000/yr (est.)", confidence: "Estimate" },
+        "WC": { band: "Band D–E", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
+        // Outer London
+        "TW": { band: "Band D–E", cost: "£1,800–£2,300/yr (est.)", confidence: "Estimate" },
+        "KT": { band: "Band D–E", cost: "£1,900–£2,400/yr (est.)", confidence: "Estimate" },
+        "CR": { band: "Band C–D", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
+        "BR": { band: "Band D",     cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
+        "HA": { band: "Band D",     cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
+        "UB": { band: "Band C–D", cost: "£1,500–£1,900/yr (est.)", confidence: "Estimate" },
+        "EN": { band: "Band D",     cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
+        "IG": { band: "Band C–D", cost: "£1,500–£1,900/yr (est.)", confidence: "Estimate" },
+        "RM": { band: "Band C–D", cost: "£1,500–£1,900/yr (est.)", confidence: "Estimate" },
+        // Major cities & commuter belts (England)
+        "M":  { band: "Band B–C", cost: "£1,300–£1,700/yr (est.)", confidence: "Estimate" },
+        "B":  { band: "Band B–C", cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
+        "LS": { band: "Band B–C", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
+        "BS": { band: "Band C–D", cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
+        "S":  { band: "Band B–C", cost: "£1,200–£1,600/yr (est.)", confidence: "Estimate" },
+        "L":  { band: "Band B–C", cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
+        "NG": { band: "Band B–C", cost: "£1,300–£1,700/yr (est.)", confidence: "Estimate" },
+        "LE": { band: "Band C",     cost: "£1,500–£1,800/yr (est.)", confidence: "Estimate" },
+        "CV": { band: "Band B–C", cost: "£1,200–£1,600/yr (est.)", confidence: "Estimate" },
+        "NE": { band: "Band B–C", cost: "£1,200–£1,600/yr (est.)", confidence: "Estimate" },
+        "OX": { band: "Band D",     cost: "£1,800–£2,100/yr (est.)", confidence: "Estimate" },
+        "CB": { band: "Band C–D", cost: "£1,700–£2,000/yr (est.)", confidence: "Estimate" },
+        "RG": { band: "Band C–D", cost: "£1,800–£2,200/yr (est.)", confidence: "Estimate" },
+        "GU": { band: "Band D–E", cost: "£1,900–£2,400/yr (est.)", confidence: "Estimate" },
+        "SL": { band: "Band D",     cost: "£1,800–£2,100/yr (est.)", confidence: "Estimate" },
+        "AL": { band: "Band D",     cost: "£2,000–£2,400/yr (est.)", confidence: "Estimate" },
+        "HP": { band: "Band D–E", cost: "£2,000–£2,500/yr (est.)", confidence: "Estimate" },
+        "SG": { band: "Band D",     cost: "£2,000–£2,400/yr (est.)", confidence: "Estimate" },
+        "CM": { band: "Band D",     cost: "£1,900–£2,300/yr (est.)", confidence: "Estimate" },
+        "SS": { band: "Band C–D", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
+        // Scotland
+        "EH": { band: "Band D–E", cost: "£1,800–£2,200/yr (est.)", confidence: "Estimate" },
+        "G":  { band: "Band C–D", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
+        "AB": { band: "Band C",     cost: "£1,400–£1,700/yr (est.)", confidence: "Estimate" },
+        "DD": { band: "Band B–C", cost: "£1,200–£1,500/yr (est.)", confidence: "Estimate" },
+        "KY": { band: "Band C",     cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
+        "FK": { band: "Band C",     cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
+        "PA": { band: "Band C",     cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
+        "PH": { band: "Band C",     cost: "£1,200–£1,500/yr (est.)", confidence: "Estimate" },
+        // Wales
+        "CF": { band: "Band C–D", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
+        "SA": { band: "Band B–C", cost: "£1,100–£1,500/yr (est.)", confidence: "Estimate" },
+        "LL": { band: "Band B–C", cost: "£1,000–£1,400/yr (est.)", confidence: "Estimate" },
+        "NP": { band: "Band C",     cost: "£1,400–£1,700/yr (est.)", confidence: "Estimate" },
+        "LD": { band: "Band B",     cost: "£1,000–£1,400/yr (est.)", confidence: "Estimate" },
+      };
+
+      const hint = bandByArea[postcodeArea];
+      const band = hint?.band ?? (tier === "prime" ? "Band E–G" : tier === "premium" ? "Band D–F" : "Band B–D");
+      const cost = hint?.cost ?? (tier === "prime" ? "£2,000–£3,000/yr (est.)" : tier === "premium" ? "£1,600–£2,400/yr (est.)" : "£1,200–£1,800/yr (est.)");
+      const conf: "Estimate" = "Estimate";
+
+      const checkerUrl = isScotland
+        ? "https://www.saa.gov.uk/council-tax/council-tax-band/"
+        : isWales
+        ? "https://www.voa.gov.uk/portal/"
+        : "https://www.gov.uk/council-tax/working-out-your-council-tax";
+
+      const authorityNote = authority !== areaName
+        ? `${authority} is the billing authority for this postcode.`
+        : `The local authority for ${areaName} has not been confirmed — verify the correct council.`;
+
+      const checkerName = isScotland
+        ? "Scottish Assessors Association"
+        : isWales
+        ? "Valuation Office Agency (Wales)"
+        : "gov.uk address checker";
+
+      return {
+        mostCommonBand: band,
+        annualCost: cost,
+        borough: authority,
+        confidence: conf,
+        checkerUrl,
+        note: `${authorityNote} Band shown is a postcode-area estimate based on typical stock for this type of area — not a confirmed figure for any specific address. Council tax is set per-property and varies by band and authority. Use the ${checkerName} to confirm the exact band before exchange.`,
+      };
+    })(),
     propertyTypeSplit: enrichmentProfile?.propertyTypeSplit ?? {
       flats: isLondon ? 62 : 48,
       terraced: isLondon ? 22 : 28,

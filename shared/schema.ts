@@ -94,10 +94,12 @@ export interface AreaIntelligence {
 
   /** Council Tax — most common band + annual cost */
   councilTax: {
-    mostCommonBand: string; // "Band D"
-    annualCost: string;     // "£1,842"
-    borough: string;        // "Royal Borough of Kensington & Chelsea"
-    note: string;           // Context sentence
+    mostCommonBand: string;        // "Band D" | "Band G" etc
+    annualCost: string;            // "£1,842" or range "£1,600–£2,200/yr"
+    borough: string;               // Local authority name
+    note: string;                  // Context sentence
+    confidence: "Exact" | "Guidance" | "Estimate"; // how precise this data is
+    checkerUrl: string;            // gov.uk or scotland/wales address-specific checker
   };
 
   /** Property Type Split — % breakdown */

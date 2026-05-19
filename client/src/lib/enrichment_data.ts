@@ -19,6 +19,8 @@ export interface EnrichmentProfile {
     annualCost: string;
     borough: string;
     note: string;
+    confidence: "Exact" | "Guidance" | "Estimate";
+    checkerUrl: string;
   };
   propertyTypeSplit: {
     flats: number;
@@ -97,7 +99,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band G",
       annualCost: "£2,642",
       borough: "City of Westminster",
-      note: "Westminster's council tax rate is among the lowest in London — subsidised historically by commercial business rates revenue. Band G covers the majority of Belgravia and Pimlico properties; Band H (£3,143/yr) applies to the largest townhouses.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Westminster's council tax rate is among the lowest in London — historically subsidised by commercial business rates revenue. Band G (most common for Belgravia and Pimlico properties) is £2,642/yr; Band H (largest townhouses) is £3,143/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 71, terraced: 18, semiDetached: 3, detached: 4, other: 4, dominantType: "Flats dominate at 71% — primarily mansion block conversions and purpose-built apartments" },
     commuteTable: [
@@ -169,7 +173,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band G",
       annualCost: "£1,698",
       borough: "Royal Borough of Kensington & Chelsea",
-      note: "RBKC has the lowest council tax rate of any London borough. Band G (covering most Chelsea flats and houses) is £1,698/yr — less than half the rate in many outer London boroughs. Band H (largest properties) is £2,022/yr.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "RBKC has the lowest council tax rate of any London borough. Band G (most Chelsea flats and houses) is £1,698/yr — less than half the rate in many outer London boroughs. Band H (largest houses) is £2,022/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 65, terraced: 26, semiDetached: 5, detached: 3, other: 1, dominantType: "Flats at 65% and terraced houses at 26% — a mix reflecting the Victorian terrace grid and mansion block stock" },
     commuteTable: [
@@ -240,7 +246,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band G",
       annualCost: "£2,642",
       borough: "City of Westminster",
-      note: "Westminster's exceptionally low council tax rate (subsidised by commercial rate income) applies across W1. A Band G property at £15m pays the same annual council tax as a Band G property at £1.5m — a significant effective discount for prime buyers.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Westminster's council tax is uniquely low — commercial rate income subsidises residential bills. A Band G property at £15m pays the same annual council tax as a Band G property at £800k. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 83, terraced: 10, semiDetached: 2, detached: 2, other: 3, dominantType: "Flats overwhelmingly dominate at 83% — reflecting W1's position as London's highest-density residential postcode" },
     commuteTable: [
@@ -311,7 +319,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band G",
       annualCost: "£1,698",
       borough: "Royal Borough of Kensington & Chelsea",
-      note: "RBKC's council tax is the lowest in London. Band G (£1,698/yr) covers the majority of W8 properties. Holland Park townhouses (Band H) pay £2,022/yr — extraordinary value relative to property values in the £5m–£20m range.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "RBKC's council tax is the lowest in London. Band G (£1,698/yr) covers most W8 properties. Holland Park townhouses (Band H) pay £2,022/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 62, terraced: 24, semiDetached: 7, detached: 5, other: 2, dominantType: "Flats at 62% with a significant terraced house stock (24%) — reflects Victorian terrace grid around Holland Park" },
     commuteTable: [
@@ -382,7 +392,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band F",
       annualCost: "£1,614",
       borough: "Royal Borough of Kensington & Chelsea",
-      note: "RBKC's low council tax rate applies across W11. Band F (most common for Notting Hill flats and terraced houses) is £1,614/yr. Garden square houses typically fall in Band G (£1,698/yr) or H (£2,022/yr).",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "RBKC's low council tax rate applies across W11. Band F (most common for Notting Hill flats and terraced houses) is £1,614/yr. Garden square houses typically fall in Band G (£1,698/yr). The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 58, terraced: 33, semiDetached: 6, detached: 2, other: 1, dominantType: "Flats (58%) and terraced houses (33%) — the Notting Hill Victorian terrace stock is among the finest in London" },
     commuteTable: [
@@ -453,7 +465,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band F",
       annualCost: "£1,788",
       borough: "London Borough of Camden",
-      note: "Camden's council tax is higher than RBKC and Westminster but remains below the London average. Band F (most common in Belsize Park and South Hampstead) is £1,788/yr. Hampstead village houses (Band G/H) pay £2,086–£2,384/yr.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Camden's council tax is higher than RBKC and Westminster. Band F (most common in Belsize Park and South Hampstead) is £1,788/yr. Hampstead village houses (Band G/H) pay £2,086–£2,384/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 52, terraced: 30, semiDetached: 12, detached: 6, other: 0, dominantType: "A balanced split between flats (52%) and houses (48%) — NW3 has one of the highest proportions of detached houses of any inner London postcode" },
     commuteTable: [
@@ -524,7 +538,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band E",
       annualCost: "£1,574",
       borough: "London Borough of Camden",
-      note: "Camden Band E covers most NW1 flats and smaller terraced houses. Camden's rate is moderate by London standards. Primrose Hill houses (Band G) pay £2,086/yr.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Camden Band E covers most NW1 flats and smaller terraced houses (£1,574/yr). Camden's rate is moderate by London standards. Primrose Hill houses (Band G) pay £2,086/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 61, terraced: 28, semiDetached: 7, detached: 2, other: 2, dominantType: "Flats at 61% with a strong terraced house stock (28%) — the Primrose Hill Regency grid contains some of London's most desirable terraces" },
     commuteTable: [
@@ -595,7 +611,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band D",
       annualCost: "£1,619",
       borough: "London Borough of Islington",
-      note: "Islington's council tax is mid-range for inner London. Band D (most common for N1 flats and smaller houses) is £1,619/yr. Barnsbury garden square houses (Band F/G) pay £2,019–£2,321/yr.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Islington's council tax is mid-range for inner London. Band D (most common for N1 flats and smaller houses) is £1,619/yr. Barnsbury garden square houses (Band F/G) pay £2,019–£2,325/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 63, terraced: 30, semiDetached: 5, detached: 1, other: 1, dominantType: "Flats at 63% and terraced houses at 30% — Barnsbury's Georgian terraces and Islington's Victorian stock provide the house supply" },
     commuteTable: [
@@ -666,7 +684,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band C",
       annualCost: "£1,196",
       borough: "London Borough of Tower Hamlets",
-      note: "Tower Hamlets' council tax is below the London average. Band C (most common for E1 flats) is £1,196/yr — significantly lower than equivalent Zone 1 properties in Westminster or RBKC. Whitechapel terraced houses typically fall in Band D (£1,594/yr).",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Tower Hamlets' council tax is below the London average. Band C (most common for E1 flats) is £1,196/yr — materially lower than equivalent Zone 1 properties in Westminster or RBKC. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 76, terraced: 16, semiDetached: 3, detached: 1, other: 4, dominantType: "Flats overwhelmingly dominate at 76% — a mix of period conversions, warehouse lofts, and new-build residential towers" },
     commuteTable: [
@@ -737,7 +757,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band C",
       annualCost: "£1,418",
       borough: "London Borough of Hackney",
-      note: "Hackney's council tax has increased above London average in recent years but remains below Zone 1 boroughs. Band C (most common for E8 flats) is £1,418/yr. London Fields Victorian terraces (Band D/E) pay £1,890–£2,200/yr.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Hackney's council tax has increased above the London average in recent years. Band C (most common for E8 flats) is £1,418/yr. London Fields Victorian terraces (Band D/E) pay £1,740–£2,137/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 55, terraced: 36, semiDetached: 7, detached: 1, other: 1, dominantType: "A more balanced split than most inner east London — terraced houses at 36% reflect E8's Victorian grid, making it one of the higher-house-stock postcodes in the east" },
     commuteTable: [
@@ -808,7 +830,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band D",
       annualCost: "£1,616",
       borough: "London Borough of Southwark",
-      note: "Southwark's council tax is mid-range for inner London. Band D (most common for SE1 flats including NEO Bankside and riverside schemes) is £1,616/yr. A significant discount vs the equivalent property north of the river in WC2 (Westminster Band D: £1,985/yr).",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Southwark's council tax is mid-range for inner London. Band D (most common for SE1 flats including NEO Bankside and riverside schemes) is £1,616/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 82, terraced: 10, semiDetached: 3, detached: 1, other: 4, dominantType: "Flats overwhelmingly dominate at 82% — SE1's residential stock is almost entirely new-build riverside schemes and period conversions" },
     commuteTable: [
@@ -879,7 +903,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band D",
       annualCost: "£1,985",
       borough: "City of London / London Borough of Islington",
-      note: "EC1 spans two authorities. City of London (EC1A/EC1V south) charge £1,985/yr for Band D — among London's higher rates. Islington (EC1R/EC1V north) charge £1,619/yr Band D. Verify the correct authority at address level — it can meaningfully affect annual costs.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "EC1 spans two authorities. City of London (EC1A/EC1V south) charges £1,985/yr for Band D. Islington (EC1R/EC1V north) charges £1,619/yr for Band D. Verify which authority applies to your specific address — the boundary runs through the middle of the postcode. Confirm the exact band before exchange.",
     },
     propertyTypeSplit: { flats: 89, terraced: 7, semiDetached: 1, detached: 0, other: 3, dominantType: "Flats at 89% — almost entirely warehouse/commercial conversions and purpose-built residential schemes" },
     commuteTable: [
@@ -950,7 +976,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band B",
       annualCost: "£1,518",
       borough: "Manchester City Council",
-      note: "Manchester City Council's council tax is moderate. Band B (most common for M1 studio and 1-bed flats) is £1,518/yr. A significant discount versus equivalent Zone 1 London properties.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Manchester City Council's council tax is moderate for a major English city. Band B (most common for M1 studios and 1-bed flats) is £1,518/yr — a material saving versus Zone 1 London equivalents. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 92, terraced: 5, semiDetached: 1, detached: 0, other: 2, dominantType: "Flats at 92% — M1 is one of the UK's flattest-dominated postcodes outside central London, with converted mill buildings and purpose-built towers" },
     commuteTable: [
@@ -1021,7 +1049,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band B",
       annualCost: "£1,488",
       borough: "Birmingham City Council",
-      note: "Birmingham's council tax has increased significantly since the 2023 S114 notice (financial emergency) but remains below London equivalents. Band B covers most B1 1-bed and studio flats. A 2025 further increase of ~8% is budgeted — factor ongoing increases into hold cost calculations.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Birmingham's council tax has increased significantly since the 2023 S114 financial notice, but remains below London equivalents. Band B covers most B1 1-bed and studio flats at £1,488/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 87, terraced: 8, semiDetached: 2, detached: 0, other: 3, dominantType: "Flats at 87% — a mix of JQ heritage conversions, new-build towers, and converted commercial buildings" },
     commuteTable: [
@@ -1092,7 +1122,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band B",
       annualCost: "£1,608",
       borough: "Leeds City Council",
-      note: "Leeds City Council's council tax is slightly above the English average but remains significantly below London equivalents. Band B covers most LS1 flats and city-centre apartments.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Leeds City Council's council tax is slightly above the English average but below London equivalents. Band B covers most LS1 flats and city-centre apartments at £1,608/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 91, terraced: 5, semiDetached: 2, detached: 0, other: 2, dominantType: "Flats at 91% — LS1 is almost entirely apartments, with warehouse conversions (Dock Street, Water Lane) and purpose-built towers" },
     commuteTable: [
@@ -1163,7 +1195,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band C",
       annualCost: "£1,987",
       borough: "Bristol City Council",
-      note: "Bristol City Council's council tax is above the English average. Band C (most common for BS1 1-bed flats) is £1,987/yr — higher than Birmingham and Leeds equivalents but significantly below inner London rates.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Bristol City Council's council tax is above the English average. Band C (most common for BS1 1-bed flats) is £1,987/yr — higher than Birmingham and Leeds but below London equivalents. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 84, terraced: 10, semiDetached: 3, detached: 1, other: 2, dominantType: "Flats at 84% — dominated by Harbourside new-builds and converted industrial/commercial buildings" },
     commuteTable: [
@@ -1234,7 +1268,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band E",
       annualCost: "£2,074",
       borough: "City of Edinburgh Council",
-      note: "Edinburgh's council tax is above the Scottish and UK averages. Band E covers most EH1 flats and city-centre conversions. Note: Scotland's system uses different band descriptions — Band E in Scotland is comparable to Band D in England. Additional Dwelling Supplement (ADS) of 6% applies to buy-to-let purchases in Scotland.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.saa.gov.uk/council-tax/council-tax-band/",
+      note: "City of Edinburgh's council tax is above the Scottish average. Band E covers most EH1 flats and city-centre conversions. Scotland uses the same A–H banding system but with different authority rates to England. Use the Scottish Assessors Association (SAA) address checker to confirm the exact band. Confirm before exchange.",
     },
     propertyTypeSplit: { flats: 88, terraced: 7, semiDetached: 2, detached: 2, other: 1, dominantType: "Flats at 88% — EH1 is almost entirely tenement flats, Georgian first-floor conversions, and New Town apartments" },
     commuteTable: [
@@ -1305,7 +1341,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band D",
       annualCost: "£1,956",
       borough: "Oxford City Council",
-      note: "Oxford City Council's council tax is above the English average. Band D (most common for OX1 flats and smaller terraced houses) is £1,956/yr. Jericho Victorian terraces (Band E/F) pay £2,259–£2,562/yr.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Oxford City Council's council tax is above the English average. Band D (most common for OX1 flats and smaller terraced houses) is £1,956/yr. Jericho Victorian terraces (Band E/F) pay £2,250–£2,600/yr. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 57, terraced: 34, semiDetached: 7, detached: 1, other: 1, dominantType: "A more balanced split than most city-centre postcodes — terraced houses at 34% reflect Jericho and St Clement's Victorian stock" },
     commuteTable: [
@@ -1376,7 +1414,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band D",
       annualCost: "£1,924",
       borough: "Cambridge City Council",
-      note: "Cambridge City Council's council tax is above average for England. Band D (most common for CB1 flats and Petersfield terraces) is £1,924/yr. Similar to Oxford — premium city council tax reflects high service demand relative to constrained housing supply.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Cambridge City Council's council tax is above average for England. Band D (most common for CB1 flats and Petersfield terraces) is £1,924/yr — comparable to Oxford. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 52, terraced: 40, semiDetached: 6, detached: 1, other: 1, dominantType: "Almost equal split between flats (52%) and terraced houses (40%) — CB1's Petersfield Victorian terrace grid is the strongest house-stock proportion of any knowledge-economy postcode" },
     commuteTable: [
@@ -1447,7 +1487,9 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       mostCommonBand: "Band D",
       annualCost: "£2,108",
       borough: "Reading Borough Council",
-      note: "Reading Borough Council's council tax is above the English average. Band D (most common for RG1 flats and conservation area terraces) is £2,108/yr. Good value relative to London equivalents — a grammar school catchment 22 minutes from Bond Street at less than a third of Westminster's property prices.",
+      confidence: "Guidance",
+      checkerUrl: "https://www.gov.uk/council-tax/working-out-your-council-tax",
+      note: "Reading Borough Council's council tax is above the English average at £2,108/yr for Band D. This is notably higher than Birmingham (£1,488/yr Band B) and Manchester (£1,518/yr Band B) — factor into your running cost comparison. The band shown is the most common for this postcode — confirm the exact band for any specific address before exchange.",
     },
     propertyTypeSplit: { flats: 58, terraced: 32, semiDetached: 7, detached: 2, other: 1, dominantType: "A balanced split — the RG1 conservation area terraces (32%) provide house stock that is meaningfully scarcer in most city-centre postcodes" },
     commuteTable: [

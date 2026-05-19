@@ -1622,11 +1622,12 @@ ${offerStrategyHtml}` : ""}
   <div class="section">
     <div class="section-label">Council Tax</div>
     <div style="display:flex;gap:24px;margin-bottom:10px">
-      <div class="kpi"><div class="kpi-label">Most Common Band</div><div class="kpi-value">${ai.councilTax.mostCommonBand}</div></div>
+      <div class="kpi"><div class="kpi-label">${ai.councilTax.confidence === 'Guidance' ? 'Most Common Band' : 'Estimated Band'}</div><div class="kpi-value">${ai.councilTax.mostCommonBand}${ai.councilTax.confidence === 'Estimate' ? ' <span style="font-size:10px;font-weight:600;color:#B45309;background:#FEF3C7;padding:1px 6px;border-radius:9999px;margin-left:4px">est.</span>' : ''}</div></div>
       <div class="kpi"><div class="kpi-label">Annual Cost</div><div class="kpi-value">${ai.councilTax.annualCost}</div></div>
       <div class="kpi"><div class="kpi-label">Local Authority</div><div class="kpi-value" style="font-size:14px">${ai.councilTax.borough}</div></div>
     </div>
     <p class="body-text">${ai.councilTax.note}</p>
+    <p class="body-text" style="font-size:11px;color:#6B7280;margin-top:6px">Confirm exact band: <a href="${ai.councilTax.checkerUrl}" style="color:#B8860B">${ai.councilTax.checkerUrl}</a></p>
   </div>
 
   <div class="section">
@@ -3100,31 +3101,53 @@ export default function BriefPage() {
             {/* Council Tax */}
             <CollapsibleSection title="Council Tax" testId="section-council-tax">
               <div className="flex flex-col gap-4">
+                {/* KPI row */}
                 <div className="grid sm:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Most Common Band</span>
-                    <span className="text-sm text-foreground font-bold text-lg">{ai.councilTax.mostCommonBand}</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                      {ai.councilTax.confidence === "Guidance"
+                        ? "Most Common Band"
+                        : "Estimated Band"}
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-bold text-foreground">{ai.councilTax.mostCommonBand}</span>
+                      {ai.councilTax.confidence !== "Guidance" && (
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                          Estimate
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Annual Cost <EstimateTag /></span>
-                    <span className="text-sm text-foreground font-bold text-lg">{ai.councilTax.annualCost}</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                      Annual Cost <EstimateTag />
+                    </span>
+                    <span className="text-lg font-bold text-foreground">{ai.councilTax.annualCost}</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Local Authority</span>
-                    <span className="text-sm text-foreground font-medium">{ai.councilTax.borough}</span>
+                    <span className="text-sm font-medium text-foreground">{ai.councilTax.borough}</span>
                   </div>
                 </div>
+
+                {/* Note */}
                 <p className="text-sm text-muted-foreground leading-relaxed">{ai.councilTax.note}</p>
+
+                {/* Why it matters */}
                 <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
-                  Why it matters: council tax is a fixed ongoing cost that doesn't change with property price. A Band E or F property adds £500–£1,000+/year vs Band B or C — factor this into your running cost estimate.
+                  Council tax is a fixed annual cost that doesn't scale with property price — a Band F property costs £500–£1,000+ more per year than a Band C equivalent. Factor the band into your running cost estimate alongside service charges and ground rent where applicable.
                 </p>
+
+                {/* CTA — uses authority-specific checker URL */}
                 <a
-                  href={`https://www.gov.uk/council-tax-bands`}
+                  href={ai.councilTax.checkerUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary underline underline-offset-2 self-start"
                 >
-                  Check band for a specific address on gov.uk →
+                  {ai.councilTax.confidence === "Guidance"
+                    ? "Confirm exact band for this address →"
+                    : "Check exact band for any specific address →"}
                 </a>
               </div>
             </CollapsibleSection>
