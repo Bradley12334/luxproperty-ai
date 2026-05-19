@@ -23,9 +23,10 @@ const planDetails = {
     label: "Explorer",
     price: "Free",
     color: "text-muted-foreground",
-    features: ["3 briefs per month", "Area intelligence report", "Market overview data", "Neighbourhood profile & character", "What residents say", "1-year price trend", "Flood & climate risk", "Council tax, commute & property split"],
+    features: ["3 briefs per month", "Area screening brief — Good fit / Mixed / Limited fit", "Market overview (average price & YoY change)", "1-year price trend (Land Registry)", "Neighbourhood profile — schools, transport, walkability", "Flood risk & council tax band", "Named stations, schools & amenities"],
     upgradeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00",
     upgradeTo: "Professional — £4.99/month",
+    upgradeDescription: "Get comparable sales, a negotiation brief, 5-year price history, crime breakdown, planning context, and PDF export for any UK postcode.",
   },
   professional: {
     label: "Professional",
@@ -34,14 +35,16 @@ const planDetails = {
     features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend — full Land Registry history", "Comparable sales & valuation range", "Negotiation brief — leverage points & offer calibration", "Planning activity & risk flags", "Crime breakdown by category (police.uk)", "Broadband speed & fibre coverage (Ofcom)", "Rental market context — rents & demand signal", "Air quality index (DEFRA)", "Export to PDF & save briefs"],
     upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
     upgradeTo: "Investor — £39.99/month",
+    upgradeDescription: "Add 10-year trend data, rental demand scores, a sold prices map, and a portfolio dashboard to compare multiple areas at once.",
   },
   investor: {
     label: "Investor",
     price: "£39.99/month",
     color: "text-amber-600 dark:text-amber-400",
-    features: ["Everything in Professional", "10-year price trend — cross-area comparison", "Rental demand score — letting potential by location", "Rental market snapshot — rents, demand & yield", "Sold prices map & street price ranking", "Development tracker — pipeline & change signals", "Portfolio dashboard — save, compare & revisit briefs", "Custom report branding (add your name & firm)"],
+    features: ["Everything in Professional", "10-year price trend — cross-area comparison", "Rental demand score — letting potential by location", "Rental demand score — letting potential rated across areas", "Sold prices map & street price ranking", "Development tracker — pipeline & change signals", "Portfolio dashboard — save, compare & revisit briefs", "Custom report branding (add your name & firm)"],
     upgradeUrl: null,
     upgradeTo: null,
+    upgradeDescription: null,
   },
 };
 
@@ -132,9 +135,9 @@ export default function AccountPage() {
 
               {plan.upgradeUrl && plan.upgradeTo && (
                 <div className="pt-4 border-t border-border/40">
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Upgrade to unlock more features
-                  </p>
+                  {(plan as any).upgradeDescription && (
+                    <p className="text-xs text-muted-foreground mb-3">{(plan as any).upgradeDescription}</p>
+                  )}
                   <Button
                     size="sm"
                     className="font-semibold text-sm"
@@ -187,12 +190,14 @@ export default function AccountPage() {
                     Generate a new brief
                   </Button>
                 </Link>
-                <Link href="/portfolio">
-                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-sm" data-testid="button-portfolio">
-                    <Shield className="h-4 w-4" />
-                    My portfolio
-                  </Button>
-                </Link>
+                {user.plan === "investor" && (
+                  <Link href="/portfolio">
+                    <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-sm" data-testid="button-portfolio">
+                      <Shield className="h-4 w-4" />
+                      My portfolio
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/pricing">
                   <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-sm" data-testid="button-view-plans">
                     <CreditCard className="h-4 w-4" />

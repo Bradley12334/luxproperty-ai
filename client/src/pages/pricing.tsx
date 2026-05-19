@@ -22,7 +22,7 @@ const tiers = [
     price: "£4.99",
     period: "/month",
     description: "Everything you need before you offer. Comparable sales, negotiation brief, 5-year price trend, crime breakdown, planning activity, air quality, and PDF export. Any UK postcode. Unlimited briefs.",
-    badge: "Best for Most",
+    badge: "Recommended",
     style: "professional",
     cta: "Start Professional",
     ctaVariant: "default" as const,
@@ -76,7 +76,7 @@ const features: FeatureRow[] = [
   // ── Investor ─────────────────────────────────────────────────────────────────
   { feature: "10-year price trend — long-run Land Registry history for cross-area comparison", explorer: false, professional: false, investor: true },
   { feature: "Rental demand score — letting potential across locations", explorer: false, professional: false, investor: true },
-  { feature: "Rental market snapshot — rents, demand, and yield context", explorer: false, professional: false, investor: true },
+  { feature: "Rental demand score — letting potential rated across areas", explorer: false, professional: false, investor: true },
   { feature: "Sold prices map — visual layout of recent transactions nearby", explorer: false, professional: false, investor: true },
   { feature: "Street price ranking — relative pricing within the area", explorer: false, professional: false, investor: true },
   { feature: "Development tracker — pipeline and local change signals", explorer: false, professional: false, investor: true },
@@ -122,10 +122,10 @@ export default function PricingPage() {
               Pricing
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-3">
-              Start free. Upgrade when you're ready to buy.
+              Professional is the main plan. Start free.
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Explorer screens an area in seconds. Professional gives you everything before you offer. Investor is for when you're comparing multiple opportunities — rental demand, 10-year trends, and a portfolio dashboard to manage them all. Start free, no card required.
+              Professional is the buyer brief for serious homebuyers and advisers — comparable sales, negotiation context, 5-year price history, and everything you need before you offer. Explorer is free to try. Investor adds comparison tools for heavier use.
             </p>
           </div>
         </section>
@@ -223,7 +223,8 @@ export default function PricingPage() {
         {/* Feature Comparison Table */}
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <h2 className="font-serif text-2xl tracking-tight mb-8">What’s included</h2>
+            <h2 className="font-serif text-2xl tracking-tight mb-2">What’s included</h2>
+            <p className="text-sm text-muted-foreground mb-8 max-w-lg">Most buyers get everything they need with Professional. Investor adds comparison tools, longer trend data, and a portfolio dashboard for heavier use.</p>
 
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="w-full text-sm min-w-[600px]" data-testid="table-feature-comparison">
@@ -271,10 +272,10 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              From area screen to offer-ready decision.
+              Professional is the brief most buyers need.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Explorer tells you whether an area is worth a closer look. Professional gives you everything before you offer. Investor is for heavier use — comparing several opportunities at once, tracking rental demand across locations, and managing multiple briefs in one place.
+              Comparable sales, a negotiation brief, 5-year price history, crime and planning context, and a PDF you can keep or share. Any UK postcode. £4.99/month — cancel any time.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">

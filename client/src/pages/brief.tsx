@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "wouter";
-import { PriceAlerts } from "@/components/price-alerts";
 import { addToPortfolio, isInPortfolio } from "@/lib/portfolioStore";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -2822,7 +2821,6 @@ export default function BriefPage() {
                 </Card>
 
                 {/* Price Alerts — investor only */}
-                {user?.plan === "investor" && <PriceAlerts postcode={ai.location} />}
               </div>
             ) : (
               /* Paywall — free / not signed in */

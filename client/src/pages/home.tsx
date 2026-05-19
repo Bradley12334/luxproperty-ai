@@ -118,7 +118,7 @@ export default function Home() {
         "Everything in Professional",
         "10-year price trend — cross-area comparison",
         "Rental demand score — letting potential by location",
-        "Rental market snapshot — rents, demand & yield context",
+        "Rental demand score — letting potential rated across areas",
         "Sold prices map & street price ranking",
         "Development tracker — pipeline & change signals",
         "Portfolio dashboard — save, compare & revisit briefs",
@@ -813,10 +813,10 @@ export default function Home() {
               Pricing
             </p>
             <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-4">
-              Simple, transparent pricing
+              Professional is the plan most buyers need
             </h2>
             <p className="text-muted-foreground text-sm mb-12 max-w-lg">
-              Start free. Upgrade to Professional for everything you need before you offer. Upgrade to Investor when you're comparing multiple opportunities at once.
+              Explorer is free to try. Professional is the main paid plan — everything you need before making an offer, for any UK postcode. Investor adds comparison and portfolio tools for heavier use.
             </p>
 
             <div className="grid gap-6 sm:grid-cols-3">
@@ -830,7 +830,7 @@ export default function Home() {
                 >
                   {tier.highlighted && (
                     <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary mb-3">
-                      Most Popular
+                      Recommended
                     </span>
                   )}
                   <h3 className="text-sm font-semibold">{tier.name}</h3>
