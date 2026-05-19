@@ -772,10 +772,10 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const buyerType = tier === "prime"
     ? "Internationally driven — HNW individuals, family offices, and relocating executives"
     : tier === "premium"
-    ? "Professional buyers — equity-rich upsizers and buy-to-let investors"
+    ? "Professional buyers — equity-rich upsizers and experienced owner-occupiers"
     : tier === "mid-market"
-    ? "Owner-occupiers and first-time buyers, with growing investor interest"
-    : "First-time buyers, housing association, and value investors";
+    ? "Owner-occupiers and first-time buyers, with some buy-to-let activity"
+    : "First-time buyers, housing association, and buyers looking for value";
 
   const marketMomentum = yoyChange.startsWith("+")
     ? `Upward — ${yoyChange} YoY with ${demandSignal.toLowerCase()} recorded transaction volume`
@@ -1198,8 +1198,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const demographicsMap: Record<string, string> = {
     prime: `Predominantly affluent professionals, senior executives, established families, and retirees with significant assets. A notable international contingent, particularly from Europe, North America, and the Middle East. Long average tenure — residents tend to stay for decades. Strong owner-occupier ratio.`,
     premium: `Professional couples and families aged 30–55 make up the core demographic. High proportion of homeowners with equity to spend. A growing cohort of remote-working buyers drawn by space and connectivity. Limited transient population — the area has a settled, community-minded character.`,
-    "mid-market": `A genuinely mixed demographic — young professionals, families with school-age children, established locals, and buy-to-let investors attracted by rental yields. Average household income is near the national median. Active local community groups and residents' associations.`,
-    emerging: `A shifting demographic as younger buyers and renters move in alongside long-term residents. Creative professionals, first-time buyers, and students often lead gentrification. Rental demand is high, supporting investor interest. Expect the demographic profile to continue evolving over the next 5–10 years.`,
+    "mid-market": `A genuinely mixed demographic — young professionals, families with school-age children, established locals, and a proportion of rental properties. Average household income is near the national median. Active local community groups and residents' associations.`,
+    emerging: `A shifting demographic as younger buyers and renters move in alongside long-term residents. Creative professionals, first-time buyers, and students often lead regeneration. Rental demand is high and the local housing mix reflects an area still developing its character. Expect the demographic profile to continue evolving over the next 5–10 years.`,
     unknown: `The area has an established residential population with a mix of owner-occupiers and renters.`,
   };
 
@@ -1214,7 +1214,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const marketCommentMap: Record<string, string> = {
     prime: `Buyers here are typically competing for a finite pool of properties — supply is structurally limited. Off-market transactions are common; cultivate relationships with local agents and solicitors to access them. Chain-free purchases and cash buyers move significantly faster in this market. Do not expect significant discounts — pricing is resilient.`,
     premium: `${areaName} rewards preparation. The best properties go quickly — often within two weeks of listing. Get a mortgage agreement in principle before viewing. Survey findings (particularly on older stock) can legitimately support a revised offer. Freehold houses outperform leasehold flats in this market over a 10-year horizon.`,
-    "mid-market": `${areaName} is a buyer's market in relative terms — properties at the right price sell in 4–8 weeks. Overpriced stock sits for 60+ days, which is your negotiating window. Focus on properties needing cosmetic work rather than structural issues. The rental market is active, making the area viable for buy-to-let alongside owner-occupation.`,
+    "mid-market": `${areaName} is a buyer's market in relative terms — properties at the right price sell in 4–8 weeks. Overpriced stock sits for 60+ days, which is your negotiating window. Focus on properties needing cosmetic work rather than structural issues. The rental market is active — useful context whether you're buying to live or to let.`,
     emerging: `This is a speculative-to-value play. The upside is real but the timeline is uncertain — plan for a 5–10 year hold. Focus on streets closest to regeneration activity and transport links. Avoid leasehold where the ground rent and service charge can erode yield. New-build discount on resale typically 10–15% — factor this in.`,
     unknown: `Review the comparable sales and price trend data in this report before making an offer. Instruct a RICS-accredited surveyor before exchange to confirm condition and value.`,
   };
@@ -1272,13 +1272,13 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         stampDutyNote,
         "Interest rate sensitivity: stress-test mortgage payments at base rate +2%",
         "Monitor local planning portal for nearby development — new supply can soften values",
-        "Capital gains tax on investment properties has increased — model net returns accordingly",
+        "Capital gains tax on second properties has increased — factor in if this is not a primary residence",
         `Leasehold properties in ${areaName}: verify remaining lease, ground rent, and service charge before offering`,
         "EPC requirements tightening — properties below C rating may require upgrade spend",
       ],
     },
     verdict: hasData
-      ? `${areaName} is a ${tier} market with ${yoyChange.startsWith("+") ? "positive momentum" : "stable conditions"}. Five-year appreciation of ${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"} and ${yoyChange} year-on-year movement ${yoyChange.startsWith("+") ? "supports a buy stance for long-term holders" : "suggests patience is rewarded — pricing power currently sits with informed buyers"}. Estimated price per m² is ${pricePerSqmEstimate}. Buyer profile: ${buyerType}. Strategy: ${tier === "prime" || tier === "premium" ? "target off-market or chain-free properties for best leverage. Instruct a RICS Level 2 or 3 survey." : "look for properties with modernisation potential — 10–20% value uplift typically achievable with cosmetic refurbishment. Use comparables to anchor your offer below asking."}`
+      ? `${areaName} is a ${tier} market with ${yoyChange.startsWith("+") ? "positive momentum" : "stable conditions"}. Five-year appreciation of ${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"} and ${yoyChange} year-on-year movement ${yoyChange.startsWith("+") ? "supports a considered buying decision for those with a medium-to-long horizon" : "suggests patience is rewarded — pricing power currently sits with informed buyers"}. Estimated price per m² is ${pricePerSqmEstimate}. Buyer profile: ${buyerType}. Strategy: ${tier === "prime" || tier === "premium" ? "target off-market or chain-free properties for best leverage. Instruct a RICS Level 2 or 3 survey." : "look for properties with modernisation potential — 10–20% value uplift typically achievable with cosmetic refurbishment. Use comparables to anchor your offer below asking."}`
       : outsideEnglandWales
         ? `${areaName} is outside England and Wales. HM Land Registry data does not apply. Engage a local solicitor and RICS-accredited surveyor familiar with ${country} conveyancing law.`
         : `${areaName} is an established residential area. Low transaction volume limits statistical confidence — supplement this report with local agent intelligence and Rightmove sold prices before committing.`,

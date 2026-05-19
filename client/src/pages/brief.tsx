@@ -972,10 +972,10 @@ function exportToPDF(
     <div class="section-label">Market Outlook</div>
     <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Price growth is a forward-looking range derived from the direction of recent Land Registry trends — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Not financial advice.</p>
     <div class="two-col" style="margin-bottom:16px">
-      <div class="kpi"><div class="kpi-label">Price Growth (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
-      <div class="kpi"><div class="kpi-label">Rental Yield (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
+      <div class="kpi"><div class="kpi-label">Price growth outlook (indicative)</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
+      <div class="kpi"><div class="kpi-label">Rental yield estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
     </div>
-    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Risk Flags</p>
+    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Market flags</p>
     <ul>${riskFlags}</ul>
   </div>
 
@@ -2240,7 +2240,7 @@ export default function BriefPage() {
                   {/* Yields + demand — investor context */}
                   <div className="pt-3 border-t border-border/40">
                     <div className="flex items-center gap-2 mb-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Buy-to-let indicators</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental market signals</p>
                       <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
                       <EstimateTag />
                     </div>
@@ -2278,7 +2278,7 @@ export default function BriefPage() {
                   <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
                     <p className="text-xs font-semibold text-foreground">Rental market — Professional</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Asking rents by property size and buy-to-let demand context.</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Asking rents by property size and local letting demand.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -2769,7 +2769,7 @@ export default function BriefPage() {
             {isPaid ? (
               <div className="space-y-6">
                 {/* Market Outlook — unlocked */}
-                <Card className="p-5 sm:p-6" data-testid="section-investment-outlook">
+                <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
                   <SectionHeading>Market Outlook</SectionHeading>
                   <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                     Price growth is a forward-looking range derived from the direction of recent Land Registry trends for this area — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
@@ -2786,11 +2786,11 @@ export default function BriefPage() {
                   {/* Rental yield — investor context */}
                   <div className="pt-4 border-t border-border/40">
                     <div className="flex items-center gap-2 mb-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Buy-to-let context</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental yield context</p>
                       <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Rental Yield (buy-to-let, indicative) <EstimateTag /></p>
+                      <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
                       <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-rental-yield">
                         {ai.investmentOutlook.rentalYieldEstimate}
                       </p>
@@ -2800,7 +2800,7 @@ export default function BriefPage() {
                     <div className="mt-4">
                       <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
                         <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                        Risk Flags
+                        Market flags
                       </p>
                       <ul className="space-y-1.5">
                         {ai.investmentOutlook.riskFlags.map((flag, i) => (
@@ -2835,7 +2835,7 @@ export default function BriefPage() {
                       <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
                     </div>
                     <div className="pt-4 border-t border-border/40 mb-4">
-                      <KpiValue label="Rental Yield (buy-to-let, indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
+                      <KpiValue label="Rental yield (indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
                     </div>
                     {ai.investmentOutlook.riskFlags.length > 0 && (
                       <ul className="space-y-1.5">

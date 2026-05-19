@@ -205,10 +205,10 @@ function CompareColumn({ report, label }: CompareColumnProps) {
         </Card>
       )}
 
-      {/* Market signals / risk flags */}
+      {/* Market flags */}
       {ai.investmentOutlook?.riskFlags && ai.investmentOutlook.riskFlags.length > 0 && (
         <Card className="p-4 border-amber-400/20">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Risk Flags</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Market flags</p>
           <div className="space-y-1">
             {ai.investmentOutlook.riskFlags.slice(0, 3).map((f, i) => (
               <p key={i} className="text-xs text-amber-600 dark:text-amber-400">⚠ {f}</p>
@@ -292,9 +292,9 @@ export default function ComparePage() {
       <Header />
       <main className="flex-1 px-4 py-8 max-w-6xl mx-auto w-full">
         <div className="mb-8">
-          <h1 className="text-xl font-serif font-bold text-foreground mb-1">Compare Postcodes</h1>
+          <h1 className="text-xl font-serif font-bold text-foreground mb-1">Area Comparison</h1>
           <p className="text-sm text-muted-foreground">
-            Enter two postcodes to generate a side-by-side area comparison.
+            Enter two postcodes to compare areas side by side.
           </p>
         </div>
 
