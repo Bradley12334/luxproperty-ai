@@ -211,6 +211,25 @@ export interface AreaIntelligence {
   }>;
 
   /**
+   * Lifestyle fit scoring — Professional+.
+   * Five evidence-led categories showing how well an area suits different
+   * ways of living. Each category has a banded label + plain-English caption.
+   */
+  lifestyleFit: Array<{
+    /** Category name — one of five fixed categories */
+    category:
+      | "Family life"
+      | "Commute convenience"
+      | "Walkability"
+      | "Access to green space"
+      | "Daily convenience";
+    /** Banded score — not a fake precise number */
+    score: "Excellent" | "Good" | "Mixed" | "Limited";
+    /** One-sentence plain-English caption: what daily life actually feels like */
+    caption: string;
+  }>;
+
+  /**
    * Structured "Would I buy here?" verdict — Professional+.
    * Derived from actual evidence in the brief. Replaces the generic
    * BuyerSummary readout as the headline decision layer.

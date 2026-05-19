@@ -244,6 +244,245 @@ function deriveVerdict(
   return { verdictLabel, verdictRationale, bestFor, strongestPositives, mainWatchOuts, confidenceLevel, confidenceNote };
 }
 
+// ─── Lifestyle Fit Engine ────────────────────────────────────────────────────
+// Five evidence-led lifestyle categories. Scored in bands (Excellent/Good/Mixed/Limited)
+// from real data signals — no invented precision.
+function deriveLifestyleFit(
+  ai: import("../../../shared/schema").AreaIntelligence,
+): import("../../../shared/schema").AreaIntelligence["lifestyleFit"] {
+
+  const fit: import("../../../shared/schema").AreaIntelligence["lifestyleFit"] = [];
+
+  // ── 1. FAMILY LIFE ─────────────────────────────────────────────────────────
+  // Signals: school Ofsted ratings + walk distance, safety rating, air quality, green space
+  {
+    const schools = ai.nearbySchools ?? [];
+    const outstandingNearby = schools.some(s => s.ofstedRating === "Outstanding" && s.walkMins <= 15);
+    const goodNearby = schools.some(s => s.ofstedRating === "Good" && s.walkMins <= 20);
+    const hasSchoolsAtAll = schools.length > 0;
+    const safetyRating = ai.neighbourhoodProfile?.safetyRating ?? 50;
+    const airOk = ai.airQuality?.rating === "Good" || ai.airQuality?.rating === "Moderate";
+    const closestPark = ai.nearbyAmenities?.greenSpaces?.[0];
+    const parkNearby = closestPark && closestPark.walkMins <= 12;
+
+    const schoolPoints = outstandingNearby ? 3 : goodNearby ? 2 : hasSchoolsAtAll ? 1 : 0;
+    const safetyPoints = safetyRating >= 75 ? 3 : safetyRating >= 55 ? 2 : safetyRating >= 35 ? 1 : 0;
+    const envPoints = (airOk ? 1 : 0) + (parkNearby ? 1 : 0);
+    const total = schoolPoints + safetyPoints + envPoints;
+
+    const score: "Excellent" | "Good" | "Mixed" | "Limited" =
+      total >= 7 ? "Excellent" :
+      total >= 5 ? "Good" :
+      total >= 3 ? "Mixed" : "Limited";
+
+    let caption: string;
+    if (score === "Excellent") {
+      const schoolName = schools.find(s => s.ofstedRating === "Outstanding" && s.walkMins <= 15)?.name
+        ?? schools.find(s => s.ofstedRating === "Good" && s.walkMins <= 20)?.name;
+      caption = schoolName
+        ? `${schoolName} is within easy walking distance and the safety profile is strong — a well-supported choice for families.`
+        : `Strong school options, a safe neighbourhood, and green space nearby combine to make this one of the better family areas in the district.`;
+    } else if (score === "Good") {
+      const note = outstandingNearby || goodNearby
+        ? `School provision is solid`
+        : hasSchoolsAtAll ? `Schools are accessible` : `School access is limited`;
+      caption = `${note} and the safety picture is reasonable — a workable environment for families, with some trade-offs to factor in.`;
+    } else if (score === "Mixed") {
+      caption = safetyRating < 40
+        ? `Safety levels are below average — review crime data carefully before committing if this is a priority.`
+        : `School provision or green space is thinner here — check individual catchment boundaries and nearby parks before deciding.`;
+    } else {
+      caption = `No highly-rated schools in easy reach and the safety or environmental picture has weaknesses — worth verifying if family-specific priorities are non-negotiable.`;
+    }
+
+    fit.push({ category: "Family life", score, caption });
+  }
+
+  // ── 2. COMMUTE CONVENIENCE ─────────────────────────────────────────────────
+  // Signals: nearest station walk time, number of lines, transport rating
+  {
+    const stations = ai.nearbyStations ?? [];
+    const closest = stations.slice().sort((a, b) => a.walkMins - b.walkMins)[0];
+    const walkMins = closest?.walkMins ?? 999;
+    const lineCount = closest?.lines?.length ?? 0;
+    const transportRating = ai.neighbourhoodProfile?.transportRating ?? 0;
+
+    const walkPoints =
+      walkMins <= 10 ? 3 :
+      walkMins <= 15 ? 2 :
+      walkMins <= 20 ? 1 : 0;
+
+    const networkPoints = lineCount >= 3 ? 2 : lineCount >= 1 ? 1 : 0;
+    const ratingPoints = transportRating >= 7 ? 2 : transportRating >= 4 ? 1 : 0;
+
+    const total = walkPoints + networkPoints + ratingPoints;
+
+    const score: "Excellent" | "Good" | "Mixed" | "Limited" =
+      total >= 6 ? "Excellent" :
+      total >= 4 ? "Good" :
+      total >= 2 ? "Mixed" : "Limited";
+
+    let caption: string;
+    if (score === "Excellent") {
+      caption = closest
+        ? `${closest.name} is ${walkMins} minutes on foot${lineCount >= 2 ? ` with ${lineCount} lines` : ""} — strong commuter access by any standard.`
+        : `Multiple well-connected stations within easy walking distance make this one of the better-served commuter spots.`;
+    } else if (score === "Good") {
+      caption = closest
+        ? `${closest.name} is ${walkMins} minutes away — a manageable walk for most commuters, with reasonable service frequency.`
+        : `Rail access is decent — not exceptional, but enough for a reliable daily commute.`;
+    } else if (score === "Mixed") {
+      caption = walkMins < 999
+        ? `The nearest station is a ${walkMins}-minute walk — workable but will feel like a stretch on early starts or late returns.`
+        : `Stations are not within easy walking distance — most trips into town will involve a bus connection or short drive.`;
+    } else {
+      caption = `No station within reasonable walking distance — car dependency is high and commuting costs will reflect that.`;
+    }
+
+    fit.push({ category: "Commute convenience", score, caption });
+  }
+
+  // ── 3. WALKABILITY ─────────────────────────────────────────────────────────
+  // Signals: walkability score, amenity density, station proximity
+  {
+    const walkabilityScore = ai.neighbourhoodProfile?.walkability ?? 0;
+    const amenities = ai.nearbyAmenities;
+    const superClose = (amenities?.supermarkets ?? []).some(s => s.distanceMetres <= 500);
+    const cafeClose  = (amenities?.cafesAndRestaurants ?? []).some(s => s.distanceMetres <= 500);
+    const healthClose = (amenities?.health ?? []).some(s => s.distanceMetres <= 800);
+    const stationClose = (ai.nearbyStations ?? []).some(s => s.distanceMetres <= 600);
+
+    const amenityPoints = [superClose, cafeClose, healthClose, stationClose].filter(Boolean).length;
+    const walkRatingPoints = walkabilityScore >= 7 ? 3 : walkabilityScore >= 5 ? 2 : walkabilityScore >= 3 ? 1 : 0;
+
+    const total = amenityPoints + walkRatingPoints;
+
+    const score: "Excellent" | "Good" | "Mixed" | "Limited" =
+      total >= 6 ? "Excellent" :
+      total >= 4 ? "Good" :
+      total >= 2 ? "Mixed" : "Limited";
+
+    const closeThings: string[] = [];
+    if (superClose) closeThings.push("supermarkets");
+    if (cafeClose) closeThings.push("cafés");
+    if (healthClose) closeThings.push("health facilities");
+    if (stationClose) closeThings.push("stations");
+
+    let caption: string;
+    if (score === "Excellent") {
+      caption = `Most things you need — ${closeThings.slice(0, 3).join(", ")} — are within a short walk, making a car optional for day-to-day life.`;
+    } else if (score === "Good") {
+      caption = closeThings.length > 0
+        ? `${closeThings.slice(0, 2).map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(" and ")} are walkable; you'll need a car or bus for some errands.`
+        : `The area is reasonably walkable for essentials, though some amenities require a short trip by car or bus.`;
+    } else if (score === "Mixed") {
+      caption = `Walkable for some things but not others — expect to combine walking with short car or bus trips for most errands.`;
+    } else {
+      caption = `The area is largely car-dependent — few everyday essentials are within comfortable walking distance.`;
+    }
+
+    fit.push({ category: "Walkability", score, caption });
+  }
+
+  // ── 4. ACCESS TO GREEN SPACE ───────────────────────────────────────────────
+  // Signals: greenSpaces array (distance, walkMins), count, air quality
+  {
+    const greenSpaces = ai.nearbyAmenities?.greenSpaces ?? [];
+    const closestPark = greenSpaces[0];
+    const closestWalkMins = closestPark?.walkMins ?? 999;
+    const parkCount = greenSpaces.length;
+    const airOk = ai.airQuality?.rating === "Good";
+
+    const proximityPoints =
+      closestWalkMins <= 5 ? 3 :
+      closestWalkMins <= 10 ? 2 :
+      closestWalkMins <= 20 ? 1 : 0;
+
+    const varietyPoints = parkCount >= 3 ? 2 : parkCount >= 1 ? 1 : 0;
+    const airBonus = airOk ? 1 : 0;
+    const total = proximityPoints + varietyPoints + airBonus;
+
+    const score: "Excellent" | "Good" | "Mixed" | "Limited" =
+      total >= 5 ? "Excellent" :
+      total >= 3 ? "Good" :
+      total >= 1 ? "Mixed" : "Limited";
+
+    let caption: string;
+    if (score === "Excellent") {
+      caption = closestPark
+        ? `${closestPark.name} is ${closestWalkMins} minute${closestWalkMins === 1 ? "" : "s"} away${parkCount > 1 ? ` and ${parkCount} green spaces are accessible` : ""} — a genuine asset for wellbeing and weekend routines.`
+        : `Several parks and green areas within easy reach make outdoor life a natural part of daily routine here.`;
+    } else if (score === "Good") {
+      caption = closestPark
+        ? `${closestPark.name} is a ${closestWalkMins}-minute walk — enough for regular runs, dog walks, or outdoor time without needing to drive.`
+        : `Green space is accessible, though not immediately on the doorstep.`;
+    } else if (score === "Mixed") {
+      caption = closestWalkMins < 999
+        ? `The nearest park is ${closestWalkMins} minutes away — accessible but not something you'd naturally incorporate into a daily walk.`
+        : `Green space requires a deliberate trip — not within the immediate neighbourhood.`;
+    } else {
+      caption = `No parks recorded nearby — outdoor space would require a drive or journey. Worth checking local OS maps for unmapped paths or commons.`;
+    }
+
+    fit.push({ category: "Access to green space", score, caption });
+  }
+
+  // ── 5. DAILY CONVENIENCE ───────────────────────────────────────────────────
+  // Signals: supermarkets, cafes, health, broadband
+  {
+    const amenities = ai.nearbyAmenities;
+    const superCount   = (amenities?.supermarkets ?? []).length;
+    const cafeCount    = (amenities?.cafesAndRestaurants ?? []).length;
+    const healthCount  = (amenities?.health ?? []).length;
+    const broadbandGood = ai.broadband?.rating === "Excellent" || ai.broadband?.rating === "Very Good" || ai.broadband?.rating === "Good";
+
+    const superClose800  = (amenities?.supermarkets ?? []).some(s => s.distanceMetres <= 800);
+    const cafeClose800   = (amenities?.cafesAndRestaurants ?? []).some(s => s.distanceMetres <= 800);
+    const healthClose800 = (amenities?.health ?? []).some(s => s.distanceMetres <= 800);
+
+    const essentialPoints = [superClose800, cafeClose800, healthClose800].filter(Boolean).length;
+    const varietyPoints = (
+      (superCount >= 2 ? 1 : 0) +
+      (cafeCount >= 3 ? 2 : cafeCount >= 1 ? 1 : 0) +
+      (healthCount >= 1 ? 1 : 0)
+    );
+    const broadbandPoints = broadbandGood ? 1 : 0;
+    const total = essentialPoints + Math.min(varietyPoints, 3) + broadbandPoints;
+
+    const score: "Excellent" | "Good" | "Mixed" | "Limited" =
+      total >= 6 ? "Excellent" :
+      total >= 4 ? "Good" :
+      total >= 2 ? "Mixed" : "Limited";
+
+    const nearItems: string[] = [];
+    if (superClose800) nearItems.push(superCount > 1 ? `${superCount} supermarkets` : "a supermarket");
+    if (cafeClose800) nearItems.push(cafeCount > 2 ? `${cafeCount} cafés and restaurants` : "a café");
+    if (healthClose800) nearItems.push("health services");
+
+    let caption: string;
+    if (score === "Excellent") {
+      caption = nearItems.length > 0
+        ? `${nearItems.slice(0, 3).join(", ")} all within easy reach — this area handles the daily routine without much friction.`
+        : `Strong amenity density across essentials, food, and health makes everyday life straightforward here.`;
+    } else if (score === "Good") {
+      caption = nearItems.length > 0
+        ? `${nearItems.slice(0, 2).join(" and ")} nearby covers the basics — some variety requires a short trip further afield.`
+        : `Core essentials are covered; the area isn't buzzing with options but handles most day-to-day needs.`;
+    } else if (score === "Mixed") {
+      caption = cafeCount === 0 && superCount <= 1
+        ? `Limited amenities in the immediate area — expect to drive for most shopping and dining.`
+        : `Some essentials are accessible, but the area lacks the density to cover everything on foot.`;
+    } else {
+      caption = `Few services within walking distance. This may suit buyers who prefer quieter residential streets, but day-to-day logistics require a car.`;
+    }
+
+    fit.push({ category: "Daily convenience", score, caption });
+  }
+
+  return fit;
+}
+
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -1631,6 +1870,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
     // placeholders — populated immediately below after object construction
     redFlags: [],
+    lifestyleFit: [],
     buyerVerdict: {
       verdictLabel: "Good case" as const,
       verdictRationale: "",
@@ -1742,6 +1982,9 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     hasData,
   );
 
+
+  // ─── Lifestyle fit ────────────────────────────────────────────────────────────────────────────
+  areaIntelligence.lifestyleFit = deriveLifestyleFit(areaIntelligence);
   // ─── Offer strategy engine ───────────────────────────────────────────────────────────────────────
   // Confidence: Strong ≥ 4 comparable sales; Moderate = 2–3 or 1–2yr data; Thin = 0–1 or no data
   const compCount = comparables.length;

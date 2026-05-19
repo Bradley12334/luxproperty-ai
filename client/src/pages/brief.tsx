@@ -928,6 +928,48 @@ function exportToPDF(
     <p style="margin-top:12px;font-size:10px;color:#9ca3af">Synthesised from Land Registry, Environment Agency, Ofsted, and ONS data. Not a substitute for a professional survey.</p>
   </div>` : "";
 
+  // Lifestyle Fit for PDF
+  const pdfLifestyleFitSection = (() => {
+    const fit = ai.lifestyleFit;
+    if (!fit || fit.length === 0) return "";
+    const scoreColors: Record<string, string> = {
+      Excellent: "#166534",
+      Good:      "#1d4ed8",
+      Mixed:     "#92400e",
+      Limited:   "#991b1b",
+    };
+    const scoreBgs: Record<string, string> = {
+      Excellent: "#f0fdf4",
+      Good:      "#eff6ff",
+      Mixed:     "#fefce8",
+      Limited:   "#fef2f2",
+    };
+    const rows = fit.map(item => `
+      <tr style="border-bottom:1px solid #f3f4f6">
+        <td style="padding:9px 10px 9px 0;font-size:12px;font-weight:600;color:#111827;white-space:nowrap">${item.category}</td>
+        <td style="padding:9px 8px;text-align:center">
+          <span style="display:inline-block;padding:2px 10px;border-radius:9999px;font-size:10px;font-weight:700;background:${scoreBgs[item.score] ?? "#f9fafb"};color:${scoreColors[item.score] ?? "#374151"}">${item.score}</span>
+        </td>
+        <td style="padding:9px 0 9px 8px;font-size:11px;color:#6b7280;line-height:1.55">${item.caption}</td>
+      </tr>
+    `).join("");
+    return `
+    <div class="section">
+      <div class="section-label">Area Fit by Lifestyle</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:2px solid #e5e7eb">
+            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px;width:140px">Category</th>
+            <th style="text-align:center;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px;width:80px">Score</th>
+            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px">What this means in practice</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top:10px;font-size:10px;color:#9ca3af">Derived from Ofsted, Transport API, Overpass amenity data, and UK crime statistics in this brief.</p>
+    </div>`;
+  })();
+
   // HS2 flags
   const hs2Flags = (() => {
     const outcode = ai.location.trim().toUpperCase().split(" ")[0].replace(/\d[A-Z]{2}$/, "").trim();
@@ -1018,6 +1060,8 @@ function exportToPDF(
   </div>
 
   ${pdfSCSSection}
+
+  ${pdfLifestyleFitSection}
 
   <div class="section">
     <div class="section-label">Market Overview</div>
@@ -1604,6 +1648,99 @@ function LifestyleGlance({ ai, report }: { ai: BriefReport["areaIntelligence"]; 
   );
 }
 
+
+// ── Lifestyle Fit Block ───────────────────────────────────────────────────────────────────
+// Evidence-led lifestyle scoring across five categories. Each score is banded
+// (Excellent / Good / Mixed / Limited) with a plain-English caption.
+// Does not duplicate WalkScore — that shows raw walkability; this shows
+// what daily life across 5 dimensions would feel like.
+
+const LIFESTYLE_CATEGORY_META: Record<
+  string,
+  { icon: React.ReactNode; label: string; shortLabel: string }
+> = {
+  "Family life": {
+    icon: <GraduationCap className="h-4 w-4" />,
+    label: "Family Life",
+    shortLabel: "Family",
+  },
+  "Commute convenience": {
+    icon: <Train className="h-4 w-4" />,
+    label: "Commute",
+    shortLabel: "Commute",
+  },
+  "Walkability": {
+    icon: <Footprints className="h-4 w-4" />,
+    label: "Walkability",
+    shortLabel: "Walking",
+  },
+  "Access to green space": {
+    icon: <Leaf className="h-4 w-4" />,
+    label: "Green Space",
+    shortLabel: "Green",
+  },
+  "Daily convenience": {
+    icon: <ShoppingCart className="h-4 w-4" />,
+    label: "Daily Convenience",
+    shortLabel: "Daily",
+  },
+};
+
+function ScorePill({ score }: { score: "Excellent" | "Good" | "Mixed" | "Limited" }) {
+  const cfg = {
+    Excellent: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    Good:      "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+    Mixed:     "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    Limited:   "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+  }[score];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cfg}`}>
+      {score}
+    </span>
+  );
+}
+
+function LifestyleFitBlock({ ai }: { ai: BriefReport["areaIntelligence"] }) {
+  const fit = ai.lifestyleFit;
+  if (!fit || fit.length === 0) return null;
+
+  return (
+    <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-lifestyle-fit">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-5">
+        <Target className="h-4 w-4 text-primary" />
+        <span className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Area Fit by Lifestyle</span>
+      </div>
+
+      {/* Score rows */}
+      <div className="space-y-4">
+        {fit.map((item) => {
+          const meta = LIFESTYLE_CATEGORY_META[item.category];
+          return (
+            <div key={item.category} className="grid grid-cols-[auto_1fr] gap-3 items-start">
+              {/* Left: icon + category name + pill */}
+              <div className="flex items-center gap-2 min-w-[160px] sm:min-w-[190px] pt-0.5">
+                <span className="text-primary shrink-0">{meta?.icon}</span>
+                <span className="text-sm font-semibold text-foreground leading-tight whitespace-nowrap">
+                  {meta?.label ?? item.category}
+                </span>
+                <ScorePill score={item.score} />
+              </div>
+
+              {/* Right: caption */}
+              <p className="text-xs text-muted-foreground leading-relaxed">{item.caption}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/60 mt-5 pt-4 border-t border-border/40">
+        Scores derived from Ofsted, Transport API, Overpass amenity data, and UK crime statistics in this brief. Reflects the area as a whole, not specific streets.
+      </p>
+    </Card>
+  );
+}
+
 export default function BriefPage() {
   const params = useParams<{ id: string }>();
   const briefId = params.id;
@@ -1735,10 +1872,10 @@ export default function BriefPage() {
             {/* Explorer Verdict — shown to all users, top-level area screening judgement */}
             <ExplorerVerdictBlock explorerVerdict={ai.explorerVerdict} />
 
-            {/* At a Glance + Strengths & Considerations — paid only (Explorer stays lean) */}
+            {/* Lifestyle Fit + Strengths & Considerations — paid only (Explorer stays lean) */}
             {isPaid && (
               <>
-                <LifestyleGlance ai={ai} report={report} />
+                <LifestyleFitBlock ai={ai} />
                 <StrengthsAndConsiderations ai={ai} />
               </>
             )}
