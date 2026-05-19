@@ -293,8 +293,11 @@ export default function ComparePage() {
       <main className="flex-1 px-4 py-8 max-w-6xl mx-auto w-full">
         <div className="mb-8">
           <h1 className="text-xl font-serif font-bold text-foreground mb-1">Area Comparison</h1>
+          <p className="text-sm text-muted-foreground mb-3">
+            Enter two postcodes to compare areas side by side — prices, schools, transport, safety, walkability, and local amenities.
+          </p>
           <p className="text-sm text-muted-foreground">
-            Enter two postcodes to compare areas side by side.
+            Useful when you're weighing up two locations and want an objective, data-backed picture of both before you commit.
           </p>
         </div>
 
@@ -390,7 +393,8 @@ export default function ComparePage() {
         {!loadingA && !loadingB && !reportA && !reportB && (
           <div className="text-center py-16 text-muted-foreground">
             <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-20" />
-            <p className="text-sm">Enter two postcodes above to begin your comparison.</p>
+            <p className="text-sm font-medium mb-1">Compare two areas, side by side.</p>
+            <p className="text-sm text-muted-foreground/70">Enter two postcodes above to see prices, schools, transport, and more.</p>
           </div>
         )}
       </main>

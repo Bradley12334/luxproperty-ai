@@ -117,7 +117,6 @@ export default function Home() {
       features: [
         "Everything in Professional",
         "10-year price trend — cross-area comparison",
-        "Rental demand score — letting potential by location",
         "Rental demand score — letting potential rated across areas",
         "Sold prices map & street price ranking",
         "Development tracker — pipeline & change signals",
@@ -162,6 +161,9 @@ export default function Home() {
               <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg">
                 Turn any UK postcode or address into a clear, client-ready brief
                 in under a minute — built on official Land Registry data, not estimates.
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground/70">
+                For serious buyers, brokers, and advisers.
               </p>
 
               {/* Search Form */}
@@ -348,7 +350,7 @@ export default function Home() {
                       <h3 className="font-serif text-base tracking-tight mt-0.5">Chelsea, SW3 1AA</h3>
                     </div>
                     <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-0 text-[10px] font-semibold shrink-0">
-                      STRONG BUY
+                      GOOD MATCH
                     </Badge>
                   </div>
 

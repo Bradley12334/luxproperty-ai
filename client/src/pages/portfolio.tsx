@@ -140,10 +140,10 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       </div>
       <h3 className="font-serif text-lg mb-2">No briefs saved yet</h3>
       <p className="text-sm text-muted-foreground mb-2 max-w-xs">
-        Save briefs here to compare areas, track pricing, and revisit opportunities without starting from scratch.
+        Save briefs you want to revisit, compare locations, and keep track of serious options — all in one place.
       </p>
       <p className="text-xs text-muted-foreground mb-6 max-w-xs">
-        Tip: open any brief and tap <span className="font-semibold">Save to Portfolio</span> at the bottom of the report.
+        Open any brief and tap <span className="font-semibold">Save to Portfolio</span> to add it here.
       </p>
       <Button
         size="sm"
@@ -290,7 +290,7 @@ export default function PortfolioPage() {
             </div>
             <h2 className="font-serif text-xl mb-2">Compare briefs across multiple areas</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
-              The portfolio dashboard is part of the Investor plan. Save briefs, track multiple areas, and compare opportunities side by side.
+              The portfolio dashboard is part of the Investor plan. Save briefs, compare areas side by side, and keep track of every location you're seriously considering.
             </p>
             <Link href="/pricing">
               <Button size="sm" className="font-semibold">View Investor plan — £39.99/month</Button>
@@ -315,7 +315,7 @@ export default function PortfolioPage() {
                 Portfolio
               </h1>
               <p className="text-sm text-muted-foreground">
-                Save and compare briefs across multiple areas
+                Save briefs, compare locations, and keep track of serious options
               </p>
             </div>
 

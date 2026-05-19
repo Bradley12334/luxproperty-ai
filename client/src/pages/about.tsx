@@ -34,10 +34,10 @@ export default function AboutPage() {
               <span className="text-primary italic">for you</span>
             </h1>
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
-              LuxProperty.ai turns any UK postcode or address into a structured property
-              brief in under a minute. Built on official Land Registry data, it gives buyers
-              and their advisers a clear picture of price trends, comparable sales, area
-              character, and key risk factors — before making an offer.
+              LuxProperty.ai turns any UK postcode or address into a structured buyer brief
+              in under a minute. Built on official Land Registry data, it gives buyers,
+              brokers, and advisers a clear decision-making brief covering price trends,
+              comparable sales, area character, and key risk factors — before making an offer.
             </p>
           </div>
         </section>
@@ -61,7 +61,7 @@ export default function AboutPage() {
               <p>
                 We built LuxProperty.ai to change that. By combining HM Land Registry's
                 official Price Paid dataset with postcode-level intelligence from
-                Postcodes.io, we generate structured briefs that give buyers the same
+                Postcodes.io, we generate buyer briefs that give anyone the same
                 quality of research previously available only to those paying for a
                 surveyor or buying agent — in seconds, not days.
               </p>
