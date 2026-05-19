@@ -39,7 +39,7 @@ const planDetails = {
     label: "Investor",
     price: "£39.99/month",
     color: "text-amber-600 dark:text-amber-400",
-    features: ["Everything in Professional", "Portfolio dashboard", "Sold prices map", "Development tracker", "Custom-branded PDF reports"],
+    features: ["Everything in Professional", "Portfolio dashboard", "Sold prices map", "Development tracker", "Rental demand score", "Client-ready PDF reports (add your name & firm)"],
     upgradeUrl: null,
     upgradeTo: null,
   },

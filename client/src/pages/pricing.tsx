@@ -32,7 +32,7 @@ const tiers = [
     name: "Investor",
     price: "£39.99",
     period: "/month",
-    description: "For advisers and buyers tracking multiple properties. Includes portfolio tools and custom-branded PDF reports.",
+    description: "For buyers and advisers running multiple searches or working across a portfolio. More depth, more data, and tools built for heavier use.",
     badge: "Power Users",
     style: "investor",
     cta: "Start Investor",
@@ -76,8 +76,7 @@ const features: FeatureRow[] = [
   { feature: "Sold prices map", explorer: false, professional: false, investor: true },
   { feature: "Development tracker", explorer: false, professional: false, investor: true },
   { feature: "Rental demand score", explorer: false, professional: false, investor: true },
-  { feature: "Custom-branded PDF reports", explorer: false, professional: false, investor: true },
-  { feature: "Price alerts", explorer: false, professional: false, investor: "Coming Soon" },
+  { feature: "Client-ready PDF reports (add your name & firm)", explorer: false, professional: false, investor: true },
 ];
 
 function CellValue({ value, col }: { value: boolean | string; col: string }) {

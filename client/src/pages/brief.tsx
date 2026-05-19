@@ -2598,7 +2598,7 @@ export default function BriefPage() {
             {user?.plan === "investor" && (
               <div className="mb-6">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Custom Report Branding
+                  Client-Ready Report
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   <div className="space-y-1.5">
