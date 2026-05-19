@@ -41,7 +41,7 @@ const planDetails = {
     label: "Investor",
     price: "£39.99/month",
     color: "text-amber-600 dark:text-amber-400",
-    features: ["Everything in Professional", "10-year price trend — cross-area comparison", "Rental demand score — letting potential by location", "Rental demand score — letting potential rated across areas", "Sold prices map & street price ranking", "Development tracker — pipeline & change signals", "Portfolio dashboard — save, compare & revisit briefs", "Custom report branding (add your name & firm)"],
+    features: ["Everything in Professional", "10-year price trend — cross-area comparison", "Rental demand score — letting potential rated across areas", "Sold prices map & street price ranking", "Development tracker — pipeline & change signals", "Portfolio dashboard — save, compare & revisit briefs", "Custom report branding (add your name & firm)"],
     upgradeUrl: null,
     upgradeTo: null,
     upgradeDescription: null,
@@ -151,11 +151,14 @@ export default function AccountPage() {
               )}
 
               {user.plan === "investor" && (
-                <div className="pt-4 border-t border-border/40 flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-amber-500 shrink-0" />
-                  <p className="text-xs text-muted-foreground">
-                    You're on the Investor plan — full comparison toolkit, portfolio dashboard, and 10-year trend data across any UK postcode.
-                  </p>
+                <div className="pt-4 border-t border-border/40">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="h-4 w-4 text-amber-500 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      You're on the Investor plan — full comparison toolkit, portfolio dashboard, and 10-year trend data across any UK postcode.
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground/60 pl-6">Some advanced tools are rolling out soon.</p>
                 </div>
               )}
 
