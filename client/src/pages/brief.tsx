@@ -3901,7 +3901,7 @@ export default function BriefPage() {
                   <div className="pt-3 border-t border-border/40">
                     <div className="flex items-center gap-2 mb-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental market signals</p>
-                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
                       <EstimateTag />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
@@ -4505,7 +4505,7 @@ export default function BriefPage() {
                   <div className="pt-4 border-t border-border/40">
                     <div className="flex items-center gap-2 mb-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental yield context</p>
-                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Investors</span>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>

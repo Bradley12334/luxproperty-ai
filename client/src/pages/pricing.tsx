@@ -76,7 +76,6 @@ const features: FeatureRow[] = [
   { feature: "Save & revisit briefs", explorer: false, professional: true, investor: true },
   // ── Investor ─────────────────────────────────────────────────────────────────
   { feature: "10-year price trend — long-run Land Registry history for cross-area comparison", explorer: false, professional: false, investor: true },
-  { feature: "Rental demand score — letting potential across locations", explorer: false, professional: false, investor: true },
   { feature: "Rental demand score — letting potential rated across areas", explorer: false, professional: false, investor: true },
   { feature: "Sold prices map — visual layout of recent transactions nearby", explorer: false, professional: false, investor: true },
   { feature: "Street price ranking — relative pricing within the area", explorer: false, professional: false, investor: true },
