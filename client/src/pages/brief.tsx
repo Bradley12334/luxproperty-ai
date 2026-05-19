@@ -223,6 +223,245 @@ function CollapsibleSection({ title, children, defaultOpen = true, testId }: {
   );
 }
 
+// ── One-Glance Summary ───────────────────────────────────────────────────────
+
+interface OneGlanceSummary {
+  suitedTo: string;
+  priceAndDemand: string;
+  upsides: string;
+  watchOuts: string;
+}
+
+function deriveOneGlance(
+  ai: BriefReport["areaIntelligence"],
+  isPropertyReport: boolean,
+): OneGlanceSummary {
+  const yoy = ai.marketOverview.priceChangeYoY;
+  const yoyNum = parseFloat(yoy.replace(/[^\d.\-]/g, ""));
+  const supply = ai.marketOverview.supplyLevel?.toLowerCase() ?? "";
+  const avgPrice = ai.marketOverview.averagePrice;
+  const dom = ai.marketOverview.avgDaysOnMarket;
+  const safetyRating = ai.neighbourhoodProfile?.safetyRating ?? 70;
+  const transportRating = ai.neighbourhoodProfile?.transportRating ?? 5;
+  const schoolsRating = ai.neighbourhoodProfile?.schoolsRating ?? 5;
+  const closestStation = ai.nearbyStations?.slice().sort((a, b) => a.walkMins - b.walkMins)?.[0];
+  const closestPark = ai.nearbyAmenities?.greenSpaces?.[0];
+  const topSchool = ai.nearbySchools?.find(s => s.ofstedRating === "Outstanding" || s.ofstedRating === "Good");
+  const floodRisk = ai.floodRisk?.riskBadge ?? "Low";
+  const airRating = ai.airQuality?.rating ?? "Good";
+  const crimePerMonth = ai.crimeStats?.totalCrimesPerMonth ?? 0;
+
+  // ── Who it suits ────────────────────────────────────────────────────────
+  let suitedTo: string;
+  const character = ai.neighbourhoodProfile?.character ?? "";
+  const demographics = ai.neighbourhoodProfile?.demographics ?? "";
+
+  // Try to build a specific suited-to line from real signals
+  const suitedParts: string[] = [];
+
+  if (topSchool && schoolsRating >= 7) suitedParts.push("families with school-age children");
+  if (closestStation && closestStation.walkMins <= 8 && transportRating >= 7) suitedParts.push("commuters who value walkable transport links");
+  if (closestPark && closestPark.walkMins <= 6) suitedParts.push("buyers who want outdoor space nearby");
+
+  // Tier-based signals from price level
+  const priceNum = parseFloat(avgPrice.replace(/[^\d]/g, ""));
+  if (priceNum > 1000000) {
+    suitedTo = suitedParts.length > 0
+      ? `High-net-worth buyers, particularly ${suitedParts[0]} — this is a prime London or major-city market.`
+      : "High-net-worth buyers seeking a premium, established London address.";
+  } else if (priceNum > 500000) {
+    suitedTo = suitedParts.length > 0
+      ? `Established buyers, professionals, and ${suitedParts[0]} looking for a premium location without prime prices.`
+      : "Professionals and upsizers looking for quality without the top-tier price tag.";
+  } else if (suitedParts.length >= 2) {
+    suitedTo = `${suitedParts.slice(0, 2).join(" and ").replace(/^./, c => c.toUpperCase())} will find a lot to like here.`;
+  } else if (suitedParts.length === 1) {
+    suitedTo = `Good fit for ${suitedParts[0]}, as well as first-time buyers and those looking for value in a connected area.`;
+  } else {
+    // Fall back to character snippet if available
+    const characterSnip = character.split(".")[0];
+    suitedTo = characterSnip.length > 20 && characterSnip.length < 120
+      ? characterSnip + "."
+      : "A broad range of buyers, from first-time buyers to families, depending on budget and priorities.";
+  }
+
+  // ── Price & demand situation ─────────────────────────────────────────────
+  let priceAndDemand: string;
+  const isRising = !isNaN(yoyNum) && yoyNum > 0;
+  const isFalling = !isNaN(yoyNum) && yoyNum < 0;
+  const isConstrained = supply.includes("constrained") || supply.includes("tight") || supply.includes("low");
+  const isLoose = supply.includes("moderate") || supply.includes("above") || supply.includes("high");
+  const isFastMarket = typeof dom === "number" && dom < 35;
+  const isSlowMarket = typeof dom === "number" && dom > 70;
+
+  if (isRising && isConstrained) {
+    priceAndDemand = `Prices are up ${yoy} year-on-year with constrained supply — demand is holding firm and buyers have limited negotiating room.`;
+  } else if (isRising && isFastMarket) {
+    priceAndDemand = `A competitive market: prices up ${yoy} and homes selling relatively quickly. Good properties tend to move fast here.`;
+  } else if (isRising) {
+    priceAndDemand = `Prices have risen ${yoy} over the past year. The average is ${avgPrice}, suggesting a steadily growing market.`;
+  } else if (isFalling && isLoose) {
+    priceAndDemand = `Prices are down ${yoy.replace("-", "")} year-on-year with more stock available — conditions currently favour buyers who are well-prepared.`;
+  } else if (isFalling) {
+    priceAndDemand = `Prices have softened slightly (${yoy} year-on-year). Worth understanding the cause before committing — could represent good value.`;
+  } else if (isSlowMarket) {
+    priceAndDemand = `A steadier market with homes taking longer to sell — buyers have more time and potentially more leverage at negotiation.`;
+  } else {
+    priceAndDemand = `Average price is ${avgPrice} with ${supply} supply. The market here is broadly stable with no strong upward or downward pressure.`;
+  }
+
+  // ── Main upsides ─────────────────────────────────────────────────────────
+  const upsideParts: string[] = [];
+
+  if (closestStation && closestStation.walkMins <= 8) {
+    const lineNote = closestStation.lines.length > 0 ? ` (${closestStation.lines.slice(0, 2).join(", ")})` : "";
+    upsideParts.push(`${closestStation.name}${lineNote} is a ${closestStation.walkMins}-minute walk`);
+  }
+  if (topSchool) {
+    upsideParts.push(`${topSchool.name} is rated ${topSchool.ofstedRating} by Ofsted and ${topSchool.walkMins <= 12 ? `${topSchool.walkMins} minutes away` : "within reach"}`);
+  }
+  if (floodRisk === "Low") {
+    upsideParts.push("low flood risk, keeping insurance costs manageable");
+  }
+  if (airRating === "Good") {
+    upsideParts.push("clean air — NO₂ and PM2.5 within WHO guidelines");
+  }
+  if (closestPark && closestPark.walkMins <= 7) {
+    upsideParts.push(`${closestPark.name} is ${closestPark.walkMins} minutes on foot`);
+  }
+  if (!isNaN(yoyNum) && yoyNum >= 4) {
+    upsideParts.push(`strong ${yoy} annual price growth`);
+  }
+
+  let upsides: string;
+  if (upsideParts.length >= 2) {
+    upsides = upsideParts.slice(0, 2).map((p, i) => i === 0 ? p.charAt(0).toUpperCase() + p.slice(1) : p).join(". ") + ".";
+  } else if (upsideParts.length === 1) {
+    upsides = upsideParts[0].charAt(0).toUpperCase() + upsideParts[0].slice(1) + ". " + "The wider area has a solid foundation for long-term ownership.";
+  } else {
+    upsides = "Solid residential foundations — check the full sections below for transport, schools, and environment details.";
+  }
+
+  // ── Main watch-outs ──────────────────────────────────────────────────────
+  const watchParts: string[] = [];
+
+  if (floodRisk === "High") {
+    watchParts.push("high flood risk — insurance costs and mortgage terms may be affected");
+  } else if (floodRisk === "Medium") {
+    watchParts.push("medium flood risk on record — worth a specific flood assessment before exchange");
+  }
+  if (!isNaN(yoyNum) && yoyNum < -2) {
+    watchParts.push(`prices have fallen ${yoy.replace("-", "")} year-on-year — understand the local drivers before committing`);
+  }
+  if (crimePerMonth > 80 && safetyRating < 45) {
+    const topCat = ai.crimeStats?.topCategories?.[0];
+    watchParts.push(`above-average crime levels${topCat ? ` (most common: ${topCat.category})` : ""} — worth visiting at different times of day`);
+  }
+  if (airRating === "Poor" || airRating === "Very Poor") {
+    watchParts.push(`${airRating.toLowerCase()} air quality (NO₂ at ${String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}) — relevant for families and those with respiratory sensitivities`);
+  }
+  if (ai.investmentOutlook?.riskFlags?.length > 0) {
+    watchParts.push(ai.investmentOutlook.riskFlags[0].replace(/^[A-Z]/, c => c.toLowerCase()));
+  }
+  if (isSlowMarket && !watchParts.some(w => w.includes("price"))) {
+    watchParts.push(`slower market pace (avg ${dom} days to sell) may reflect weaker demand in this pocket`);
+  }
+
+  let watchOuts: string;
+  if (watchParts.length >= 2) {
+    watchOuts = watchParts.slice(0, 2).map((p, i) => i === 0 ? p.charAt(0).toUpperCase() + p.slice(1) : p).join(". ") + ".";
+  } else if (watchParts.length === 1) {
+    watchOuts = watchParts[0].charAt(0).toUpperCase() + watchParts[0].slice(1) + ". " + "Always commission a survey and review the title register before exchange.";
+  } else {
+    // No obvious red flags
+    watchOuts = isPropertyReport
+      ? "No major area-level red flags in this data — review the comparable sales and valuation section for property-specific considerations."
+      : "No major red flags in this data. Review the planning activity and crime sections for any local nuances.";
+  }
+
+  return { suitedTo, priceAndDemand, upsides, watchOuts };
+}
+
+function OneGlanceSummary({
+  ai,
+  isPropertyReport,
+}: {
+  ai: BriefReport["areaIntelligence"];
+  isPropertyReport: boolean;
+}) {
+  const summary = deriveOneGlance(ai, isPropertyReport);
+
+  const rows: Array<{
+    icon: React.ReactNode;
+    label: string;
+    value: string;
+    accent: string;
+  }> = [
+    {
+      icon: <Users className="h-3.5 w-3.5" />,
+      label: "Who it suits",
+      value: summary.suitedTo,
+      accent: "text-primary",
+    },
+    {
+      icon: <TrendingUp className="h-3.5 w-3.5" />,
+      label: "Price & demand",
+      value: summary.priceAndDemand,
+      accent: "text-primary",
+    },
+    {
+      icon: <BadgeCheck className="h-3.5 w-3.5" />,
+      label: "Main upsides",
+      value: summary.upsides,
+      accent: "text-green-700 dark:text-green-400",
+    },
+    {
+      icon: <AlertCircle className="h-3.5 w-3.5" />,
+      label: "Watch out for",
+      value: summary.watchOuts,
+      accent: "text-amber-700 dark:text-amber-400",
+    },
+  ];
+
+  return (
+    <Card
+      className="overflow-hidden border-primary/25"
+      data-testid="section-one-glance"
+    >
+      {/* Header strip */}
+      <div className="px-5 sm:px-6 py-4 border-b border-border/50 bg-gradient-to-r from-[#B8860B]/[0.06] to-transparent flex items-center gap-2.5">
+        <Lightbulb className="h-4 w-4 text-[#B8860B] shrink-0" />
+        <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#B8860B]">At a Glance</span>
+        <span className="ml-auto text-[10px] text-muted-foreground/60 font-medium tracking-wide hidden sm:block">
+          Four things to know before you read on
+        </span>
+      </div>
+
+      {/* 2×2 grid on desktop, stacked on mobile */}
+      <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border/40">
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className={`px-5 sm:px-6 py-4 sm:py-5 flex flex-col gap-2 ${
+              i >= 2 ? "sm:border-t border-border/40" : ""
+            }`}
+          >
+            <div className={`flex items-center gap-1.5 ${row.accent}`}>
+              {row.icon}
+              <span className="text-[10px] font-bold uppercase tracking-[0.13em]">
+                {row.label}
+              </span>
+            </div>
+            <p className="text-sm text-foreground leading-relaxed">
+              {row.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 /** Small inline pill shown next to KPI labels that are modelled/benchmarked rather than directly measured */
 function EstimateTag() {
   return (
@@ -318,6 +557,31 @@ function exportToPDF(
     ).join("")}</tbody></table>
     <p style="margin-top:8px;font-size:11px;color:#9ca3af">${ai.crimeStats.vsNationalNote}</p>
   </div>` : "";
+
+  // One-Glance Summary for PDF
+  const pdfOneGlance = deriveOneGlance(ai, !!isProperty);
+  const pdfOneGlanceSection = `
+  <div class="section">
+    <div class="section-label">At a Glance</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="padding:12px 14px;background:#faf8f4;border-radius:6px;border-left:3px solid #e5e7eb">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Who it suits</div>
+        <p style="font-size:12px;line-height:1.6;color:#111827">${pdfOneGlance.suitedTo}</p>
+      </div>
+      <div style="padding:12px 14px;background:#faf8f4;border-radius:6px;border-left:3px solid #e5e7eb">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Price &amp; demand</div>
+        <p style="font-size:12px;line-height:1.6;color:#111827">${pdfOneGlance.priceAndDemand}</p>
+      </div>
+      <div style="padding:12px 14px;background:#f0fdf4;border-radius:6px;border-left:3px solid #22c55e">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#166534;margin-bottom:6px">Main upsides</div>
+        <p style="font-size:12px;line-height:1.6;color:#111827">${pdfOneGlance.upsides}</p>
+      </div>
+      <div style="padding:12px 14px;background:#fffbeb;border-radius:6px;border-left:3px solid #f59e0b">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:6px">Watch out for</div>
+        <p style="font-size:12px;line-height:1.6;color:#111827">${pdfOneGlance.watchOuts}</p>
+      </div>
+    </div>
+  </div>`;
 
   // Strengths & Considerations for PDF
   const { strengths: pdfStrengths, considerations: pdfConsiderations } = deriveStrengthsAndConsiderations(ai);
@@ -421,6 +685,8 @@ function exportToPDF(
     <h1>${isProperty ? `Property Report — ${ai.location}` : `${ai.location} Property Report — ${ai.area}`}</h1>
     ${isProperty ? `<div class="subtitle">📍 ${report.query}</div>` : ""}
   </div>
+
+  ${pdfOneGlanceSection}
 
   <div class="section">
     <div class="section-label">Executive Summary</div>
@@ -1106,6 +1372,9 @@ export default function BriefPage() {
           </div>
 
           <div className="space-y-6">
+            {/* One-Glance Summary — four-line decision overview, always first */}
+            <OneGlanceSummary ai={ai} isPropertyReport={!!isPropertyReport} />
+
             {/* At a Glance — lifestyle panel */}
             <LifestyleGlance ai={ai} report={report} />
 
