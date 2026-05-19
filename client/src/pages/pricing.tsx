@@ -21,8 +21,8 @@ const tiers = [
     name: "Professional",
     price: "£4.99",
     period: "/month",
-    description: "Unlimited briefs and the full pre-offer toolkit. For buyers and advisers doing serious work.",
-    badge: "Most Popular",
+    description: "The plan most serious buyers and advisers choose. Unlimited briefs, the full pre-offer toolkit, and everything you need to move with confidence.",
+    badge: "Best for Most",
     style: "professional",
     cta: "Start Professional",
     ctaVariant: "default" as const,
@@ -67,7 +67,8 @@ const features: FeatureRow[] = [
   { feature: "Negotiation brief & offer guidance", explorer: false, professional: true, investor: true },
   { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
   { feature: "Rental market snapshot", explorer: false, professional: true, investor: true },
-  { feature: "Broadband & air quality data", explorer: false, professional: true, investor: true },
+  { feature: "Broadband & infrastructure", explorer: false, professional: true, investor: true },
+  { feature: "Air quality index", explorer: false, professional: true, investor: true },
   { feature: "Export to PDF", explorer: false, professional: true, investor: true },
   { feature: "Save briefs", explorer: false, professional: true, investor: true },
   // ── Investor ─────────────────────────────────────────────────────────────────
@@ -120,7 +121,7 @@ export default function PricingPage() {
               Clear pricing, real value
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Free to start — 3 briefs a month, no card required. Covers area intelligence, neighbourhood profile, 1-year price trend, flood risk, council tax, commute calculator, and more. Upgrade when you're ready for comparable sales, PDF export, and unlimited access.
+              Free to start — 3 briefs a month, no card required. Professional at £4.99/month is the plan most serious buyers and advisers choose: unlimited briefs, comparable sales, valuation range, negotiation brief, PDF export, and the full pre-offer toolkit.
             </p>
           </div>
         </section>
@@ -138,9 +139,9 @@ export default function PricingPage() {
                     key={tier.name}
                     className={`relative flex flex-col rounded-xl p-6 ${
                       isInvestor
-                        ? "bg-[#1A1410] dark:bg-[#1A1410] border border-amber-700/40 shadow-2xl shadow-amber-900/20 pb-8 -mx-2 sm:scale-[1.04] sm:origin-bottom z-10"
+                        ? "bg-[#1A1410] dark:bg-[#1A1410] border border-amber-700/40 shadow-lg shadow-amber-900/10"
                         : isPro
-                        ? "bg-card border border-primary/25 shadow-lg"
+                        ? "bg-card border-2 border-primary/40 shadow-xl shadow-primary/10 -mx-1 sm:scale-[1.04] sm:origin-bottom z-10 pb-8"
                         : "bg-card border border-border"
                     }`}
                     data-testid={`card-pricing-${tier.name.toLowerCase()}`}
@@ -202,6 +203,9 @@ export default function PricingPage() {
                     </Button>
 
                     {/* Gold shimmer line for Investor */}
+                    {isPro && (
+                      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-primary/70 to-transparent rounded-t-xl" />
+                    )}
                     {isInvestor && (
                       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent rounded-t-xl" />
                     )}
@@ -263,16 +267,23 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              Start with a free brief
+              Most buyers start free. Most stay on Professional.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              No credit card, no commitment. Run a brief on any UK postcode and see exactly what you get.
+              Try it free with no commitment. When you're ready for comparable sales, valuation range, negotiation brief, and PDF export — Professional is £4.99/month.
             </p>
-            <Link href="/">
-              <Button size="lg" className="text-sm font-semibold px-8" data-testid="button-get-started">
-                Get your first brief free
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">
+                <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-professional">
+                  Start Professional — £4.99/month
+                </Button>
+              </a>
+              <Link href="/">
+                <Button size="lg" variant="outline" className="text-sm px-8 w-full sm:w-auto" data-testid="button-get-started">
+                  Try free first
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
       </main>

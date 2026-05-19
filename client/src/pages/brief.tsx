@@ -2568,22 +2568,23 @@ export default function BriefPage() {
                       <Lock className="h-5 w-5 text-primary" />
                     </div>
                     <h3 className="font-serif text-lg tracking-tight mb-2">
-                      Upgrade to see the full picture
+                      Unlock the full brief
                     </h3>
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                      Market outlook, risk flags, negotiation brief, and PDF export are included in
-                      Professional and Investor plans.
+                      Comparable sales, valuation range, negotiation brief, market outlook, and PDF export — all included in Professional at £4.99/month.
                     </p>
                     <div className="space-y-2">
-                      <a href="/#/pricing">
+                      <a href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00" target="_blank" rel="noopener noreferrer">
                         <Button className="w-full font-semibold" data-testid="button-paywall-upgrade">
-                          View plans — from £4.99/month
+                          Start Professional — £4.99/month
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </a>
-                      <p className="text-xs text-muted-foreground">
-                        Executive summary, market overview &amp; price trend are always free
-                      </p>
+                      <a href="/#/pricing" className="block">
+                        <Button variant="ghost" className="w-full text-xs text-muted-foreground hover:text-foreground" data-testid="button-paywall-view-plans">
+                          View all plans
+                        </Button>
+                      </a>
                     </div>
                   </Card>
                 </div>
