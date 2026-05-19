@@ -57,7 +57,7 @@ import {
   ShieldAlert,
   Zap,
 } from "lucide-react";
-import { SoldPricesMap } from "@/components/sold-prices-map";
+import { SoldPricesMap, deriveMapInterpretation } from "@/components/sold-prices-map";
 import type { BriefReport } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { PostcodeMap } from "@/components/postcode-map";
@@ -826,6 +826,64 @@ function exportToPDF(
   ).join("");
 
   // Crime stats
+  // ── Sold Prices PDF section ───────────────────────────────────────────────
+  const pdfSoldPricesSection = (() => {
+    const sp = ai.recentSoldPrices;
+    if (!sp || sp.length === 0) return "";
+    const interp = deriveMapInterpretation(sp, (() => {
+      const raw = ai.marketOverview?.averagePrice;
+      if (!raw) return undefined;
+      const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+      return isNaN(n) ? undefined : n;
+    })());
+
+    const evidenceBg  = interp.evidenceLabel === "Strong" ? "#f0fdf4" : interp.evidenceLabel === "Moderate" ? "#fffbeb" : "#fef2f2";
+    const evidenceCol = interp.evidenceLabel === "Strong" ? "#166534" : interp.evidenceLabel === "Moderate" ? "#92400e" : "#991b1b";
+    const spreadBg    = interp.spreadLabel === "Tight" ? "#f0fdf4" : interp.spreadLabel === "Moderate spread" ? "#fffbeb" : "#fff7ed";
+    const spreadCol   = interp.spreadLabel === "Tight" ? "#166534" : interp.spreadLabel === "Moderate spread" ? "#92400e" : "#7c2d12";
+
+    const rows = sp.slice(0, 12).map(s =>
+      `<tr style="border-bottom:1px solid #f3f4f6">`
+      + `<td style="padding:7px 10px 7px 0;font-size:11px;color:#374151">${s.address}</td>`
+      + `<td style="padding:7px 8px;font-size:12px;font-weight:700;color:#B8860B;white-space:nowrap">${s.price}</td>`
+      + `<td style="padding:7px 8px;font-size:10px;color:#9ca3af;white-space:nowrap">${s.type}</td>`
+      + `<td style="padding:7px 0;font-size:10px;color:#9ca3af;white-space:nowrap;text-align:right">${s.date}</td>`
+      + `</tr>`
+    ).join("");
+
+    const prices = sp.map(s => parseInt(s.price.replace(/[^0-9]/g,""),10)).filter(p=>p>0);
+    const sorted = [...prices].sort((a,b)=>a-b);
+    const lo = sorted[0] || 0;
+    const hi = sorted[sorted.length-1] || 0;
+    const med = sorted.length ? sorted[Math.floor(sorted.length/2)] : 0;
+    const fmt3 = (n: number) => n >= 1000000 ? `£${(n/1000000).toFixed(1).replace(/\.0$/,"")}m` : `£${Math.round(n/1000)}k`;
+
+    return `
+  <div class="section">
+    <div class="section-label">Nearby Sold Prices</div>
+    <p style="font-size:10px;color:#6b7280;margin-bottom:10px">Recent transactions in this postcode area from HM Land Registry Price Paid data. Completed sales only — not asking prices.</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+      <div class="kpi"><div class="kpi-label">Range (low)</div><div class="kpi-value" style="font-size:15px">${fmt3(lo)}</div></div>
+      <div class="kpi" style="border:1px solid #B8860B30"><div class="kpi-label">Local median</div><div class="kpi-value" style="font-size:15px;color:#B8860B">${fmt3(med)}</div></div>
+      <div class="kpi"><div class="kpi-label">Range (high)</div><div class="kpi-value" style="font-size:15px">${fmt3(hi)}</div></div>
+    </div>
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">
+        <span style="flex-shrink:0;font-size:9px;font-weight:700;padding:2px 8px;border-radius:9999px;background:${evidenceBg};color:${evidenceCol};border:1px solid ${evidenceBg}">${interp.evidenceLabel} evidence</span>
+        <p style="font-size:12px;color:#374151;line-height:1.6;margin:0">${interp.evidenceNote}</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">
+        <span style="flex-shrink:0;font-size:9px;font-weight:700;padding:2px 8px;border-radius:9999px;background:${spreadBg};color:${spreadCol};border:1px solid ${spreadBg}">${interp.spreadLabel}</span>
+        <p style="font-size:12px;color:#374151;line-height:1.6;margin:0">${interp.spreadNote}</p>
+      </div>
+      ${interp.contextNote ? `<p style="font-size:12px;color:#374151;line-height:1.6;margin:0;padding-top:6px;border-top:1px solid #e5e7eb">${interp.contextNote}</p>` : ""}
+    </div>
+    <table style="width:100%"><thead><tr><th>Address</th><th>Price</th><th>Type</th><th style="text-align:right">Date</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <p style="margin-top:8px;font-size:10px;color:#9ca3af">Source: HM Land Registry Price Paid data. Prices are registered completed-transaction values and do not reflect any post-sale negotiation. Coordinates are postcode-centroid estimates — not exact property locations.</p>
+  </div>`;
+  })();
+
   const crimeSection = ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 ? `
   <div class="section">
     <div class="section-label">Crime Statistics</div>
@@ -1097,6 +1155,7 @@ function exportToPDF(
 
 ${offerStrategyHtml}` : ""}
 
+  ${pdfSoldPricesSection}
 
   <div class="section">
     <div class="section-label">Flood &amp; Climate Risk</div>
@@ -3343,63 +3402,84 @@ export default function BriefPage() {
               </div>
             )}
 
-            {/* Sold Prices Map — Investor */}
-            {isInvestor && ai.recentSoldPrices && ai.recentSoldPrices.length > 0 ? (
-              <CollapsibleSection title="Recent Sold Prices Map" testId="section-sold-prices-map">
-                <div className="flex flex-col gap-4">
-                  <SoldPricesMap
-                    soldPrices={ai.recentSoldPrices}
-                    centerLat={report.lat}
-                    centerLng={report.lng}
-                  />
-                  <div className="overflow-x-auto">
+            {/* ── Micro-Area Sold Prices Map — Professional+ ──────────────────── */}
+            {isPaid && ai.recentSoldPrices && ai.recentSoldPrices.length > 0 ? (
+              <CollapsibleSection title="Nearby Sold Prices" testId="section-sold-prices-map">
+                <SoldPricesMap
+                  soldPrices={ai.recentSoldPrices}
+                  centerLat={report.lat}
+                  centerLng={report.lng}
+                  areaMedian={(() => {
+                    const raw = ai.marketOverview?.averagePrice;
+                    if (!raw) return undefined;
+                    const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+                    return isNaN(n) ? undefined : n;
+                  })()}
+                  showInterpretation={true}
+                  compact={false}
+                />
+                {/* Transaction list — collapsible within the section */}
+                <details className="mt-4 group">
+                  <summary className="cursor-pointer text-xs font-semibold text-primary flex items-center gap-1.5 list-none select-none">
+                    <span className="group-open:hidden">▸ Show transaction list ({ai.recentSoldPrices.length} sales)</span>
+                    <span className="hidden group-open:inline">▾ Hide transaction list</span>
+                  </summary>
+                  <div className="mt-3 overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border">
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-3">Address</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-3">Price</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-3">Type</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2">Date</th>
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Address</th>
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Price</th>
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Type</th>
+                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2">Date</th>
                         </tr>
                       </thead>
                       <tbody>
                         {ai.recentSoldPrices.map((sp, i) => (
                           <tr key={i} className="border-b border-border/50 last:border-0">
-                            <td className="py-2.5 pr-3 text-foreground font-medium">{sp.address}</td>
-                            <td className="py-2.5 pr-3 text-[#B8860B] font-bold">{sp.price}</td>
-                            <td className="py-2.5 pr-3 text-muted-foreground">{sp.type}</td>
-                            <td className="py-2.5 text-muted-foreground">{sp.date}</td>
+                            <td className="py-2.5 pr-3 text-foreground/80 text-xs">{sp.address}</td>
+                            <td className="py-2.5 pr-3 text-[#B8860B] font-bold text-sm">{sp.price}</td>
+                            <td className="py-2.5 pr-3 text-muted-foreground text-xs">{sp.type}</td>
+                            <td className="py-2.5 text-muted-foreground text-xs">{sp.date}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-xs text-muted-foreground">Source: HM Land Registry. Prices reflect completed transactions, not asking prices.</p>
-                </div>
+                </details>
               </CollapsibleSection>
-            ) : !isInvestor ? (
+            ) : !isPaid ? (
+              /* Explorer: locked teaser */
               <div className="relative" data-testid="section-sold-prices-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-60">
+                <div className="blur-sm pointer-events-none select-none opacity-50">
                   <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2 mb-3">
                       <MapPin className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Recent Sold Prices Map</h3>
+                      <h3 className="font-semibold text-sm">Nearby Sold Prices</h3>
                     </div>
-                    <div className="h-32 bg-muted rounded" />
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {["Lowest nearby", "Local median", "Highest nearby"].map(l => (
+                        <div key={l} className="bg-muted/50 rounded px-2 py-2">
+                          <div className="h-2 w-12 bg-muted rounded mb-1.5" />
+                          <div className="h-3 w-16 bg-muted/80 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-52 bg-muted/60 rounded-lg" />
                   </Card>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
-                    <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Sold prices map — Investor</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Visual layout of recent nearby transactions by price and location.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                  <div className="bg-background/95 border border-border rounded-lg px-5 py-4 text-center shadow-lg max-w-xs">
+                    <MapPin className="h-5 w-5 text-primary mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-foreground mb-1">Nearby Sold Prices Map</p>
+                    <p className="text-xs text-muted-foreground mb-3">See recent nearby transactions mapped by price tier — with evidence strength, price spread, and local context. Professional.</p>
+                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2 font-semibold">Upgrade to Professional →</span></Link>
                   </div>
                 </div>
               </div>
             ) : null}
 
-            {/* ── Street Price Ranking — Investor (uses same sold prices data) ── */}
+            {/* ── Street Price Ranking — Investor (micro-area premium/affordable streets) ── */}
             {isInvestor && ai.recentSoldPrices && ai.recentSoldPrices.length > 0 && (
               <CollapsibleSection title="Street Price Ranking" testId="section-street-ranking">
                 <StreetPriceRanking soldPrices={ai.recentSoldPrices} />
