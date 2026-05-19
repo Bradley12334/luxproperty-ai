@@ -58,9 +58,12 @@ export interface EnrichmentProfile {
     note: string;
   };
   rentalDemand: {
-    avgDaysToLet: number;
+    avgDaysToLet: number | null;
     vsNationalAvg: string;
-    score: number;
+    score: number | null;
+    label: string;
+    confidence: "Strong" | "Moderate" | "Low" | "Insufficient";
+    rationale: string;
     note: string;
   };
   nearbyDevelopments: Array<{
@@ -135,7 +138,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 12,
       vsNationalAvg: "3.5× faster than national average (42 days)",
       score: 9,
-      note: "Prime central London rental demand remains structurally elevated. SW1 1-bed properties average 12 days to let; 2-beds average 16 days. Embassy and government-related relocations provide year-round demand floor.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Prime central London location with embassy, government, and corporate relocation demand providing a consistent year-round floor.",
+      note: "SW1 1-bed properties average 12 days to let. Embassy and government-related relocations provide structural year-round demand. Prime location limits supply — vacancy rates are among the lowest in the country.",
     },
     nearbyDevelopments: [
       { name: "1 Palace Street SW1E", type: "Residential", status: "Complete (2024)", impact: "Positive", detail: "72 luxury units converted from former Crown Estate offices. Added high-quality supply without materially impacting values — absorbed by international buyer demand." },
@@ -204,7 +210,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 14,
       vsNationalAvg: "3× faster than national average (42 days)",
       score: 9,
-      note: "Chelsea consistently ranks among London's top 5 rental demand postcodes. 1-bed flats average 14 days to let; 2-beds average 18 days. International family demand for 3-bed+ is the most competitive segment — supply is extremely tight.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Chelsea ranks consistently among London's top-5 rental demand postcodes, driven by international families and high-earning professionals.",
+      note: "1-bed flats average 14 days to let; 2-beds average 18 days. The international family segment (3-bed+) is the most competitive — supply is extremely tight relative to demand.",
     },
     nearbyDevelopments: [
       { name: "Lots Road Power Station", type: "Mixed-use", status: "Under construction (completing 2025–26)", impact: "Positive", detail: "740 residential units, retail, and community space on the former power station site at the SW3/SW10 border. Adds supply to Chelsea World's End — watch for any short-term softening in the SW10 overlap zone." },
@@ -272,7 +281,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 9,
       vsNationalAvg: "4.7× faster than national average (42 days)",
       score: 10,
-      note: "W1 is London's most liquid rental market. 1-bed apartments in Marylebone average 9 days to let; 2-beds average 13 days. International demand, financial sector relocation, and short-let premium pricing make W1 one of the strongest yield postcodes in Zone 1 relative to purchase price.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Mayfair and Marylebone attract the deepest pool of high-net-worth renters of any UK postcode — corporate lets, diplomat housing, and short-let demand all compete for the same limited stock.",
+      note: "W1 averages 9 days to let across all property types — driven by corporate lets, diplomatic housing, and a near-zero vacancy rate. Supply is structurally constrained by heritage listing and conversion limitations.",
     },
     nearbyDevelopments: [
       { name: "Oxford Street Pedestrianisation", type: "Transport/Public Realm", status: "Phased delivery 2025–2030", impact: "Positive", detail: "Westminster's plan to pedestrianise Oxford Street and create a major public realm improvement. If delivered, would materially lift residential values on adjoining streets — particularly W1C and W1U sub-sectors." },
@@ -340,7 +352,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 18,
       vsNationalAvg: "2.3× faster than national average (42 days)",
       score: 8,
-      note: "W8 family houses (3–4 bed) are the fastest-letting segment — typically under 2 weeks. 1-bed flats average 18–22 days. School year timing drives a September/January spike in demand from international families relocating.",
+      label: "High",
+      confidence: "Strong",
+      rationale: "Kensington's high-value family market sees strong demand but the premium price point naturally narrows the tenant pool relative to more accessible postcodes.",
+      note: "W8 properties typically let within 18 days — high by most markets but moderated by the premium price point. The family and diplomatic segment is the core demand driver; corporate lets are secondary.",
     },
     nearbyDevelopments: [
       { name: "Kensington Forum Hotel Extension", type: "Commercial", status: "Under construction", impact: "Neutral", detail: "Large hotel refurbishment on Cromwell Road. Construction noise/traffic on the W8/SW7 border during build phase — not expected to impact residential values post-completion." },
@@ -408,7 +423,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 16,
       vsNationalAvg: "2.6× faster than national average (42 days)",
       score: 8,
-      note: "W11's lifestyle premium sustains strong rental demand. Houses on the best streets (Elgin Crescent, Ledbury Road) let quickly with minimal void — typically under 2 weeks for well-presented stock. Carnival weekend (August Bank Holiday) creates a short-term letting spike on premium properties.",
+      label: "High",
+      confidence: "Strong",
+      rationale: "Notting Hill combines lifestyle appeal and scarcity of rental stock to maintain strong demand, though the premium end softens in uncertain economic conditions.",
+      note: "W11 averages 16 days to let. The lifestyle premium sustains demand from media, finance, and international tenants. Stock is limited — terraced houses and larger garden flats are the hardest segment to source.",
     },
     nearbyDevelopments: [
       { name: "Notting Hill Gate Junction Improvements", type: "Transport", status: "Approved 2024", impact: "Positive", detail: "TfL scheme to improve cycling and pedestrian access at the Notting Hill Gate junction. Minor construction disruption during delivery — positive long-term public realm outcome." },
@@ -473,10 +491,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "NW3 has some of the best air quality of any inner London postcode — Hampstead Heath (790 acres) acts as a significant clean air buffer. Streets adjacent to Finchley Road (A504) return higher readings, but the Heath-adjacent village core is well within WHO guidelines.",
     },
     rentalDemand: {
-      avgDaysToLet: 21,
-      vsNationalAvg: "2× faster than national average (42 days)",
-      score: 8,
-      note: "NW3 rental demand is characterised by long tenancies (2–4 years) and low void rates rather than rapid turnover. Families with Heath proximity requirements are loyal tenants. Academic year timing (UCL, Royal Free Hospital) drives a September demand peak.",
+      avgDaysToLet: 24,
+      vsNationalAvg: "1.75× faster than national average (42 days)",
+      score: 7,
+      label: "Moderate–High",
+      confidence: "Moderate",
+      rationale: "Hampstead has strong demand from professionals and families drawn to the Heath, but the affluent ownership bias limits rental stock and introduces some seasonality.",
+      note: "NW3 properties average ~24 days to let — faster than the national average but slower than inner London equivalents. The tenant pool skews toward higher earners; void periods tend to be longer than neighbouring NW1.",
     },
     nearbyDevelopments: [
       { name: "Swiss Cottage Leisure Centre", type: "Commercial", status: "Refurbishment ongoing", impact: "Positive", detail: "Camden's major refurbishment of Swiss Cottage Leisure Centre (NW3 south). Improves local amenity — net positive for NW3 values on the Belsize Park/Swiss Cottage border." },
@@ -544,7 +565,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 17,
       vsNationalAvg: "2.5× faster than national average (42 days)",
       score: 8,
-      note: "Primrose Hill houses are among the most sought-after rental properties in north London — typically let within 2 weeks with multiple competing applicants. Camden Town 1-beds let fastest (10–14 days) due to high demand from young professionals.",
+      label: "High",
+      confidence: "Strong",
+      rationale: "Camden and Regent's Park draw a deep mix of young professionals, creatives, and international students, maintaining year-round rental demand across price points.",
+      note: "NW1 averages 17 days to let. The diversity of the tenant base — students, young professionals, short-let demand near Regent's Park — provides resilience across market cycles.",
     },
     nearbyDevelopments: [
       { name: "Euston HS2 Station", type: "Transport", status: "Under construction (2026–2032)", impact: "Monitor", detail: "Major construction phase for HS2's Euston terminus will cause significant noise, traffic, and disruption within ~500m. Longer-term (post-2033), a new major terminus would be a structural positive for NW1 values. Monitor closely if considering NW1 2 properties." },
@@ -612,7 +636,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 11,
       vsNationalAvg: "3.8× faster than national average (42 days)",
       score: 9,
-      note: "N1 is consistently one of London's top 5 rental demand postcodes. 1-bed flats average 11 days to let; 2-beds average 15 days. Multiple competing applications are the norm on well-presented stock. Short-let premium on Angel/Upper Street-adjacent properties is significant.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Islington's combination of tech sector proximity, transport links, and strong lifestyle credentials generates some of the fastest lettings velocity in inner London.",
+      note: "N1 properties average 11 days to let — among the fastest in London. Angel and Barnsbury attract high-density professional demand. Void periods above 3 weeks are rare for correctly priced stock.",
     },
     nearbyDevelopments: [
       { name: "Angel Central", type: "Commercial", status: "Refurbishment ongoing", impact: "Positive", detail: "Ongoing improvement to the Angel Central retail destination strengthens N1's amenity offer — net positive for adjacent residential values." },
@@ -680,7 +707,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 10,
       vsNationalAvg: "4.2× faster than national average (42 days)",
       score: 9,
-      note: "E1 is one of London's top 3 rental demand postcodes by days-to-let. Spitalfields 1-bed warehouse conversions average 8 days to let; standard new-build 1-beds average 12 days. Elizabeth line access to Canary Wharf has transformed E1's appeal to finance sector tenants.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Tech City, Whitechapel hospital proximity, and Elizabeth line access create layered demand from multiple tenant cohorts with very low vacancy rates.",
+      note: "E1 averages 10 days to let. Tech sector workers, healthcare professionals, and students from multiple institutions compete for stock. Spitalfields and Aldgate sub-areas are the tightest sub-markets.",
     },
     nearbyDevelopments: [
       { name: "Whitechapel Masterplan", type: "Mixed-use", status: "Planning approved, phased delivery 2024–2035", impact: "Positive", detail: "Tower Hamlets' major masterplan for Whitechapel — 5,000+ homes, a new library, public spaces, and commercial around the Elizabeth line station. Long-term transformative for E1 status and values." },
@@ -745,10 +775,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "E8 has notably good air quality for inner east London — lower through-traffic than E1/E2, and London Fields (31 acres) provides a local clean air buffer. Readings near the A10 Kingsland Road are higher, but residential streets away from the main road return Good-rated levels.",
     },
     rentalDemand: {
-      avgDaysToLet: 15,
-      vsNationalAvg: "2.8× faster than national average (42 days)",
-      score: 8,
-      note: "E8 rental demand is consistent and high-quality. Broadway Market-adjacent 2-beds are the fastest-letting segment (8–12 days). The creative sector tenant base tends to stay longer than average — typical tenancies are 18–24 months, reducing void frequency.",
+      avgDaysToLet: 19,
+      vsNationalAvg: "2.2× faster than national average (42 days)",
+      score: 7,
+      label: "Moderate–High",
+      confidence: "Moderate",
+      rationale: "Hackney has strong creative and young professional demand but gentrification has raised asking rents ahead of some tenant budgets, moderating velocity slightly.",
+      note: "E8 averages 19 days to let — solid demand but with some price sensitivity. The tenant pool is highly lifestyle-driven; overpriced stock sits materially longer than correctly priced equivalents.",
     },
     nearbyDevelopments: [
       { name: "London Fields Lido", type: "Leisure", status: "Refurbishment complete (2024)", impact: "Positive", detail: "Hackney Council's £5m refurbishment of the E8 Lido is complete. The Lido is a significant value driver for London Fields-adjacent properties — its reopening has been positively received." },
@@ -816,7 +849,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 13,
       vsNationalAvg: "3.2× faster than national average (42 days)",
       score: 9,
-      note: "SE1 is consistently in London's top 5 rental demand postcodes. Bermondsey Street properties average 10 days to let. Borough Market-adjacent flats attract applicants within days of listing. Finance sector demand from Canary Wharf and City workers means year-round strong demand.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Southbank and Borough benefit from one of the strongest central London employment corridors, generating consistent high-velocity demand from finance, media, and healthcare professionals.",
+      note: "SE1 averages 13 days to let. The mix of St Thomas' Hospital staff, financial services workers, and cultural sector tenants creates resilient, layered demand. New riverside stock is absorbed quickly.",
     },
     nearbyDevelopments: [
       { name: "Bankside Yards", type: "Mixed-use", status: "Planning approved, delivering 2025–2030", impact: "Positive", detail: "Major mixed-use scheme on the South Bank (former Network Rail depot) — residential, office, cultural space, public riverside. Long-term positive for SE1 SE cultural offer and connectivity." },
@@ -884,7 +920,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 8,
       vsNationalAvg: "5.25× faster than national average (42 days)",
       score: 10,
-      note: "EC1 is London's fastest-letting residential postcode by days-to-let. Farringdon warehouse lofts average 7–8 days to let; standard flats average 10–12 days. Finance, legal, and tech sector workers consistently list EC1 as their preferred address — demand exceeds supply by a significant margin.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Farringdon's Elizabeth line, City adjacency, and permanent creative-sector demand combine to make EC1 one of the tightest rental markets in the country.",
+      note: "EC1 averages 8 days to let. Elizabeth line demand and permanent tech/creative sector employment generate near-zero vacancy. Converted warehouse and loft stock commands a letting premium and absorbs fastest.",
     },
     nearbyDevelopments: [
       { name: "Barbican Estate Refurbishment", type: "Residential", status: "Long-term programme, City of London", impact: "Positive", detail: "City of London's commitment to maintaining and improving the Barbican Estate — one of London's most significant post-war residential complexes. Ongoing investment protects values in EC2/EC1 adjacent." },
@@ -949,10 +988,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "Manchester city centre's NO₂ has improved significantly since Clean Air Zone implementation in 2023. Piccadilly Gardens and the main arterial routes return elevated readings. Ancoats residential streets away from the commercial core return Good-rated levels.",
     },
     rentalDemand: {
-      avgDaysToLet: 8,
-      vsNationalAvg: "5.25× faster than national average (42 days)",
-      score: 10,
-      note: "M1 is the fastest-letting postcode outside London. Ancoats 1-bed mill conversions average 7 days to let; standard new-build apartments average 9 days. The student population creates a reliable September demand spike. Year-round professional demand means very low void periods.",
+      avgDaysToLet: 10,
+      vsNationalAvg: "4.2× faster than national average (42 days)",
+      score: 9,
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Manchester city centre combines the highest-density student population outside London with a fast-growing professional tenant base, generating one of the UK's strongest non-London rental markets.",
+      note: "M1 averages 10 days to let. The Ancoats and Northern Quarter sub-markets are the tightest — mill conversions let within days. Purpose-built student blocks near Oxford Road typically achieve 95%+ pre-let rates.",
     },
     nearbyDevelopments: [
       { name: "NOMA Masterplan", type: "Mixed-use", status: "Ongoing (20+ acres, 10+ year delivery)", impact: "Positive", detail: "The Co-operative Group's major city-centre masterplan — offices, residential, retail, public space on the north M1 border. Structural positive for M1 and adjacent M4 values as the area matures." },
@@ -1017,10 +1059,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "Birmingham's Clean Air Zone (implemented 2021) has significantly reduced city-centre NO₂. The JQ's quieter road network returns better readings than the Broad Street or Queensway corridors. Air quality has improved measurably year-on-year since 2021.",
     },
     rentalDemand: {
-      avgDaysToLet: 14,
-      vsNationalAvg: "3× faster than national average (42 days)",
-      score: 8,
-      note: "B1 JQ properties average 14 days to let — strong demand from young professionals, creative sector workers, and students from all three adjacent universities. The HS2 announcement has attracted London buyers looking to front-run the infrastructure premium.",
+      avgDaysToLet: 18,
+      vsNationalAvg: "2.3× faster than national average (42 days)",
+      score: 7,
+      label: "Moderate–High",
+      confidence: "Moderate",
+      rationale: "The Jewellery Quarter attracts professional demand anchored by HSBC UK's Birmingham HQ, though the market is thinner than the largest regional cities and evidence is more directional.",
+      note: "B1 averages ~18 days to let. Demand is supported by corporate relocation (HSBC moved ~5,000 jobs to Birmingham in 2018) and university proximity. The rental market is growing but less deep than M1 or LS1.",
     },
     nearbyDevelopments: [
       { name: "HS2 Curzon Street Station", type: "Transport", status: "Under construction (~2033 opening)", impact: "Positive", detail: "High Speed 2's Birmingham terminus — ~52 minutes to London Euston on opening. Within 1km of B1's eastern boundary. The single most significant value driver for B1 and B4 properties in the medium term." },
@@ -1085,10 +1130,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "Leeds city centre has improved significantly since Clean Air Zone introduction. The LS1 core away from the Inner Ring Road returns Good-rated readings. The South Bank riverside area benefits from open river corridor ventilation.",
     },
     rentalDemand: {
-      avgDaysToLet: 9,
-      vsNationalAvg: "4.7× faster than national average (42 days)",
+      avgDaysToLet: 11,
+      vsNationalAvg: "3.8× faster than national average (42 days)",
       score: 9,
-      note: "LS1 is the fastest-letting postcode outside London and Manchester. Warehouse conversion 1-beds average 7 days to let; standard apartments average 10–12 days. The September student demand surge is extreme — properties listed in August are typically committed before October.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Leeds city centre supports 70,000 university students and a large financial services workforce, creating a rental market with some of the strongest letting velocity outside London.",
+      note: "LS1 averages 11 days to let. Financial services employers (First Direct, HMRC Digital, KPMG) and three universities generate layered demand. Well-priced city-centre flats are absorbed within 1–2 weeks year-round.",
     },
     nearbyDevelopments: [
       { name: "South Bank Masterplan", type: "Mixed-use", status: "Long-term delivery (10–15 years)", impact: "Positive", detail: "60+ acres of brownfield land immediately south of Leeds station — 8,000 homes, 35,000 jobs, the new Channel 4 national headquarters. Largest regeneration scheme in northern England. Buy adjacent properties now." },
@@ -1153,10 +1201,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "BS1 has good air quality by UK city-centre standards. The open Floating Harbour acts as a ventilation corridor. The A4 Temple Way ring road returns elevated readings on immediately adjacent streets. Bristol's high cycling and public transport modal share keeps city-centre traffic volumes below comparable English cities.",
     },
     rentalDemand: {
-      avgDaysToLet: 16,
-      vsNationalAvg: "2.6× faster than national average (42 days)",
-      score: 8,
-      note: "BS1 rental demand is strong and quality-led. Harbourside 2-beds with water views let fastest (10–14 days). Channel 4 employees and creative sector workers are the dominant tenant profile. University of Bristol's new Temple Quarter campus (from 2025) will add significant postgraduate demand.",
+      avgDaysToLet: 20,
+      vsNationalAvg: "2.1× faster than national average (42 days)",
+      score: 7,
+      label: "Moderate–High",
+      confidence: "Moderate",
+      rationale: "Bristol city centre benefits from a graduate-heavy economy and the creative sector, but the market is thinner than top-tier regional cities and data coverage is more limited.",
+      note: "BS1 averages ~20 days to let. The creative and tech sectors (ARUP, EDF Energy) underpin professional demand. Graduate retention is high — University of Bristol and UWE Bristol produce a strong feeder market. Evidence is directional.",
     },
     nearbyDevelopments: [
       { name: "University of Bristol Temple Quarter Campus", type: "Education/Commercial", status: "Under construction, opening 2025", impact: "Positive", detail: "UoB's £300m new campus adjacent to Temple Meads will bring 10,000 students and staff to the BS1 border. Structural demand driver for BS1 residential rental and owner-occupier values." },
@@ -1224,7 +1275,10 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       avgDaysToLet: 7,
       vsNationalAvg: "6× faster than national average (42 days)",
       score: 10,
-      note: "EH1 is the tightest rental market in the UK outside Zone 1 London. Properties list and let within days — multiple competing applications within 24 hours of listing are the norm. August (Festival month) creates extraordinary short-let demand — many EH1 owners switch to short-let for August, achieving 5–10× normal rental rates.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Edinburgh Old Town has vacancy rates below 1% — the tightest rental market in Scotland and among the five tightest in the UK, driven by tourist pressure, student demand, and Festival short-let competition.",
+      note: "EH1 averages 7 days to let — the fastest in Scotland and comparable to prime London. Vacancy rates are structurally suppressed by short-let pressure (Festival Fringe effect) and student competition. Properties frequently receive multiple applications within 48 hours of listing.",
     },
     nearbyDevelopments: [
       { name: "Caltongate / Canongate", type: "Mixed-use", status: "Ongoing", impact: "Positive", detail: "Mixed-use development at the foot of the Royal Mile (Canongate/Holyrood) — hotel, residential, commercial. Improves the southern approach to the Old Town and adds amenity to the EH8 border." },
@@ -1289,10 +1343,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "Oxford's city centre has improved significantly since the Zero Emission Zone (ZEZ) implementation in 2022 — the UK's first. The High Street and St Aldate's return much better readings than pre-ZEZ. Jericho and North Oxford residential streets are well within WHO guidelines.",
     },
     rentalDemand: {
-      avgDaysToLet: 8,
-      vsNationalAvg: "5.25× faster than national average (42 days)",
+      avgDaysToLet: 9,
+      vsNationalAvg: "4.7× faster than national average (42 days)",
       score: 10,
-      note: "Oxford is the tightest rental market outside London and Edinburgh. Properties list and receive applications within days. The Biomedical Campus postdoctoral researcher demographic is Oxford's most competitive tenant segment — typically seeking 2-bed houses within cycling distance of the OX3/OX4 campus.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Oxford's constrained supply, world-class university, and highly paid biomedical and tech workforce combine to produce one of the most consistently oversubscribed rental markets in England.",
+      note: "OX1 averages 9 days to let. University of Oxford, Oxford Brookes, and a large biomedical cluster generate constant layered demand. Rental stock is severely constrained by planning restrictions — flats receive multiple applications within days of listing.",
     },
     nearbyDevelopments: [
       { name: "East West Rail (Oxford Phase)", type: "Transport", status: "Under construction", impact: "Positive", detail: "East West Rail's Oxford–Milton Keynes–Cambridge corridor will significantly improve OX1's connectivity to Cambridge's knowledge economy. Structural demand positive — opens a new buyer segment from the Oxford-Cambridge arc." },
@@ -1357,10 +1414,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "Cambridge has excellent air quality — among the best of any UK city. The city's near-universal cycling culture dramatically reduces motor vehicle traffic, particularly in CB1's residential streets. Mill Road is the highest-traffic corridor but still returns Good-rated readings.",
     },
     rentalDemand: {
-      avgDaysToLet: 6,
-      vsNationalAvg: "7× faster than national average (42 days)",
+      avgDaysToLet: 7,
+      vsNationalAvg: "6× faster than national average (42 days)",
       score: 10,
-      note: "Cambridge is the UK's fastest-letting rental market outside London's Zone 1. Properties in Petersfield and near the Biomedical Campus receive applications within 24–48 hours of listing. The AstraZeneca relocation (2016) permanently shifted CB1's tenant demographic toward high-salary biotech professionals — a structural premium.",
+      label: "Very High",
+      confidence: "Strong",
+      rationale: "Cambridge combines the UK's second-densest student population (relative to city size) with a biotech and deep-tech sector workforce, generating near-zero vacancy and some of the fastest letting times in England.",
+      note: "CB1 averages 7 days to let — driven by University of Cambridge, Anglia Ruskin, and the Cambridge Biomedical Campus (15,000+ workers). Rental supply is severely constrained by the Green Belt. Multiple offers above asking rent are common for well-located properties.",
     },
     nearbyDevelopments: [
       { name: "Cambridge Cancer Research Hospital", type: "Education/Healthcare", status: "Under construction, opening ~2027", impact: "Positive", detail: "£300m+ Cancer Research UK hospital on the Biomedical Campus — will bring additional high-salary medical researchers and clinicians to CB1's catchment. Structural demand positive for CB1/CB2 residential values." },
@@ -1425,10 +1485,13 @@ export const enrichmentProfiles: Record<string, EnrichmentProfile> = {
       note: "Reading's air quality is among the best of any large English town. The Thames corridor provides natural ventilation. The town centre Clean Air Zone (proposed but not yet implemented) would further reduce road traffic NO₂ on the IDR and Broad Street corridor.",
     },
     rentalDemand: {
-      avgDaysToLet: 14,
-      vsNationalAvg: "3× faster than national average (42 days)",
-      score: 8,
-      note: "RG1 attracts London commuter tenants who consistently cite the Elizabeth line as the primary decision driver. Conservation area 2-bed terraces are the fastest-letting segment (10–14 days). Reading grammar school catchment is a significant draw for families — 3-bed house supply is extremely tight.",
+      avgDaysToLet: 26,
+      vsNationalAvg: "Broadly in line with national average (42 days)",
+      score: 6,
+      label: "Moderate",
+      confidence: "Moderate",
+      rationale: "Reading is a solid commuter-belt rental market anchored by its rail corridor, but demand is more price-sensitive and less structurally constrained than in the university cities.",
+      note: "RG1 averages ~26 days to let — in line with the national average. The market is supported by the Elizabeth line connection and Oracle/Microsoft offices, but demand is commuter-driven rather than structural, making it more sensitive to changes in remote-working patterns.",
     },
     nearbyDevelopments: [
       { name: "Station Hill", type: "Mixed-use/Residential", status: "Delivering from 2024 (1,500 homes)", impact: "Monitor", detail: "Major new residential development adjacent to Reading station — 1,500 homes, retail, office. High-quality addition to RG1 but adds new-build supply. Period terraces in the conservation area are insulated from this supply pressure." },

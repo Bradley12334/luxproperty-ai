@@ -4108,29 +4108,72 @@ export default function BriefPage() {
               <div className="flex-1 h-px bg-border/60" />
             </div>
 
-            {/* Rental Demand Score — Investor */}
+            {/* Rental Demand — Investor */}
             {isInvestor ? (
-              <CollapsibleSection title="Rental Demand Score" testId="section-rental-demand">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-end gap-4 flex-wrap">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Demand Score <EstimateTag /></span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-bold text-[#B8860B]">{ai.rentalDemand.score}</span>
-                        <span className="text-lg text-muted-foreground font-medium">/10</span>
+              <CollapsibleSection title="Rental Demand" testId="section-rental-demand">
+                {(() => {
+                  const rd = ai.rentalDemand;
+                  const isInsufficient = rd.confidence === "Insufficient";
+                  const isLow = rd.confidence === "Low";
+                  const confidencePillColour =
+                    rd.confidence === "Strong"
+                      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400"
+                      : rd.confidence === "Moderate"
+                      ? "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400"
+                      : rd.confidence === "Low"
+                      ? "bg-orange-500/10 text-orange-700 border-orange-500/20 dark:text-orange-400"
+                      : "bg-muted/60 text-muted-foreground border-border";
+                  const labelColour =
+                    isInsufficient
+                      ? "text-muted-foreground"
+                      : rd.score != null && rd.score >= 9
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : rd.score != null && rd.score >= 7
+                      ? "text-[#B8860B]"
+                      : "text-muted-foreground";
+
+                  return (
+                    <div className="flex flex-col gap-4">
+                      {/* Label + confidence row */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className={`text-2xl font-bold ${labelColour}`}>
+                          {rd.label}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.1em] border ${confidencePillColour}`}>
+                          {rd.confidence === "Insufficient" ? "No data" : rd.confidence === "Low" ? "Directional" : rd.confidence === "Moderate" ? "Moderate confidence" : "High confidence"}
+                        </span>
                       </div>
+
+                      {/* Rationale */}
+                      <p className="text-sm text-foreground leading-relaxed">{rd.rationale}</p>
+
+                      {/* Days to let + vs national — only when data exists */}
+                      {!isInsufficient && rd.avgDaysToLet != null && (
+                        <div className="flex flex-wrap gap-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                              Avg days to let <EstimateTag />
+                            </span>
+                            <span className="text-2xl font-bold text-foreground">
+                              {rd.avgDaysToLet} days
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* vs national average bar — only when we have real data */}
+                      {!isInsufficient && rd.vsNationalAvg && (
+                        <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-muted/60">
+                          <BarChart3 className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-sm font-medium text-foreground">{rd.vsNationalAvg}</span>
+                        </div>
+                      )}
+
+                      {/* Note */}
+                      <p className="text-sm text-muted-foreground leading-relaxed">{rd.note}</p>
                     </div>
-                    <div className="flex flex-col gap-1 pb-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Days to Let <EstimateTag /></span>
-                      <span className="text-2xl font-bold text-foreground">{ai.rentalDemand.avgDaysToLet} days</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-muted/60">
-                    <BarChart3 className="h-4 w-4 text-primary shrink-0" />
-                    <span className="text-sm font-medium text-foreground">{ai.rentalDemand.vsNationalAvg}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{ai.rentalDemand.note}</p>
-                </div>
+                  );
+                })()}
               </CollapsibleSection>
             ) : (
               <div className="relative" data-testid="section-rental-demand-locked">
@@ -4138,7 +4181,7 @@ export default function BriefPage() {
                   <Card className="p-5 sm:p-6">
                     <div className="flex items-center gap-2 mb-4">
                       <BarChart3 className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Rental Demand Score</h3>
+                      <h3 className="font-semibold text-sm">Rental Demand</h3>
                     </div>
                     <div className="h-24 bg-muted rounded" />
                   </Card>
@@ -4147,14 +4190,12 @@ export default function BriefPage() {
                   <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
                     <p className="text-xs font-semibold text-foreground">Rental demand — Investor</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Letting potential score and demand context for this postcode.</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Letting velocity, demand label, and rental context for this postcode.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
               </div>
             )}
-
-            {/* ── Nearby Development Tracker — Professional+ ───────────────────── */}
             {isPaid ? (
               <CollapsibleSection title="Nearby Development Tracker" testId="section-developments">
                 <NearbyDevelopmentTracker

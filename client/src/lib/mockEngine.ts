@@ -3137,12 +3137,36 @@ export async function generateBrief(query: string): Promise<BriefReport> {
         note: `Air quality figures for ${areaName} are estimated from urban density and regional modelling — no live DEFRA monitor is available for this postcode in this report.${epcNote} Figures should be treated as indicative.`,
       };
     })(),
-    rentalDemand: enrichmentProfile?.rentalDemand ?? {
-      avgDaysToLet: tier === "prime" ? 14 : tier === "premium" ? 21 : 28,
-      vsNationalAvg: tier === "prime" ? "3× faster than national average (42 days)" : tier === "premium" ? "2× faster than national average (42 days)" : "Broadly in line with national average (42 days)",
-      score: tier === "prime" ? 8 : tier === "premium" ? 7 : 6,
-      note: `Score and days-to-let are estimated from area tier, postcode density, and prevailing market conditions — not from live listings data. Use as a directional indicator rather than a precise figure. Location-specific letting velocity for ${areaName} will improve as our dataset expands.`,
-    },
+    rentalDemand: enrichmentProfile?.rentalDemand ?? (() => {
+      // No enrichment profile exists for this postcode.
+      // Tier gives a very rough directional signal but we do not have
+      // listing-velocity or vacancy data to support a confident score.
+      // Return an honest low/insufficient-confidence state rather than
+      // a fake mid-band number.
+      if (tier === "prime" || tier === "premium") {
+        // Prime/premium tier: directional only — we know these areas
+        // have above-average demand structurally, but lack specific data.
+        return {
+          avgDaysToLet: tier === "prime" ? 18 : 25,
+          vsNationalAvg: tier === "prime" ? "Faster than national average — directional estimate only" : "Likely above national average — directional estimate only",
+          score: null,
+          label: tier === "prime" ? "High (directional)" : "Moderate–High (directional)",
+          confidence: "Low" as const,
+          rationale: `${areaName} is classified as a ${tier} tier area — rental demand is typically elevated, but no postcode-specific letting-velocity data is available to support a precise score.`,
+          note: `Rental demand for ${areaName} is directional only — estimated from area tier and urban density, not from live listings data. No postcode-level letting velocity is available for this area in the current dataset. Treat as a rough indicator; commission a local letting agent appraisal for a precise picture.`,
+        };
+      }
+      // Standard / unknown tier — genuinely insufficient evidence.
+      return {
+        avgDaysToLet: null,
+        vsNationalAvg: "",
+        score: null,
+        label: "Insufficient evidence",
+        confidence: "Insufficient" as const,
+        rationale: `No rental demand data is available for ${areaName}. The area tier and density are insufficient to produce a meaningful directional estimate.`,
+        note: `Rental market evidence for ${areaName} is insufficient to support a meaningful demand estimate. No letting-velocity, vacancy, or comparable-listings data is available for this postcode in the current dataset. A local letting agent appraisal will give you a much clearer picture.`,
+      };
+    })(),
     nearbyDevelopments: enrichDevelopments(
       (
         livePlanningActivity?.developments && livePlanningActivity.developments.length > 0

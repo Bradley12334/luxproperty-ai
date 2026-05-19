@@ -157,9 +157,12 @@ export interface AreaIntelligence {
 
   /** Rental Demand Score — Investor */
   rentalDemand: {
-    avgDaysToLet: number;
-    vsNationalAvg: string;      // "4x faster than national average"
-    score: number;              // 1–10
+    avgDaysToLet: number | null;   // null = insufficient data
+    vsNationalAvg: string;
+    score: number | null;          // 1–10, null = insufficient data
+    label: string;                 // "Very High" | "High" | "Moderate" | "Mixed" | "Weaker" | "Insufficient evidence"
+    confidence: "Strong" | "Moderate" | "Low" | "Insufficient";
+    rationale: string;             // one-sentence plain-English explanation
     note: string;
   };
 
