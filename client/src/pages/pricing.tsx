@@ -21,7 +21,7 @@ const tiers = [
     name: "Professional",
     price: "£4.99",
     period: "/month",
-    description: "A full buyer brief for any UK postcode — not just London. Comparable sales, 5-year price trend, flood risk, planning, crime, schools, and a negotiation brief. Unlimited briefs.",
+    description: "Everything you need before you offer. Comparable sales, negotiation brief, 5-year price trend, crime breakdown, planning activity, air quality, and PDF export. Any UK postcode. Unlimited briefs.",
     badge: "Best for Most",
     style: "professional",
     cta: "Start Professional",
@@ -61,12 +61,12 @@ const features: FeatureRow[] = [
   { feature: "Council tax band", explorer: true, professional: true, investor: true },
   { feature: "Simple commute note", explorer: true, professional: true, investor: true },
   // ── Professional ─────────────────────────────────────────────────────────────
-  { feature: "5-year price trend — full Land Registry history", explorer: false, professional: true, investor: true },
+  { feature: "5-year price trend — full Land Registry history (not just 1-year)", explorer: false, professional: true, investor: true },
   { feature: "Property type split", explorer: false, professional: true, investor: true },
   { feature: "Full commute calculator — times to multiple destinations", explorer: false, professional: true, investor: true },
   { feature: "Crime breakdown by category (police.uk)", explorer: false, professional: true, investor: true },
-  { feature: "Comparable local sales & valuation range", explorer: false, professional: true, investor: true },
-  { feature: "Negotiation brief — leverage points & offer guidance", explorer: false, professional: true, investor: true },
+  { feature: "Comparable sales & valuation range — anchor for your offer", explorer: false, professional: true, investor: true },
+  { feature: "Negotiation brief — leverage points, offer calibration & timing", explorer: false, professional: true, investor: true },
   { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
   { feature: "Broadband speed & fibre coverage (Ofcom)", explorer: false, professional: true, investor: true },
   { feature: "Rental market context — rents & demand", explorer: false, professional: true, investor: true },
@@ -122,7 +122,7 @@ export default function PricingPage() {
               Start free. Upgrade when you're ready to buy.
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Explorer is a fast, free area screen: is this postcode worth looking at further? Professional is the full buyer brief: comparable sales, 5-year price history, crime context, planning activity, and a negotiation brief for any UK postcode. 3 free briefs a month — no card required.
+              Explorer screens areas in seconds. Professional answers the question that matters before you offer: <em>Would I seriously consider buying here, and what do I need to know?</em> Start free — 3 briefs a month, no card required.
             </p>
           </div>
         </section>
@@ -268,10 +268,10 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              From area screen to full buyer brief in one step.
+              Know what you need before you offer.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Explorer tells you whether an area is worth looking at. Professional tells you whether a property is worth buying — with comparable sales, 5-year price history, crime breakdown, planning activity, and a negotiation brief built on official UK data.
+              Professional is a complete buyer decision layer — comparable sales, a negotiation brief, 5-year price trend, crime breakdown, and planning flags, all built on official UK data. Any postcode, any price band. £4.99/month.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">

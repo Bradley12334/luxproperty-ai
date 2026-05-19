@@ -239,7 +239,7 @@ interface BuyerSummary {
   bestFor: string;      // Type of buyer / household this area suits
   mainStrengths: string; // Clearest positive signals, specific and evidence-led
   watchOuts: string;    // Main trade-offs or caution points
-  overallSuitability: string; // Balanced plain-English judgement with confidence level
+  buyerTakeaway: string; // Pre-offer buyer recommendation — action-oriented, confidence-calibrated
 }
 
 function deriveBuyerSummary(
@@ -402,7 +402,7 @@ function deriveBuyerSummary(
   }
 
   // ── OVERALL SUITABILITY ───────────────────────────────────────────────────
-  let overallSuitability: string;
+  let buyerTakeaway: string;
 
   // Count positive vs negative signals
   const positives = strengthParts.length;
@@ -412,26 +412,26 @@ function deriveBuyerSummary(
   const marketFalling = !isNaN(yoyNum) && yoyNum < -2;
 
   if (isThinData) {
-    overallSuitability = `Data coverage for this area is limited — treat all figures as directional rather than precise. The structural characteristics (transport, schools, flood risk) are the most reliable signals here. Commission a RICS survey and local agent intelligence before offering.`;
+    buyerTakeaway = `Thin data area — figures are directional, not statistically precise. Focus on the structural signals: transport, schools, flood risk, and council tax. Visit the area, speak to a local agent, and commission a RICS survey before offering. Don't let limited data drive a fast decision.`;
   } else if (positives >= 3 && negatives === 0) {
-    overallSuitability = `A well-rounded area with several clear positives and no material concerns in this data. Suitable for most buyer types at the ${avgPrice} price point — particularly strong for ${bestForParts.length > 0 ? bestForParts[0] : "owner-occupiers"}.`;
+    buyerTakeaway = `Strong area for most buyer types at ${avgPrice}. No material red flags — the full report gives you enough to move into due diligence. Instruct a RICS Level 2 survey and review the planning section before exchange.`;
   } else if (positives >= 2 && negatives <= 1 && !hasFloodRisk) {
-    overallSuitability = `Strong overall case${marketRising ? ` backed by ${yoy} annual price growth` : ""}. The watch-out above is worth factoring into your decision but does not undermine the area's fundamentals.`;
+    buyerTakeaway = `Good case for proceeding${marketRising ? ` — ${yoy} price growth supports your position` : ""}. Address the watch-out before offering, but it's not a deal-breaker. Use the comparable sales to anchor your opening bid.`;
   } else if (negatives >= 2 && hasFloodRisk) {
-    overallSuitability = `Proceed carefully. The combination of flood risk and ${negatives > 2 ? "other concerns" : "one further watch-out"} means due diligence here is not optional — a full structural survey and flood assessment are strongly recommended before committing.`;
+    buyerTakeaway = `Proceed with care. Flood risk combined with ${negatives > 2 ? "other material concerns" : "a further watch-out"} means this requires full due diligence — a structural survey, dedicated flood assessment, and insurance quote before you commit. These issues are manageable but not optional to verify.`;
   } else if (negatives >= 2 && marketFalling) {
-    overallSuitability = `Mixed signals. Price softness and further concerns listed above mean buyers should negotiate hard and build in a safety margin. The area may represent value if the drivers of the price movement are temporary — verify with a local agent.`;
+    buyerTakeaway = `Negotiate from a position of information. Soft prices and the concerns above give you leverage — but verify whether the price weakness is structural or temporary before offering. Build a safety margin into your maximum. Use comparables to calibrate your opening bid.`;
   } else if (isTransitLight && isAmenityLight) {
-    overallSuitability = `A quieter residential area with limited connectivity and amenities. Evidence quality is ${isThinData ? "limited" : "reasonable"} — this suits buyers explicitly choosing space and calm over urban convenience. Test your daily routine against what the area offers before committing.`;
+    buyerTakeaway = `Best suited to buyers choosing space and calm over urban convenience. Test your daily routine — particularly the commute — against what's actually here before committing. If connectivity works for your lifestyle, this area represents reasonable value.`;
   } else if (positives >= 2 && negatives >= 2) {
-    overallSuitability = `A balanced picture — clear strengths but genuine trade-offs to weigh. ${marketRising ? `Price momentum (${yoy}) is positive. ` : ""}Suitability depends heavily on how much weight you give to the watch-outs above.`;
+    buyerTakeaway = `Balanced case — clear strengths, genuine trade-offs. ${marketRising ? `Price momentum (${yoy}) is in your favour. ` : ""}Decide how much weight the watch-outs carry for your specific situation, then use the negotiation section to calibrate your offer.`;
   } else {
-    overallSuitability = marketRising
-      ? `A generally solid choice in a ${yoy} year-on-year market. No critical concerns — the detail in the sections below will determine whether this is the right fit for your specific needs.`
-      : `A reasonable residential option at the ${avgPrice} price point. No critical concerns identified — use the full report sections to validate against your priorities.`;
+    buyerTakeaway = marketRising
+      ? `Solid basis for proceeding in a ${yoy} market. No critical concerns in this data — the sections below give you everything you need to pressure-test the decision and calibrate your offer.`
+      : `Reasonable value at ${avgPrice}. No critical concerns identified — use the comparable sales and negotiation section to anchor your bid, and commission a survey before exchange.`;
   }
 
-  return { bestFor, mainStrengths, watchOuts, overallSuitability };
+  return { bestFor, mainStrengths, watchOuts, buyerTakeaway };
 }
 
 // ── Buyer Summary Block component ────────────────────────────────────────────
@@ -478,8 +478,8 @@ function BuyerSummaryBlock({
     },
     {
       icon: <Zap className="h-3.5 w-3.5" />,
-      label: "Overall suitability",
-      value: summary.overallSuitability,
+      label: "Buyer takeaway",
+      value: summary.buyerTakeaway,
       accentClass: "text-[#B8860B]",
       borderClass: "border-[#B8860B]/15",
       bgClass: "bg-[#B8860B]/[0.03]",
@@ -495,7 +495,7 @@ function BuyerSummaryBlock({
       <div className="px-5 sm:px-6 py-3.5 bg-[#B8860B]/[0.07] border-b border-[#B8860B]/20 flex items-center gap-2.5">
         <Lightbulb className="h-3.5 w-3.5 text-[#B8860B] shrink-0" />
         <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8860B]">
-          Buyer Summary
+          Pre-offer Summary
         </span>
         <span className="ml-auto text-[10px] text-muted-foreground/50 font-medium tracking-wide hidden sm:block">
           Read this first
@@ -674,7 +674,7 @@ function exportToPDF(
   const pdfBuyerSummary = deriveBuyerSummary(ai, !!isProperty);
   const pdfOneGlanceSection = `
   <div class="section">
-    <div class="section-label">Buyer Summary</div>
+    <div class="section-label">Pre-offer Summary</div>
     <table style="width:100%;border-collapse:collapse">
       <tr>
         <td style="padding:11px 14px;background:#fefce8;border-left:3px solid #B8860B;border-bottom:1px solid #f3f4f6">
@@ -696,8 +696,8 @@ function exportToPDF(
       </tr>
       <tr>
         <td style="padding:11px 14px;background:#faf8f4;border-left:3px solid #B8860B">
-          <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:5px">Overall suitability</div>
-          <p style="font-size:12px;line-height:1.6;color:#111827;margin:0">${pdfBuyerSummary.overallSuitability}</p>
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:5px">Buyer takeaway</div>
+          <p style="font-size:12px;line-height:1.6;color:#111827;margin:0">${pdfBuyerSummary.buyerTakeaway}</p>
         </td>
       </tr>
     </table>
@@ -1548,6 +1548,11 @@ export default function BriefPage() {
               <p className="text-sm leading-relaxed text-foreground/90">
                 {ai.executiveSummary}
               </p>
+              {(ai.marketOverview.averagePrice === "Insufficient data" || ai.marketOverview.averagePrice === "Scotland/NI — see note") && (
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-4 leading-relaxed border-l-2 border-amber-400/40 pl-3 bg-amber-50/50 dark:bg-amber-950/20 py-2 rounded-r-sm">
+                  Data note: Land Registry transaction volume for this postcode is below the threshold for full statistical analysis. Figures are directional — supplement with Rightmove and Zoopla sold prices and local agent intelligence before offering.
+                </p>
+              )}
             </Card>
 
             {/* Market Overview KPIs */}
@@ -2099,7 +2104,10 @@ export default function BriefPage() {
                   <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-1">
                     <p className="text-sm text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
-                    <a href="https://www.police.uk/pu/your-area/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start">Check crime data at police.uk →</a>
+                    <p className="text-xs text-muted-foreground/70 mt-2 leading-relaxed">
+                      No recorded data doesn't mean no crime — it means the API returned no records for this period. Check police.uk directly before deciding whether the area meets your safety bar.
+                    </p>
+                    <a href="https://www.police.uk/pu/your-area/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Check crime data at police.uk →</a>
                   </div>
                 </div>
               </CollapsibleSection>
@@ -2172,7 +2180,7 @@ export default function BriefPage() {
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{ai.planningActivity.note}</p>
                   <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
-                    Why it matters: active planning applications within 250m can affect outlook, noise, and future value. A major development approval can change a quiet street significantly — check the council portal before committing.
+                    Why it matters: planning activity within 250–500m can affect outlook, noise, character, and future value. A major development can change a quiet street. Even if no applications appear here, check the council portal directly before exchange — applications can move fast and won't always appear in this data.
                   </p>
                   <a
                     href={ai.planningActivity.councilPortalUrl}
@@ -2322,7 +2330,9 @@ export default function BriefPage() {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
-                    <p className="text-xs text-muted-foreground/60 leading-relaxed">Ofcom figures are postcode-level averages. Actual speeds and availability can differ between properties on the same street — verify at address level at <a href="https://checker.ofcom.org.uk/" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">checker.ofcom.org.uk</a> before offering.</p>
+                    <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                      Buyer note: if remote or hybrid working is part of your plan, verify the specific address before exchanging. Postcode averages can mask significant variation at street level — speeds and full-fibre availability can differ property to property. Use <a href="https://checker.ofcom.org.uk/" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">checker.ofcom.org.uk</a> or contact the provider directly.
+                    </p>
                   </div>
                 )}
               </CollapsibleSection>
@@ -2390,6 +2400,12 @@ export default function BriefPage() {
                       Figures are modelled from urban density data — no live monitoring station was available for this postcode. Verify against the DEFRA UK-AIR map for the nearest monitor reading.
                     </p>
                   )}
+                  <div className="mt-1 p-3 rounded-md bg-primary/5 border border-primary/15">
+                    <p className="text-xs font-semibold text-primary mb-1">How to use this before you offer</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Air quality rarely kills a deal but matters for long-term liveability — especially for families or anyone with respiratory health concerns. If the rating is Moderate or worse, factor it into your questions at viewing. Good air quality in a well-connected area is a genuine quality-of-life advantage worth noting.
+                    </p>
+                  </div>
                   <a
                     href="https://uk-air.defra.gov.uk"
                     target="_blank"
@@ -2673,8 +2689,8 @@ export default function BriefPage() {
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
-                    Range is derived from the Land Registry postcode median and nearby comparable sales — not a formal valuation. For a binding figure, instruct a RICS-regulated surveyor.
+                  <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed border-l-2 border-border pl-3">
+                    How to use this: the range gives you a starting anchor for offer calibration — not a final number. If the asking price sits above the top of the range, use the comparable sales below to understand why, and consider whether a structural survey could reveal a counter-argument. For a binding figure, instruct a RICS-regulated surveyor.
                   </p>
                 </Card>
 
@@ -2713,6 +2729,11 @@ export default function BriefPage() {
                     </table>
                   </div>
                   )}
+                  {pd.comparableSales.length > 1 && (
+                    <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed border-l-2 border-border pl-3">
+                      Reading the comparables: look at the spread between lowest and highest sale. Properties that sold at a premium typically offer something the subject property may not — more space, better condition, a quieter street. Use the lower end as your opening negotiation anchor if the asking price is at or above the mid-range.
+                    </p>
+                  )}
                 </Card>
 
                 <Card className="p-5 sm:p-6" data-testid="section-negotiation">
@@ -2722,9 +2743,12 @@ export default function BriefPage() {
                     <p className="font-serif text-2xl tracking-tight text-primary">
                       {pd.negotiationBrief.suggestedOfferRange}
                     </p>
+                    <p className="text-xs text-muted-foreground/70 mt-2 leading-relaxed">
+                      Derived from the postcode median and comparable sales above. Use this as a calibration tool, not a hard ceiling — condition, lease length, EPC rating, and chain status all affect where the right number lands.
+                    </p>
                   </div>
                   <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-                    Key Leverage Points
+                    Leverage Points
                   </p>
                   <ul className="space-y-2">
                     {pd.negotiationBrief.leveragePoints.map((point, i) => (
@@ -2831,10 +2855,10 @@ export default function BriefPage() {
                       <Lock className="h-5 w-5 text-primary" />
                     </div>
                     <h3 className="font-serif text-lg tracking-tight mb-2">
-                      Ready to go deeper?
+                      Before you offer, you need this
                     </h3>
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                      Explorer gives you the area screen. Professional gives you the full buyer brief: 5-year price trend, crime breakdown, comparable sales, planning activity, negotiation brief, and PDF export. Any UK postcode. £4.99/month.
+                      Professional answers the question buyers actually ask: <em>Would I seriously consider buying here — and what do I need to know before I offer?</em> You get comparable sales, a negotiation brief, 5-year price trend, crime breakdown, planning activity, and a PDF to keep. Any UK postcode. £4.99/month.
                     </p>
                     <div className="space-y-2">
                       <a href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00" target="_blank" rel="noopener noreferrer">
