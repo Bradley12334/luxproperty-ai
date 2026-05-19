@@ -293,16 +293,16 @@ export interface AreaIntelligence {
    * ways of living. Each category has a banded label + plain-English caption.
    */
   lifestyleFit: Array<{
-    /** Category name — one of five fixed categories */
+    /** Category name — one of five fixed buyer-first categories */
     category:
-      | "Family life"
-      | "Commute convenience"
-      | "Walkability"
-      | "Access to green space"
-      | "Daily convenience";
+      | "Family fit"
+      | "Commute fit"
+      | "Convenience fit"
+      | "Green space fit"
+      | "Long-term appeal";
     /** Banded score — not a fake precise number */
     score: "Excellent" | "Good" | "Mixed" | "Limited";
-    /** One-sentence plain-English caption: what daily life actually feels like */
+    /** One or two sentence plain-English caption: what this means in practice */
     caption: string;
   }>;
 

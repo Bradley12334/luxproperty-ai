@@ -1169,41 +1169,77 @@ function exportToPDF(
   const pdfLifestyleFitSection = (() => {
     const fit = ai.lifestyleFit;
     if (!fit || fit.length === 0) return "";
-    const scoreColors: Record<string, string> = {
-      Excellent: "#166534",
-      Good:      "#1d4ed8",
-      Mixed:     "#92400e",
-      Limited:   "#991b1b",
+
+    const scoreMeta: Record<string, { color: string; bg: string; border: string; bar: string }> = {
+      Excellent: { color: "#166534", bg: "#f0fdf4", border: "#bbf7d0", bar: "#22c55e" },
+      Good:      { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe", bar: "#3b82f6" },
+      Mixed:     { color: "#92400e", bg: "#fffbeb", border: "#fde68a", bar: "#f59e0b" },
+      Limited:   { color: "#991b1b", bg: "#fef2f2", border: "#fecaca", bar: "#f87171" },
     };
-    const scoreBgs: Record<string, string> = {
-      Excellent: "#f0fdf4",
-      Good:      "#eff6ff",
-      Mixed:     "#fefce8",
-      Limited:   "#fef2f2",
+
+    const categoryMeta: Record<string, { desc: string }> = {
+      "Family fit":        { desc: "Schools, safety & green space" },
+      "Commute fit":       { desc: "Stations, lines & walk time" },
+      "Convenience fit":   { desc: "Day-to-day essentials on foot" },
+      "Green space fit":   { desc: "Parks & usable outdoor access" },
+      "Long-term appeal":  { desc: "Desirability signals & resale strength" },
     };
-    const rows = fit.map(item => `
+
+    const barWidths: Record<string, string> = {
+      Excellent: "100%",
+      Good:      "75%",
+      Mixed:     "50%",
+      Limited:   "25%",
+    };
+
+    const rows = fit.map(item => {
+      const sm = scoreMeta[item.score] ?? scoreMeta["Mixed"];
+      const cm = categoryMeta[item.category] ?? { desc: "" };
+      const bw = barWidths[item.score] ?? "50%";
+      return `
       <tr style="border-bottom:1px solid #f3f4f6">
-        <td style="padding:9px 10px 9px 0;font-size:12px;font-weight:600;color:#111827;white-space:nowrap">${item.category}</td>
-        <td style="padding:9px 8px;text-align:center">
-          <span style="display:inline-block;padding:2px 10px;border-radius:9999px;font-size:10px;font-weight:700;background:${scoreBgs[item.score] ?? "#f9fafb"};color:${scoreColors[item.score] ?? "#374151"}">${item.score}</span>
+        <td style="padding:12px 14px 12px 0;vertical-align:top;width:150px">
+          <div style="font-size:12px;font-weight:700;color:#111827;margin-bottom:3px">${item.category}</div>
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.09em;color:#9ca3af;margin-bottom:6px">${cm.desc}</div>
+          <div style="background:#f3f4f6;height:4px;border-radius:9999px;overflow:hidden;width:100px">
+            <div style="height:4px;width:${bw};background:${sm.bar};border-radius:9999px"></div>
+          </div>
+          <div style="margin-top:5px">
+            <span style="display:inline-block;padding:2px 9px;border-radius:9999px;font-size:9px;font-weight:700;background:${sm.bg};color:${sm.color};border:1px solid ${sm.border}">${item.score}</span>
+          </div>
         </td>
-        <td style="padding:9px 0 9px 8px;font-size:11px;color:#6b7280;line-height:1.55">${item.caption}</td>
-      </tr>
-    `).join("");
+        <td style="padding:12px 0 12px 8px;font-size:11.5px;color:#374151;line-height:1.6;vertical-align:top">${item.caption}</td>
+      </tr>`;
+    }).join("");
+
+    // Summary line
+    const counts: Record<string, number> = { Excellent: 0, Good: 0, Mixed: 0, Limited: 0 };
+    fit.forEach(f => { counts[f.score] = (counts[f.score] ?? 0) + 1; });
+    const topLine = counts["Excellent"] >= 3
+      ? "Strong across the board"
+      : (counts["Excellent"] ?? 0) + (counts["Good"] ?? 0) >= 4
+      ? "Mostly positive"
+      : (counts["Mixed"] ?? 0) + (counts["Limited"] ?? 0) >= 3
+      ? "Several trade-offs to weigh"
+      : "Mixed picture";
+
     return `
     <div class="section">
-      <div class="section-label">Area Fit by Lifestyle</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="section-label" style="margin-bottom:0">Lifestyle Fit</div>
+        <span style="font-size:10px;color:#6b7280;font-weight:600">${topLine}</span>
+      </div>
+      <p style="font-size:10px;color:#9ca3af;margin-bottom:14px">How this area scores across five buyer-first dimensions — grounded in data from this brief.</p>
       <table style="width:100%;border-collapse:collapse">
         <thead>
           <tr style="border-bottom:2px solid #e5e7eb">
-            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px;width:140px">Category</th>
-            <th style="text-align:center;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px;width:80px">Score</th>
-            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:7px">What this means in practice</th>
+            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:8px;width:150px">Category</th>
+            <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;padding-bottom:8px">What this means in practice</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      <p style="margin-top:10px;font-size:10px;color:#9ca3af">Derived from Ofsted, Transport API, Overpass amenity data, and UK crime statistics in this brief.</p>
+      <p style="margin-top:10px;font-size:10px;color:#9ca3af">Derived from Ofsted ratings, station data, Overpass amenity data, and UK crime statistics. Reflects the area as a whole — individual streets may vary.</p>
     </div>`;
   })();
 
@@ -2184,93 +2220,165 @@ function LifestyleGlance({ ai, report }: { ai: BriefReport["areaIntelligence"]; 
 
 
 // ── Lifestyle Fit Block ───────────────────────────────────────────────────────────────────
-// Evidence-led lifestyle scoring across five categories. Each score is banded
-// (Excellent / Good / Mixed / Limited) with a plain-English caption.
-// Does not duplicate WalkScore — that shows raw walkability; this shows
-// what daily life across 5 dimensions would feel like.
+// Buyer-first lifestyle scoring across five dimensions. Each category is banded
+// (Excellent / Good / Mixed / Limited) with a plain-English explanation grounded
+// in actual signals from the brief — not generic neighbourhood copy.
+
+type LifestyleCategory = "Family fit" | "Commute fit" | "Convenience fit" | "Green space fit" | "Long-term appeal";
 
 const LIFESTYLE_CATEGORY_META: Record<
-  string,
-  { icon: React.ReactNode; label: string; shortLabel: string }
+  LifestyleCategory,
+  { icon: React.ReactNode; label: string; description: string }
 > = {
-  "Family life": {
+  "Family fit": {
     icon: <GraduationCap className="h-4 w-4" />,
-    label: "Family Life",
-    shortLabel: "Family",
+    label: "Family Fit",
+    description: "Schools, safety & green space",
   },
-  "Commute convenience": {
+  "Commute fit": {
     icon: <Train className="h-4 w-4" />,
-    label: "Commute",
-    shortLabel: "Commute",
+    label: "Commute Fit",
+    description: "Stations, lines & walk time",
   },
-  "Walkability": {
-    icon: <Footprints className="h-4 w-4" />,
-    label: "Walkability",
-    shortLabel: "Walking",
-  },
-  "Access to green space": {
-    icon: <Leaf className="h-4 w-4" />,
-    label: "Green Space",
-    shortLabel: "Green",
-  },
-  "Daily convenience": {
+  "Convenience fit": {
     icon: <ShoppingCart className="h-4 w-4" />,
-    label: "Daily Convenience",
-    shortLabel: "Daily",
+    label: "Convenience Fit",
+    description: "Day-to-day essentials on foot",
+  },
+  "Green space fit": {
+    icon: <Leaf className="h-4 w-4" />,
+    label: "Green Space Fit",
+    description: "Parks & usable outdoor access",
+  },
+  "Long-term appeal": {
+    icon: <TrendingUp className="h-4 w-4" />,
+    label: "Long-term Appeal",
+    description: "Desirability signals & resale strength",
   },
 };
 
-function ScorePill({ score }: { score: "Excellent" | "Good" | "Mixed" | "Limited" }) {
-  const cfg = {
-    Excellent: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-    Good:      "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
-    Mixed:     "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
-    Limited:   "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
-  }[score];
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cfg}`}>
-      {score}
-    </span>
-  );
-}
+const SCORE_CONFIG = {
+  Excellent: {
+    bar: "bg-emerald-500",
+    pill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    dot:  "bg-emerald-500",
+    barWidth: "w-full",
+  },
+  Good: {
+    bar: "bg-blue-500",
+    pill: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+    dot:  "bg-blue-500",
+    barWidth: "w-3/4",
+  },
+  Mixed: {
+    bar: "bg-amber-500",
+    pill: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    dot:  "bg-amber-500",
+    barWidth: "w-2/4",
+  },
+  Limited: {
+    bar: "bg-red-400",
+    pill: "bg-red-400/15 text-red-700 dark:text-red-400 border-red-400/30",
+    dot:  "bg-red-400",
+    barWidth: "w-1/4",
+  },
+} as const;
 
 function LifestyleFitBlock({ ai }: { ai: BriefReport["areaIntelligence"] }) {
   const fit = ai.lifestyleFit;
   if (!fit || fit.length === 0) return null;
 
+  // Count score distribution for summary line
+  const counts = { Excellent: 0, Good: 0, Mixed: 0, Limited: 0 };
+  fit.forEach(f => { counts[f.score]++; });
+  const topLabel = counts.Excellent >= 3
+    ? "Strong across the board"
+    : counts.Excellent + counts.Good >= 4
+    ? "Mostly positive"
+    : counts.Mixed + counts.Limited >= 3
+    ? "Several trade-offs to weigh"
+    : "Mixed picture";
+
   return (
-    <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-lifestyle-fit">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-5">
-        <Target className="h-4 w-4 text-primary" />
-        <span className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Area Fit by Lifestyle</span>
+    <Card className="overflow-hidden border-primary/20" data-testid="section-lifestyle-fit">
+      {/* Header band */}
+      <div className="px-5 pt-5 pb-4 sm:px-6 sm:pt-6 border-b border-border/40">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-primary">
+              Lifestyle Fit
+            </span>
+          </div>
+          <span className="text-[11px] text-muted-foreground font-medium">{topLabel}</span>
+        </div>
+        {/* Compact score strip */}
+        <div className="mt-3 flex gap-2 flex-wrap">
+          {fit.map(item => {
+            const cfg = SCORE_CONFIG[item.score];
+            const meta = LIFESTYLE_CATEGORY_META[item.category as LifestyleCategory];
+            return (
+              <div
+                key={item.category}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cfg.pill}`}
+                title={item.caption}
+              >
+                <span className="opacity-70">{meta?.icon}</span>
+                <span>{meta?.label ?? item.category}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Score rows */}
-      <div className="space-y-4">
+      <div className="divide-y divide-border/30">
         {fit.map((item) => {
-          const meta = LIFESTYLE_CATEGORY_META[item.category];
+          const meta   = LIFESTYLE_CATEGORY_META[item.category as LifestyleCategory];
+          const cfg    = SCORE_CONFIG[item.score];
           return (
-            <div key={item.category} className="grid grid-cols-[auto_1fr] gap-3 items-start">
-              {/* Left: icon + category name + pill */}
-              <div className="flex items-center gap-2 min-w-[160px] sm:min-w-[190px] pt-0.5">
-                <span className="text-primary shrink-0">{meta?.icon}</span>
-                <span className="text-sm font-semibold text-foreground leading-tight whitespace-nowrap">
-                  {meta?.label ?? item.category}
-                </span>
-                <ScorePill score={item.score} />
-              </div>
+            <div key={item.category} className="px-5 py-4 sm:px-6">
+              <div className="flex items-start gap-3 sm:gap-4">
+                {/* Left column: icon + label + bar */}
+                <div className="shrink-0 w-[140px] sm:w-[160px]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`shrink-0 ${cfg.pill.split(" ")[1]}`}>{meta?.icon}</span>
+                    <span className="text-[12px] font-semibold text-foreground leading-tight">
+                      {meta?.label ?? item.category}
+                    </span>
+                  </div>
+                  {/* Score bar */}
+                  <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+                    <div className={`h-full ${cfg.bar} ${cfg.barWidth} rounded-full transition-all`} />
+                  </div>
+                  <div className="mt-1.5">
+                    <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-bold border ${cfg.pill}`}>
+                      {item.score}
+                    </span>
+                  </div>
+                </div>
 
-              {/* Right: caption */}
-              <p className="text-xs text-muted-foreground leading-relaxed">{item.caption}</p>
+                {/* Right column: sub-description + caption */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground/60 font-semibold mb-1">
+                    {meta?.description}
+                  </p>
+                  <p className="text-[12px] text-foreground/85 leading-relaxed">
+                    {item.caption}
+                  </p>
+                </div>
+              </div>
             </div>
           );
         })}
       </div>
 
-      <p className="text-[10px] text-muted-foreground/60 mt-5 pt-4 border-t border-border/40">
-        Scores derived from Ofsted, Transport API, Overpass amenity data, and UK crime statistics in this brief. Reflects the area as a whole, not specific streets.
-      </p>
+      {/* Footer */}
+      <div className="px-5 pb-4 pt-3 sm:px-6 border-t border-border/30">
+        <p className="text-[10px] text-muted-foreground/50 leading-snug">
+          Scores are derived from Ofsted ratings, station data, Overpass amenity data, and UK crime statistics sourced for this brief. They reflect the area as a whole — individual streets may vary.
+        </p>
+      </div>
     </Card>
   );
 }
