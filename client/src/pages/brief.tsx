@@ -1190,19 +1190,137 @@ ${offerStrategyHtml}` : ""}
     </div>
   </div>` : ""}
 
-  ${stationRows ? `
-  <div class="section">
-    <div class="section-label">Nearby Stations</div>
-    <table><thead><tr><th>Station</th><th>Mode</th><th>Lines</th><th style="text-align:right">Walk</th></tr></thead>
-    <tbody>${stationRows}</tbody></table>
-  </div>` : ""}
+  ${(ai.nearbyStations && ai.nearbyStations.length > 0) ? (() => {
+    const pdfStations = ai.nearbyStations;
+    const sorted = pdfStations.slice().sort((a: any, b: any) => a.walkMins - b.walkMins);
+    const closest = sorted[0];
+    const closestWalk = closest?.walkMins ?? 999;
+    const TUBE_LINES_PDF = ["jubilee","central","northern","victoria","piccadilly","bakerloo","district","circle","metropolitan","elizabeth","elizabeth line","hammersmith & city","hammersmith","overground","london overground","dlr"];
+    const hasLondonTube = pdfStations.some((s: any) => s.lines.some((l: string) => TUBE_LINES_PDF.includes(l.toLowerCase())));
+    const hasElizabethLine = pdfStations.some((s: any) => s.lines.some((l: string) => l.toLowerCase().includes("elizabeth")) || s.modes?.includes("elizabeth-line"));
+    const hasNationalRail = pdfStations.some((s: any) => s.modes?.includes("national-rail"));
+    const stationsWithin10 = pdfStations.filter((s: any) => s.walkMins <= 10).length;
 
-  ${schoolRows ? `
-  <div class="section">
-    <div class="section-label">Nearby Schools</div>
-    <table><thead><tr><th>School</th><th>Type</th><th>Ofsted</th><th style="text-align:right">Walk</th></tr></thead>
-    <tbody>${schoolRows}</tbody></table>
-  </div>` : ""}
+    const connectivityLabel =
+      (hasLondonTube || hasElizabethLine) && closestWalk <= 10 ? "Well connected — London network"
+      : hasNationalRail && closestWalk <= 12 ? "Well connected — National Rail"
+      : hasNationalRail && closestWalk <= 20 ? "Rail-reliant — good National Rail access"
+      : (hasLondonTube || hasElizabethLine) && closestWalk <= 20 ? "Rail-reliant — London network within reach"
+      : closestWalk <= 25 ? "Moderate rail access"
+      : "Limited rail access — car-dependent";
+
+    const connectivityColor = connectivityLabel.startsWith("Well") ? "#166534" : connectivityLabel.startsWith("Rail") ? "#1d4ed8" : connectivityLabel.startsWith("Moderate") ? "#92400e" : "#991b1b";
+    const connectivityBg = connectivityLabel.startsWith("Well") ? "#f0fdf4" : connectivityLabel.startsWith("Rail") ? "#eff6ff" : connectivityLabel.startsWith("Moderate") ? "#fefce8" : "#fef2f2";
+
+    let commutePicture = closest
+      ? closestWalk <= 10
+        ? `${closest.name} is ${closestWalk} minutes on foot — strong access.${stationsWithin10 > 1 ? ` ${stationsWithin10} stations within a 10-minute walk.` : ""}`
+        : closestWalk <= 20
+        ? `${closest.name} is ${closestWalk} minutes away — manageable for daily commuting.`
+        : `The nearest station is ${closestWalk} minutes away — most commuting will involve a car or bus to the station.`
+      : "No nearby stations recorded.";
+
+    const rows = pdfStations.map((s: any) =>
+      `<tr><td style="padding:7px 10px 7px 0"><strong style="font-size:12px;color:#111827">${s.name}</strong><br><span style="font-size:10px;color:#9ca3af">${s.modes?.join(", ") ?? ""}</span></td><td style="padding:7px 8px;vertical-align:top"><div style="display:flex;flex-wrap:wrap;gap:3px">${s.lines.slice(0,3).map((l: string) => { const st = ({
+        "jubilee":{"bg":"#939598","text":"#fff"},"central":{"bg":"#E32017","text":"#fff"},"northern":{"bg":"#000000","text":"#fff"},"victoria":{"bg":"#0098D4","text":"#fff"},"piccadilly":{"bg":"#003688","text":"#fff"},"bakerloo":{"bg":"#B36305","text":"#fff"},"district":{"bg":"#00782A","text":"#fff"},"circle":{"bg":"#FFD300","text":"#000"},"metropolitan":{"bg":"#9B0056","text":"#fff"},"elizabeth line":{"bg":"#6950a1","text":"#fff"},"elizabeth":{"bg":"#6950a1","text":"#fff"},"hammersmith":{"bg":"#F3A9BB","text":"#000"},"overground":{"bg":"#EE7C0E","text":"#fff"},"london overground":{"bg":"#EE7C0E","text":"#fff"},"dlr":{"bg":"#00A4A7","text":"#fff"}
+      })[l.toLowerCase()] ?? {"bg":"#B8860B","text":"#fff"}; return `<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:9999px;background:${st.bg};color:${st.text}">${l}</span>`; }).join("")}</div></td><td style="text-align:right;padding:7px 0;color:#B8860B;font-weight:600;white-space:nowrap">${s.walkMins} min</td></tr>`
+    ).join("");
+
+    return `
+    <div class="section">
+      <div class="section-label">Nearby Stations</div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px 14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af">Commute picture</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:9999px;background:${connectivityBg};color:${connectivityColor}">${connectivityLabel}</span>
+        </div>
+        <p style="font-size:12px;color:#374151;line-height:1.55;margin:0">${commutePicture}</p>
+      </div>
+      <table><thead><tr><th>Station</th><th>Lines</th><th style="text-align:right">Walk</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <p style="margin-top:8px;font-size:10px;color:#9ca3af">Walk times estimated at 80m/min. Verify door-to-door times via Citymapper or Google Maps.</p>
+    </div>`;
+  })() : ""}
+
+  ${(ai.nearbySchools && ai.nearbySchools.length > 0) ? (() => {
+    const pdfSchools = ai.nearbySchools;
+    const within20 = pdfSchools.filter((s: any) => s.walkMins <= 20);
+    const outstanding = within20.filter((s: any) => s.ofstedRating === "Outstanding");
+    const good = within20.filter((s: any) => s.ofstedRating === "Good");
+    const needsImprovement = within20.filter((s: any) => s.ofstedRating?.includes("Improvement"));
+    const unrated = within20.filter((s: any) => !s.ofstedRating || s.ofstedRating === "Not rated" || s.ofstedRating === "Not yet rated");
+    const desirable = outstanding.length + good.length;
+    const hasPrimary = pdfSchools.some((s: any) => s.type === "Primary" || s.type === "Nursery");
+    const hasSecondary = pdfSchools.some((s: any) => s.type === "Secondary");
+    const hasIndependent = pdfSchools.some((s: any) => s.type === "Independent");
+
+    const pictureLabel =
+      outstanding.length >= 1 && desirable >= 2 ? "Strong school provision"
+      : desirable >= 2 ? "Solid school provision"
+      : desirable === 1 ? "Reasonable school options"
+      : needsImprovement.length >= 1 && desirable === 0 ? "Mixed school provision"
+      : unrated.length >= 1 && desirable === 0 ? "Unrated — quality uncertain"
+      : "Limited school quality nearby";
+
+    const pictureColor = pictureLabel.startsWith("Strong") || pictureLabel.startsWith("Solid") ? "#166534"
+      : pictureLabel.startsWith("Reasonable") ? "#1d4ed8"
+      : pictureLabel.startsWith("Mixed") || pictureLabel.startsWith("Unrated") ? "#92400e"
+      : "#991b1b";
+    const pictureBg = pictureLabel.startsWith("Strong") || pictureLabel.startsWith("Solid") ? "#f0fdf4"
+      : pictureLabel.startsWith("Reasonable") ? "#eff6ff"
+      : pictureLabel.startsWith("Mixed") || pictureLabel.startsWith("Unrated") ? "#fefce8"
+      : "#fef2f2";
+
+    let pictureSentence = "";
+    if (outstanding.length >= 1) {
+      pictureSentence = outstanding[0].name + " is rated Outstanding (Ofsted) and is " + outstanding[0].walkMins + " min away." + (desirable > 1 ? " " + desirable + " schools rated Good or Outstanding are within a 20-minute walk." : "");
+    } else if (good.length >= 2) {
+      pictureSentence = good.length + " Good-rated schools within a 20-minute walk — solid provision for families.";
+    } else if (good.length === 1) {
+      pictureSentence = good[0].name + " is rated Good (Ofsted, " + good[0].walkMins + " min). No Outstanding schools in immediate reach.";
+    } else if (needsImprovement.length >= 1) {
+      pictureSentence = "The nearest rated schools require improvement — families should research options further afield.";
+    } else if (unrated.length > 0) {
+      pictureSentence = "Nearby schools are not yet Ofsted-rated — verify current inspection status at ofsted.gov.uk before deciding.";
+    } else {
+      pictureSentence = "School provision exists nearby but Ofsted coverage is incomplete.";
+    }
+
+    const typeNote = hasPrimary && hasSecondary && hasIndependent ? "Primary, secondary, and independent options are all represented nearby."
+      : hasPrimary && hasSecondary ? "Both primary and secondary schools are within reach."
+      : hasPrimary ? "Primarily primary-level coverage — secondary options may require travelling further."
+      : hasSecondary ? "Secondary school provision nearby — primary options may be further afield."
+      : "A mix of school types is recorded nearby.";
+
+    const ofstedRows = pdfSchools.map((s: any) => {
+      const rc = s.ofstedRating === "Outstanding" ? "#166534" : s.ofstedRating === "Good" ? "#1d4ed8" : s.ofstedRating?.includes("Improvement") ? "#92400e" : "#6b7280";
+      const rb = s.ofstedRating === "Outstanding" ? "#f0fdf4" : s.ofstedRating === "Good" ? "#eff6ff" : s.ofstedRating?.includes("Improvement") ? "#fefce8" : "#f9fafb";
+      return `<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:8px 10px 8px 0"><strong style="font-size:12px;color:#111827">${s.name}</strong></td><td style="padding:8px 8px;font-size:11px;color:#9ca3af;white-space:nowrap">${s.type}</td><td style="padding:8px 8px;text-align:center"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:9999px;background:${rb};color:${rc}">${s.ofstedRating || "Not rated"}</span></td><td style="text-align:right;padding:8px 0;color:#B8860B;font-weight:600;white-space:nowrap">${s.walkMins} min</td></tr>`;
+    }).join("");
+
+    return `
+    <div class="section">
+      <div class="section-label">Nearby Schools</div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px 14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af">School picture</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:9999px;background:${pictureBg};color:${pictureColor}">${pictureLabel}</span>
+        </div>
+        <p style="font-size:12px;color:#374151;line-height:1.55;margin:0 0 8px 0">${pictureSentence}</p>
+        <p style="font-size:11px;color:#9ca3af;margin:0">${typeNote}</p>
+        <div style="display:flex;gap:16px;margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb">
+          ${outstanding.length > 0 ? `<span style="font-size:11px;color:#166534"><strong>${outstanding.length}</strong> Outstanding</span>` : ""}
+          ${good.length > 0 ? `<span style="font-size:11px;color:#1d4ed8"><strong>${good.length}</strong> Good</span>` : ""}
+          ${needsImprovement.length > 0 ? `<span style="font-size:11px;color:#92400e"><strong>${needsImprovement.length}</strong> Needs Improvement</span>` : ""}
+          ${unrated.length > 0 ? `<span style="font-size:11px;color:#9ca3af"><strong>${unrated.length}</strong> Not rated</span>` : ""}
+          <span style="font-size:11px;color:#9ca3af;margin-left:auto">within 20 min walk</span>
+        </div>
+      </div>
+      <table><thead><tr><th>School</th><th>Type</th><th>Ofsted</th><th style="text-align:right">Walk</th></tr></thead>
+      <tbody>${ofstedRows}</tbody></table>
+      <p style="margin-top:8px;font-size:10px;color:#9ca3af">Ratings from OpenStreetMap. Verify at ofsted.gov.uk. Proximity does not guarantee catchment placement — confirm with school or local authority.</p>
+    </div>`;
+  })() : ""}
 
   ${crimeSection}
 
@@ -2225,19 +2343,116 @@ export default function BriefPage() {
             {ai.nearbyStations && ai.nearbyStations.length > 0 && (
               <CollapsibleSection title="Nearby Stations" testId="section-stations">
                 <div className="space-y-0">
-                  {ai.nearbyStations.map((station, i) => {
-                    // Detect if any London Tube / Overpass line for commute note
-                    const isLondonLine = station.lines.some(l =>
-                      ["jubilee","central","northern","victoria","piccadilly","bakerloo",
-                       "district","circle","metropolitan","elizabeth","elizabeth line",
-                       "hammersmith","overground","dlr","london overground"].includes(l.toLowerCase())
+                  {/* ── Commute picture interpretation ── */}
+                  {(() => {
+                    const stations = ai.nearbyStations ?? [];
+                    const sorted = stations.slice().sort((a, b) => a.walkMins - b.walkMins);
+                    const closest = sorted[0];
+                    const closestWalk = closest?.walkMins ?? 999;
+
+                    // Classify network type
+                    const TUBE_LINES = ["jubilee","central","northern","victoria","piccadilly","bakerloo",
+                      "district","circle","metropolitan","elizabeth","elizabeth line","hammersmith & city",
+                      "hammersmith","overground","london overground","dlr","liberty","lioness",
+                      "mildmay","suffragette","weaver","windrush"];
+                    const hasLondonTube = stations.some(s => s.lines.some(l => TUBE_LINES.includes(l.toLowerCase())));
+                    const hasNationalRail = stations.some(s => s.modes?.includes("national-rail"));
+                    const hasElizabethLine = stations.some(s =>
+                      s.lines.some(l => l.toLowerCase().includes("elizabeth")) ||
+                      s.modes?.includes("elizabeth-line")
                     );
-                    const isNationalRail = !isLondonLine && station.modes?.includes("national-rail");
-                    const commuteNote = isLondonLine
-                      ? `Direct access to central London`
-                      : isNationalRail
-                      ? `National Rail connections`
-                      : null;
+                    const totalStations = stations.length;
+                    const stationsWithin10 = stations.filter(s => s.walkMins <= 10).length;
+                    const stationsWithin20 = stations.filter(s => s.walkMins <= 20).length;
+
+                    // Connectivity verdict
+                    const connectivityLabel: string =
+                      (hasLondonTube || hasElizabethLine) && closestWalk <= 10 ? "Well connected — London network"
+                      : hasNationalRail && closestWalk <= 12 ? "Well connected — National Rail"
+                      : hasNationalRail && closestWalk <= 20 ? "Rail-reliant — good National Rail access"
+                      : (hasLondonTube || hasElizabethLine) && closestWalk <= 20 ? "Rail-reliant — London network within reach"
+                      : closestWalk <= 25 ? "Moderate rail access — some commuter dependence on car"
+                      : "Limited rail access — car-dependent for most journeys";
+
+                    const connectivityColor =
+                      connectivityLabel.startsWith("Well") ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+                      : connectivityLabel.startsWith("Rail") ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
+                      : connectivityLabel.startsWith("Moderate") ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+                      : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25";
+
+                    // What destinations the lines reach — practical context
+                    const allLines = stations.flatMap(s => s.lines.map(l => l.toLowerCase()));
+                    const destinations: string[] = [];
+                    if (allLines.some(l => l.includes("elizabeth"))) destinations.push("Reading, Paddington, Liverpool St, Canary Wharf, Heathrow in one seat");
+                    if (allLines.some(l => ["jubilee","northern","victoria","central"].includes(l))) destinations.push("central London in under 30 min from most stops");
+                    if (allLines.some(l => l.includes("overground") || l.includes("london overground"))) destinations.push("cross-London without changing in the centre");
+                    if (allLines.some(l => l.includes("dlr"))) destinations.push("Canary Wharf and East London directly");
+                    if (hasNationalRail && !hasLondonTube) {
+                      // Try to infer from station names / lines
+                      const stationNames = stations.map(s => s.name.toLowerCase());
+                      if (stationNames.some(n => n.includes("paddington") || n.includes("reading") || n.includes("slough"))) destinations.push("London Paddington direct");
+                      else if (stationNames.some(n => n.includes("victoria") || n.includes("gatwick") || n.includes("brighton"))) destinations.push("London Victoria and South Coast direct");
+                      else if (stationNames.some(n => n.includes("waterloo") || n.includes("woking") || n.includes("guildford"))) destinations.push("London Waterloo direct");
+                      else if (stationNames.some(n => n.includes("st pancras") || n.includes("eurostar") || n.includes("luton"))) destinations.push("London St Pancras and Eurostar");
+                      else if (stationNames.some(n => n.includes("king") || n.includes("cambridge") || n.includes("ely"))) destinations.push("London King's Cross and East of England");
+                      else if (stationNames.some(n => n.includes("london bridge") || n.includes("cannon") || n.includes("thameslink"))) destinations.push("London Bridge and City direct");
+                      else destinations.push("direct services to a major London terminus");
+                    }
+
+                    // Commute picture sentence
+                    let commutePicture: string;
+                    if (connectivityLabel.startsWith("Well connected — London")) {
+                      commutePicture = `${closest.name} is ${closestWalk} min on foot${stationsWithin10 > 1 ? ` and ${stationsWithin10} stations are within a 10-minute walk` : ""} — this is strong urban connectivity.`;
+                    } else if (connectivityLabel.startsWith("Well connected — National")) {
+                      commutePicture = `${closest.name} is ${closestWalk} min away with direct National Rail access — a practical choice for commuters heading into a major city.`;
+                    } else if (connectivityLabel.startsWith("Rail-reliant")) {
+                      commutePicture = `The nearest station is a ${closestWalk}-minute walk. Rail is the practical backbone for longer journeys here — most destinations require the train rather than being reachable on foot.`;
+                    } else if (connectivityLabel.startsWith("Moderate")) {
+                      commutePicture = `The nearest station is a ${closestWalk}-minute walk — manageable but not a short stroll. For daily commuting into a major centre, expect some car or bus dependency to reach the station.`;
+                    } else {
+                      commutePicture = closestWalk < 999
+                        ? `Rail access is limited — the nearest station is ${closestWalk} minutes away. Most daily journeys will be car-dependent.`
+                        : `No stations within easy reach. This area is car-dependent for most journeys.`;
+                    }
+
+                    return (
+                      <div className="mb-4 rounded-lg border border-border/50 bg-muted/30 p-4">
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="flex-1">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">Commute picture</p>
+                            <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border mb-2 ${connectivityColor}`}>
+                              {connectivityLabel}
+                            </div>
+                            <p className="text-sm text-foreground/85 leading-relaxed">{commutePicture}</p>
+                          </div>
+                        </div>
+                        {destinations.length > 0 && (
+                          <div className="mt-2.5 pt-2.5 border-t border-border/40">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">What these lines make easier to reach</p>
+                            <ul className="space-y-1">
+                              {destinations.map((d, i) => (
+                                <li key={i} className="flex items-start gap-1.5">
+                                  <span className="text-primary mt-1 text-[10px]">›</span>
+                                  <span className="text-xs text-muted-foreground">{d}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/50 mt-2.5">{totalStations} station{totalStations !== 1 ? "s" : ""} within {stationsWithin20 === totalStations ? "20 min walk" : "1,500m"} · {stationsWithin10} within 10 min</p>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Station rows */}
+                  {ai.nearbyStations.map((station, i) => {
+                    const TUBE_LINES_ROW = ["jubilee","central","northern","victoria","piccadilly","bakerloo",
+                      "district","circle","metropolitan","elizabeth","elizabeth line","hammersmith & city",
+                      "hammersmith","overground","london overground","dlr"];
+                    const isLondonLine = station.lines.some(l => TUBE_LINES_ROW.includes(l.toLowerCase()));
+                    const isElizabethLine = station.lines.some(l => l.toLowerCase().includes("elizabeth")) || station.modes?.includes("elizabeth-line");
+                    const isNationalRail = !isLondonLine && !isElizabethLine && station.modes?.includes("national-rail");
+                    const networkBadge = isElizabethLine ? "Elizabeth line" : isLondonLine ? "London Underground" : isNationalRail ? "National Rail" : station.modes?.[0] ?? null;
 
                     return (
                       <div key={i} className="flex items-start justify-between gap-3 py-3 border-b border-border/40 last:border-0">
@@ -2246,23 +2461,27 @@ export default function BriefPage() {
                             <Train className="h-4 w-4 text-primary" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-foreground">{station.name}</p>
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {station.lines.map((line, j) => {
-                                const style = getLineStyle(line);
-                                return (
-                                  <span
-                                    key={j}
-                                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: style.bg, color: style.text }}
-                                  >
-                                    {line}
-                                  </span>
-                                );
-                              })}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-foreground">{station.name}</p>
+                              {networkBadge && (
+                                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{networkBadge}</span>
+                              )}
                             </div>
-                            {commuteNote && (
-                              <p className="text-xs text-muted-foreground mt-1">{commuteNote}</p>
+                            {station.lines.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {station.lines.map((line, j) => {
+                                  const style = getLineStyle(line);
+                                  return (
+                                    <span
+                                      key={j}
+                                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                      style={{ backgroundColor: style.bg, color: style.text }}
+                                    >
+                                      {line}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -2276,7 +2495,7 @@ export default function BriefPage() {
                       </div>
                     );
                   })}
-                  <p className="text-xs text-muted-foreground pt-2">Walk times estimated at 80m/min. Source: OpenStreetMap.</p>
+                  <p className="text-xs text-muted-foreground/60 pt-2">Walk times at 80m/min. Destination estimates are approximate — verify door-to-door via Citymapper or Google Maps.</p>
                 </div>
               </CollapsibleSection>
             )}
@@ -2285,6 +2504,113 @@ export default function BriefPage() {
             {ai.nearbySchools && ai.nearbySchools.length > 0 && (
               <CollapsibleSection title="Nearby Schools" testId="section-schools">
                 <div className="space-y-0">
+                  {/* ── School picture interpretation ── */}
+                  {(() => {
+                    const schools = ai.nearbySchools ?? [];
+                    const within20 = schools.filter(s => s.walkMins <= 20);
+                    const outstanding = within20.filter(s => s.ofstedRating === "Outstanding");
+                    const good = within20.filter(s => s.ofstedRating === "Good");
+                    const needsImprovement = within20.filter(s => s.ofstedRating?.includes("Improvement"));
+                    const inadequate = within20.filter(s => s.ofstedRating === "Inadequate");
+                    const unrated = within20.filter(s => !s.ofstedRating || s.ofstedRating === "Not rated" || s.ofstedRating === "Not yet rated");
+                    const desirable = outstanding.length + good.length;
+
+                    // Type breakdown
+                    const hasPrimary = schools.some(s => s.type === "Primary" || s.type === "Nursery");
+                    const hasSecondary = schools.some(s => s.type === "Secondary");
+                    const hasIndependent = schools.some(s => s.type === "Independent");
+                    const typeNote =
+                      hasPrimary && hasSecondary && hasIndependent ? "Primary, secondary, and independent options are all represented nearby."
+                      : hasPrimary && hasSecondary ? "Both primary and secondary schools are within reach."
+                      : hasPrimary && hasIndependent ? "Primary state and independent options are within reach."
+                      : hasPrimary ? "Primarily primary-level coverage — secondary options may require travelling further."
+                      : hasSecondary ? "Secondary school provision nearby — primary options may be further afield."
+                      : "A mix of school types is recorded in the immediate area.";
+
+                    // Overall picture verdict
+                    const pictureLabelText: string =
+                      outstanding.length >= 1 && desirable >= 2 ? "Strong school provision"
+                      : desirable >= 2 ? "Solid school provision"
+                      : desirable === 1 ? "Reasonable school options"
+                      : needsImprovement.length >= 1 && desirable === 0 ? "Mixed school provision"
+                      : inadequate.length >= 1 ? "Limited school quality"
+                      : unrated.length >= 1 && desirable === 0 ? "Unrated — quality uncertain"
+                      : within20.length === 0 ? "Schools further afield"
+                      : "Some school access";
+
+                    const pictureLabelColor =
+                      pictureLabelText.startsWith("Strong") || pictureLabelText.startsWith("Solid")
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+                      : pictureLabelText.startsWith("Reasonable") || pictureLabelText.startsWith("Some")
+                        ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
+                      : pictureLabelText.startsWith("Mixed") || pictureLabelText.startsWith("Unrated")
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+                      : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25";
+
+                    // Plain-English picture sentence
+                    const bestSchoolNearby = outstanding[0] ?? good[0];
+                    let pictureSentence: string;
+                    if (outstanding.length >= 1) {
+                      pictureSentence = `${outstanding[0].name} is rated Outstanding by Ofsted and is ${outstanding[0].walkMins} minutes away — a genuine asset.${desirable > 1 ? ` ${desirable} schools rated Good or Outstanding are within a 20-minute walk.` : ""}`;
+                    } else if (good.length >= 2) {
+                      pictureSentence = `${good.length} Good-rated schools are within a 20-minute walk — solid provision for families prioritising school access.`;
+                    } else if (good.length === 1) {
+                      pictureSentence = `${good[0].name} is rated Good by Ofsted (${good[0].walkMins} min walk). No Outstanding schools in immediate reach, but the closest provision is credible.`;
+                    } else if (needsImprovement.length >= 1 && good.length === 0) {
+                      pictureSentence = `The closest rated schools require improvement — families should check individual catchment options and explore whether better-rated schools are reachable slightly further afield.`;
+                    } else if (unrated.length > 0 && desirable === 0) {
+                      pictureSentence = `Nearby schools have not been rated by Ofsted — quality cannot be confirmed from available data. Check directly with the schools or via the Ofsted inspection reports portal.`;
+                    } else {
+                      pictureSentence = `School options exist nearby — Ofsted ratings are incomplete for some, so individual research is recommended before assuming quality.`;
+                    }
+
+                    // Desirability and resale note
+                    const desirabilityNote = desirable >= 1
+                      ? `Proximity to highly-rated schools is associated with stronger local demand and can support property values, particularly at the primary level.`
+                      : `School quality within walking distance is limited — this may reduce the catchment-premium effect seen in areas with nearby Outstanding or Good schools.`;
+
+                    return (
+                      <div className="mb-4 rounded-lg border border-border/50 bg-muted/30 p-4">
+                        <div className="mb-2">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">School picture</p>
+                          <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border mb-2 ${pictureLabelColor}`}>
+                            {pictureLabelText}
+                          </div>
+                          <p className="text-sm text-foreground/85 leading-relaxed">{pictureSentence}</p>
+                        </div>
+
+                        <div className="mt-2.5 pt-2.5 border-t border-border/40 space-y-1.5">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Type coverage</p>
+                          <p className="text-xs text-muted-foreground">{typeNote}</p>
+                          {hasIndependent && (
+                            <p className="text-xs text-muted-foreground/70">Independent schools are listed for completeness — fees apply and proximity does not imply catchment access.</p>
+                          )}
+                        </div>
+
+                        <div className="mt-2.5 pt-2.5 border-t border-border/40">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">Desirability signal</p>
+                          <p className="text-xs text-muted-foreground">{desirabilityNote}</p>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap gap-3 pt-2.5 border-t border-border/40">
+                          {[
+                            { label: "Outstanding", count: outstanding.length, color: "text-emerald-700 dark:text-emerald-400" },
+                            { label: "Good", count: good.length, color: "text-blue-700 dark:text-blue-400" },
+                            { label: "Needs Improvement", count: needsImprovement.length, color: "text-amber-700 dark:text-amber-400" },
+                            { label: "Not rated", count: unrated.length, color: "text-muted-foreground" },
+                          ].filter(x => x.count > 0).map(x => (
+                            <div key={x.label} className="flex items-center gap-1">
+                              <span className={`text-xs font-semibold ${x.color}`}>{x.count}</span>
+                              <span className="text-xs text-muted-foreground">{x.label}</span>
+                            </div>
+                          ))}
+                          <span className="text-xs text-muted-foreground/50 ml-auto">within 20 min walk</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* School rows */}
                   {ai.nearbySchools.map((school, i) => {
                     const ofstedColour =
                       school.ofstedRating === "Outstanding"
@@ -2299,23 +2625,30 @@ export default function BriefPage() {
 
                     const walkContext =
                       school.walkMins <= 5 ? "on your doorstep"
-                      : school.walkMins <= 10 ? "a short walk away"
-                      : school.walkMins <= 20 ? "comfortable walk"
-                      : "nearby";
+                      : school.walkMins <= 10 ? "short walk"
+                      : school.walkMins <= 15 ? "15 min walk"
+                      : school.walkMins <= 20 ? "20 min walk"
+                      : "further afield";
+
+                    // Desirability signal per school
+                    const isDesirable = school.ofstedRating === "Outstanding" || school.ofstedRating === "Good";
+                    const isClose = school.walkMins <= 15;
 
                     return (
                       <div key={i} className="flex items-start justify-between gap-3 py-3.5 border-b border-border/40 last:border-0">
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <GraduationCap className="h-4 w-4 text-primary" />
+                          <div className={`mt-0.5 h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${isDesirable && isClose ? "bg-emerald-500/10" : "bg-primary/10"}`}>
+                            <GraduationCap className={`h-4 w-4 ${isDesirable && isClose ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`} />
                           </div>
                           <div className="flex flex-col gap-1">
                             <p className="text-sm font-semibold text-foreground leading-tight">{school.name}</p>
-                            <p className="text-xs text-muted-foreground">{school.type}</p>
+                            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{school.type}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <div className={`h-2 w-2 rounded-full shrink-0 ${ofstedColour.dot}`} />
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ofstedColour.pill}`}>
-                                {school.ofstedRating && school.ofstedRating !== "Not rated" ? `Ofsted: ${school.ofstedRating}` : "Not yet rated"}
+                                {school.ofstedRating && school.ofstedRating !== "Not rated" && school.ofstedRating !== "Not yet rated"
+                                  ? `Ofsted: ${school.ofstedRating}`
+                                  : "Not yet rated"}
                               </span>
                             </div>
                           </div>
@@ -2330,12 +2663,10 @@ export default function BriefPage() {
                       </div>
                     );
                   })}
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3 mt-1 mb-2">
-                    Why it matters: school quality can affect local property values and your own running costs if you have children. Outstanding or Good-rated schools within walking distance are a measurable asset to the brief.
-                  </p>
-                  <p className="text-xs text-muted-foreground pt-2">
-                    Ofsted ratings sourced from OpenStreetMap. For the definitive rating, see{" "}
+                  <p className="text-xs text-muted-foreground/60 pt-2">
+                    Ofsted ratings from OpenStreetMap tags — for the definitive current rating see{" "}
                     <a href="https://www.ofsted.gov.uk" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">ofsted.gov.uk</a>.
+                    Proximity does not guarantee catchment placement — verify with the school or local authority.
                   </p>
                 </div>
               </CollapsibleSection>
