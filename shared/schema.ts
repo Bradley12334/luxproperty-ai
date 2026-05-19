@@ -331,6 +331,20 @@ export interface AreaIntelligence {
   };
 
   /**
+   * "Would I shortlist this?" — fast decision-signal at the very top of the brief.
+   * A simplified, memorable label that tells buyers immediately how seriously to pursue this.
+   * Professional+ only. Derived from buyerVerdict + redFlags + briefConfidence.
+   */
+  shortlistVerdict: {
+    /** One of four fixed labels — the core decision signal */
+    label: "Strong shortlist" | "Shortlist with caveats" | "Proceed carefully" | "Probably not worth pursuing";
+    /** One sentence: the most decisive evidence for this call */
+    reasoning: string;
+    /** Optional: the single most important thing the user needs to check or do next */
+    nextStep: string;
+  };
+
+  /**
    * Structured "Would I buy here?" verdict — Professional+.
    * Derived from actual evidence in the brief. Replaces the generic
    * BuyerSummary readout as the headline decision layer.

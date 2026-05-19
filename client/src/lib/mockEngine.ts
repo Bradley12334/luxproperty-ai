@@ -1621,6 +1621,154 @@ function deriveBriefConfidence(
   return { overall, overallNote, valuation, valuationNote, marketTrend, marketTrendNote, lifestyleFit, lifestyleFitNote, localSentiment, localSentimentNote };
 }
 
+// ─── Shortlist Verdict Engine ───────────────────────────────────────────────
+// Runs last — after buyerVerdict, redFlags, and briefConfidence are all resolved.
+// Maps the report's evidence state into a single, memorable decision label
+// that answers: "should this property stay on my shortlist?"
+//
+// Label hierarchy (never inflated by weak evidence):
+//   Strong shortlist   — strong positives + no hard flags + evidence sufficient
+//   Shortlist with caveats — broadly promising but material checks remain
+//   Proceed carefully  — multiple concerns, weaker evidence, notable risk
+//   Probably not worth pursuing — hard risks / weak fit / poor value combine
+function deriveShortlistVerdict(
+  ai: AreaIntelligence,
+): AreaIntelligence["shortlistVerdict"] {
+  type SL = AreaIntelligence["shortlistVerdict"]["label"];
+
+  const v   = ai.buyerVerdict;
+  const bc  = ai.briefConfidence;
+  const flags = ai.redFlags ?? [];
+
+  const highFlags  = flags.filter(f => f.severity === "high");
+  const anyFlags   = flags.length > 0;
+  const hasHighRisk = highFlags.length > 0;
+
+  const evidenceStrong  = bc.overall === "High";
+  const evidenceThin    = bc.overall === "Low";
+  const evidenceMedium  = bc.overall === "Medium";
+
+  const buyerStrong   = v.verdictLabel === "Strong case";
+  const buyerGood     = v.verdictLabel === "Good case";
+  const buyerCaution  = v.verdictLabel === "Proceed carefully";
+  const buyerThin     = v.verdictLabel === "Thin data — verify first";
+
+  const posCount  = v.strongestPositives.length;
+  const watchCount = v.mainWatchOuts.length;
+
+  // ── Label derivation ───────────────────────────────────────────────────────
+  let label: SL;
+
+  if (hasHighRisk && (buyerCaution || buyerThin || watchCount >= 2)) {
+    // Hard risk flag + poor/uncertain verdict = not worth pursuing
+    label = "Probably not worth pursuing";
+  } else if (hasHighRisk || (buyerCaution && evidenceThin)) {
+    // Hard risk without further negatives, or caution + thin data
+    label = "Proceed carefully";
+  } else if (buyerCaution && !hasHighRisk && !evidenceThin) {
+    // Caution verdict but evidence is adequate and no hard flags
+    label = "Proceed carefully";
+  } else if (buyerThin && !hasHighRisk) {
+    // Thin data alone = proceed carefully (not catastrophic, just uncertain)
+    label = "Proceed carefully";
+  } else if (buyerStrong && evidenceStrong && !anyFlags) {
+    // Strong on all axes — the only route to "Strong shortlist"
+    label = "Strong shortlist";
+  } else if (buyerStrong && !evidenceThin && !hasHighRisk) {
+    // Strong verdict but medium evidence or minor flags — caveats apply
+    label = "Shortlist with caveats";
+  } else if (buyerGood && evidenceStrong && !hasHighRisk) {
+    // Good verdict + solid evidence + clean risk = strong shortlist
+    label = "Strong shortlist";
+  } else if (buyerGood && !evidenceThin && !hasHighRisk) {
+    // Good verdict with medium evidence or minor flags
+    label = anyFlags ? "Shortlist with caveats" : "Shortlist with caveats";
+  } else if (buyerGood && evidenceThin) {
+    label = "Shortlist with caveats";
+  } else {
+    label = "Proceed carefully";
+  }
+
+  // ── Reasoning ─────────────────────────────────────────────────────────────
+  // One sentence grounded in the most decisive evidence
+  let reasoning: string;
+
+  if (label === "Strong shortlist") {
+    const topPos = v.strongestPositives[0] ?? "strong area fundamentals";
+    reasoning = evidenceStrong
+      ? `${topPos.charAt(0).toUpperCase() + topPos.slice(1)}, backed by solid transaction data and no material risk flags — the evidence supports taking this further.`
+      : `${topPos.charAt(0).toUpperCase() + topPos.slice(1)} with no hard blockers identified — the fundamentals justify shortlisting.`;
+  } else if (label === "Shortlist with caveats") {
+    const topPos  = v.strongestPositives[0];
+    const topWatch = v.mainWatchOuts[0] ?? (anyFlags ? flags[0]?.label?.toLowerCase() : undefined);
+    if (topPos && topWatch) {
+      reasoning = `${topPos.charAt(0).toUpperCase() + topPos.slice(1)} supports the case, but ${topWatch} is worth resolving before committing further time.`;
+    } else if (topPos) {
+      reasoning = `${topPos.charAt(0).toUpperCase() + topPos.slice(1)} makes this worth pursuing — one or two checks still needed before moving to offer stage.`;
+    } else if (evidenceThin) {
+      reasoning = `Broadly promising signals, but transaction data is thin — treat figures as directional and verify key assumptions locally before progressing.`;
+    } else {
+      reasoning = `Broadly positive signals with some areas requiring a closer look — worth shortlisting pending those checks.`;
+    }
+  } else if (label === "Proceed carefully") {
+    const topRisk = highFlags[0]?.label
+      ? highFlags[0].label.toLowerCase()
+      : v.mainWatchOuts[0]
+      ?? (buyerThin ? "evidence is too thin for a confident call" : "multiple signals warrant closer scrutiny");
+    reasoning = `${topRisk.charAt(0).toUpperCase() + topRisk.slice(1)} — do not progress without fully pricing in this risk and completing independent due diligence.`;
+  } else {
+    // Probably not worth pursuing
+    const hardRisk = highFlags[0]?.label
+      ? highFlags[0].label.toLowerCase()
+      : v.mainWatchOuts[0] ?? "the combination of risks and weak evidence";
+    reasoning = `${hardRisk.charAt(0).toUpperCase() + hardRisk.slice(1)}, combined with ${
+      watchCount >= 2 ? `${watchCount} other material concerns` : "the broader risk picture"
+    }, makes it difficult to justify the time and cost of proceeding at this stage.`;
+  }
+
+  // ── Next step ─────────────────────────────────────────────────────────────
+  let nextStep: string;
+
+  if (label === "Strong shortlist") {
+    nextStep = evidenceStrong
+      ? "Book a viewing and instruct a solicitor to prepare — the fundamentals support moving fast if the property stacks up in person."
+      : "Book a viewing — verify in person what the data shows, then instruct a surveyor before offering.";
+  } else if (label === "Shortlist with caveats") {
+    const topWatch = v.mainWatchOuts[0];
+    if (topWatch && topWatch.toLowerCase().includes("flood")) {
+      nextStep = "Commission a specific flood risk assessment before progressing further.";
+    } else if (topWatch && topWatch.toLowerCase().includes("crime")) {
+      nextStep = "Visit at different times of day and check the full crime breakdown before deciding.";
+    } else if (evidenceThin) {
+      nextStep = "Verify the valuation range with a local agent before making any offer.";
+    } else if (topWatch) {
+      nextStep = `Resolve ${topWatch.split("—")[0].trim().toLowerCase()} before committing to viewing cost and survey fees.`;
+    } else {
+      nextStep = "Proceed to viewing, then instruct a RICS survey before exchange.";
+    }
+  } else if (label === "Proceed carefully") {
+    const hasFlood  = flags.some(f => f.label.toLowerCase().includes("flood"));
+    const hasCrime  = flags.some(f => f.label.toLowerCase().includes("crime"));
+    const hasAir    = flags.some(f => f.label.toLowerCase().includes("air"));
+    if (hasFlood) {
+      nextStep = "Commission an independent flood risk assessment and confirm insurance terms before taking any further steps.";
+    } else if (hasCrime) {
+      nextStep = "Research the crime profile in more depth and visit at multiple times before investing in a survey.";
+    } else if (hasAir) {
+      nextStep = "Check live air quality monitors for the specific street before committing to a viewing.";
+    } else if (buyerThin) {
+      nextStep = "Instruct a RICS-regulated surveyor before offering — the transaction data is too limited to rely on published figures.";
+    } else {
+      nextStep = "Do not proceed without independent professional advice on the key risks identified.";
+    }
+  } else {
+    // Probably not worth pursuing
+    nextStep = "Consider whether the identified risks can be priced in or mitigated — if not, redirect your time to better-supported options.";
+  }
+
+  return { label, reasoning, nextStep };
+}
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -3054,6 +3202,12 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       confidenceLevel: "Moderate" as const,
       confidenceNote: "",
     },
+    // placeholder — populated after briefConfidence is derived
+    shortlistVerdict: {
+      label: "Shortlist with caveats" as const,
+      reasoning: "",
+      nextStep: "",
+    },
   };
 
   // ─── Red-flag derivation ─────────────────────────────────────────────
@@ -3359,6 +3513,10 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     areaName,
     fiveYearGrowth,
   );
+
+  // ─── Shortlist Verdict ─────────────────────────────────────────────────────────────
+  // Runs after briefConfidence — needs buyerVerdict + redFlags + briefConfidence all resolved
+  areaIntelligence.shortlistVerdict = deriveShortlistVerdict(areaIntelligence);
 
   let propertyDeepDive: PropertyDeepDive | undefined;
   if (queryType === "address") {

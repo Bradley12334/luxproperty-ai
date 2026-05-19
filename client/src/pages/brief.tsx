@@ -56,6 +56,7 @@ import {
   CheckCircle2,
   ShieldAlert,
   Zap,
+  XCircle,
 } from "lucide-react";
 import { SoldPricesMap, deriveMapInterpretation } from "@/components/sold-prices-map";
 import type { BriefReport } from "@shared/schema";
@@ -525,6 +526,100 @@ function RedFlagSummaryBlock({
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Shortlist Verdict Block — "Would I shortlist this?" ──────────────────────
+// The headline decision signal. Displayed at the very top of every Professional+
+// brief — gives buyers an immediate, memorable call before they read anything else.
+// Four fixed labels map to distinct visual treatments so the verdict is scannable
+// in under 2 seconds on both desktop and mobile.
+function ShortlistVerdictBlock({
+  sv,
+}: {
+  sv: BriefReport["areaIntelligence"]["shortlistVerdict"];
+}) {
+  if (!sv) return null;
+
+  const isStrong   = sv.label === "Strong shortlist";
+  const isCaveats  = sv.label === "Shortlist with caveats";
+  const isCaution  = sv.label === "Proceed carefully";
+
+  // Per-label visual config
+  const cfg = isStrong
+    ? {
+        outer:     "border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.06] to-emerald-500/[0.02] dark:from-emerald-900/20 dark:to-transparent",
+        divider:   "border-emerald-500/20",
+        labelPill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+        dot:       "bg-emerald-500",
+        icon:      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />,
+        tagline:   "Keep going.",
+      }
+    : isCaveats
+    ? {
+        outer:     "border-[#B8860B]/25 bg-gradient-to-br from-[#B8860B]/[0.05] to-[#B8860B]/[0.01] dark:from-amber-900/15 dark:to-transparent",
+        divider:   "border-[#B8860B]/20",
+        labelPill: "bg-[#B8860B]/15 text-[#B8860B] border-[#B8860B]/30",
+        dot:       "bg-[#B8860B]",
+        icon:      <BookmarkCheck className="h-4 w-4 text-[#B8860B] shrink-0" />,
+        tagline:   "Keep going, but check first.",
+      }
+    : isCaution
+    ? {
+        outer:     "border-orange-500/25 bg-gradient-to-br from-orange-500/[0.05] to-orange-500/[0.01] dark:from-orange-900/15 dark:to-transparent",
+        divider:   "border-orange-500/20",
+        labelPill: "bg-orange-500/12 text-orange-700 dark:text-orange-400 border-orange-500/25",
+        dot:       "bg-orange-500",
+        icon:      <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400 shrink-0" />,
+        tagline:   "Slow down.",
+      }
+    : {
+        outer:     "border-red-500/20 bg-gradient-to-br from-red-500/[0.04] to-red-500/[0.01] dark:from-red-900/10 dark:to-transparent",
+        divider:   "border-red-500/15",
+        labelPill: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+        dot:       "bg-red-500",
+        icon:      <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />,
+        tagline:   "Move on.",
+      };
+
+  return (
+    <div
+      className={`rounded-xl border overflow-hidden shadow-sm ${cfg.outer}`}
+      data-testid="section-shortlist-verdict"
+    >
+      {/* Header row */}
+      <div className={`px-5 sm:px-6 py-3 border-b ${cfg.divider} flex items-center gap-2`}>
+        {cfg.icon}
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          Would I shortlist this?
+        </span>
+        <span className="ml-auto text-[11px] font-semibold text-muted-foreground/45 italic hidden sm:block">
+          {cfg.tagline}
+        </span>
+      </div>
+
+      {/* Label + reasoning */}
+      <div className="px-5 sm:px-6 py-4 flex items-start gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
+        <span
+          className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full border whitespace-nowrap shrink-0 ${cfg.labelPill}`}
+          data-testid="text-shortlist-label"
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} shrink-0`} />
+          {sv.label}
+        </span>
+        <p className="text-sm text-foreground/90 leading-relaxed font-medium" data-testid="text-shortlist-reasoning">
+          {sv.reasoning}
+        </p>
+      </div>
+
+      {/* Next step */}
+      {sv.nextStep && (
+        <div className={`px-5 sm:px-6 py-3 border-t ${cfg.divider} flex items-start gap-2.5`}>
+          <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/45 shrink-0 mt-0.5">Next</span>
+          <p className="text-[12px] text-muted-foreground leading-relaxed">{sv.nextStep}</p>
         </div>
       )}
     </div>
@@ -1124,6 +1219,41 @@ function exportToPDF(
   const pdfConfBg = pdfVerdict?.confidenceLevel === "High"
     ? "#f0fdf4" : pdfVerdict?.confidenceLevel === "Moderate"
     ? "#fffbeb" : "#f9fafb";
+  // Shortlist verdict for PDF — the very first decision signal
+  const sv = ai.shortlistVerdict;
+  const pdfShortlistColors: Record<string, { bg: string; border: string; dot: string; label: string }> = {
+    "Strong shortlist":             { bg: "#f0fdf4", border: "#86efac", dot: "#22c55e", label: "#15803d" },
+    "Shortlist with caveats":       { bg: "#fefce8", border: "#fde047", dot: "#B8860B", label: "#B8860B" },
+    "Proceed carefully":            { bg: "#fff7ed", border: "#fed7aa", dot: "#f97316", label: "#c2410c" },
+    "Probably not worth pursuing":  { bg: "#fef2f2", border: "#fecaca", dot: "#ef4444", label: "#b91c1c" },
+  };
+  const pdfSLCol = sv ? (pdfShortlistColors[sv.label] ?? pdfShortlistColors["Shortlist with caveats"]) : null;
+  const pdfShortlistSection = sv && pdfSLCol ? `
+  <div class="section" style="border:1px solid ${pdfSLCol.border};border-radius:8px;overflow:hidden;padding:0;margin-bottom:24px">
+    <div style="padding:10px 16px;background:${pdfSLCol.bg};border-bottom:1px solid ${pdfSLCol.border};display:flex;align-items:center;gap:8px">
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${pdfSLCol.label}">
+        <span style="width:6px;height:6px;border-radius:50%;background:${pdfSLCol.dot};display:inline-block;flex-shrink:0"></span>
+        Would I shortlist this?
+      </span>
+      <span style="margin-left:auto;font-size:8.5px;color:#9ca3af;font-style:italic">${
+        sv.label === "Strong shortlist" ? "Keep going." :
+        sv.label === "Shortlist with caveats" ? "Keep going, but check first." :
+        sv.label === "Proceed carefully" ? "Slow down." : "Move on."
+      }</span>
+    </div>
+    <div style="padding:12px 16px;display:flex;align-items:flex-start;gap:10px">
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:8.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:3px 9px;border-radius:20px;border:1px solid ${pdfSLCol.border};background:${pdfSLCol.bg};color:${pdfSLCol.label};flex-shrink:0">
+        <span style="width:5px;height:5px;border-radius:50%;background:${pdfSLCol.dot};display:inline-block"></span>
+        ${sv.label}
+      </span>
+      <p style="font-size:11.5px;color:#111827;line-height:1.6;margin:0;font-weight:500">${sv.reasoning}</p>
+    </div>
+    <div style="padding:8px 16px;background:#fafafa;border-top:1px solid ${pdfSLCol.border}">
+      <span style="font-size:7.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9ca3af;margin-right:8px">Next</span>
+      <span style="font-size:10.5px;color:#6b7280;line-height:1.6">${sv.nextStep}</span>
+    </div>
+  </div>` : "";
+
   const pdfOneGlanceSection = pdfVerdict ? `
   <div class="section">
     <div class="section-label">Would I Buy Here?</div>
@@ -1382,6 +1512,8 @@ function exportToPDF(
     <h1>${isProperty ? `Property Report — ${ai.location}` : `${ai.location} Property Report — ${ai.area}`}</h1>
     ${isProperty ? `<div class="subtitle">📍 ${report.query}</div>` : ""}
   </div>
+
+  ${pdfShortlistSection}
 
   ${pdfOneGlanceSection}
 
@@ -2637,6 +2769,14 @@ export default function BriefPage() {
           </div>
 
           <div className="space-y-6">
+            {/* Shortlist Verdict — the very first thing a paid user sees.
+                 A single decisive label: "Strong shortlist" / "Shortlist with caveats" /
+                 "Proceed carefully" / "Probably not worth pursuing".
+                 Answers "should I keep going?" before anything else. */}
+            {isPaid && ai.shortlistVerdict && (
+              <ShortlistVerdictBlock sv={ai.shortlistVerdict} />
+            )}
+
             {/* —— What Would Worry Me — top-of-brief risk box, Professional+.
                  Surfaces the most decision-relevant concerns BEFORE any positive framing.
                  Signature differentiator: tells buyers the bad news fast. */}
