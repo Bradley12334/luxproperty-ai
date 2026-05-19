@@ -21,7 +21,7 @@ const tiers = [
     name: "Professional",
     price: "£4.99",
     period: "/month",
-    description: "The plan most buyers choose. Built around data that works across ordinary UK postcodes — price history, comparable sales, flood risk, planning, schools, and more. Unlimited briefs, always.",
+    description: "A full buyer brief for any UK postcode — not just London. Comparable sales, 5-year price trend, flood risk, planning, crime, schools, and a negotiation brief. Unlimited briefs.",
     badge: "Best for Most",
     style: "professional",
     cta: "Start Professional",
@@ -62,16 +62,16 @@ const features: FeatureRow[] = [
   { feature: "Commute calculator", explorer: true, professional: true, investor: true },
   { feature: "Nearby schools, stations & parks", explorer: true, professional: true, investor: true },
   // ── Professional ─────────────────────────────────────────────────────────────
-  { feature: "5-year price trend (Land Registry)", explorer: false, professional: true, investor: true },
+  { feature: "5-year price trend — Land Registry (any UK postcode)", explorer: false, professional: true, investor: true },
   { feature: "Comparable local sales & valuation range", explorer: false, professional: true, investor: true },
-  { feature: "Negotiation brief & offer guidance", explorer: false, professional: true, investor: true },
-  { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
-  { feature: "Crime context — category breakdown (police.uk)", explorer: false, professional: true, investor: true },
-  { feature: "Broadband speed & fibre availability (Ofcom)", explorer: false, professional: true, investor: true },
-  { feature: "Rental market context", explorer: false, professional: true, investor: true },
-  { feature: "Air quality index (London live; estimated elsewhere)", explorer: false, professional: true, investor: true },
-  { feature: "Export to PDF", explorer: false, professional: true, investor: true },
-  { feature: "Save briefs", explorer: false, professional: true, investor: true },
+  { feature: "Negotiation brief — leverage points & offer guidance", explorer: false, professional: true, investor: true },
+  { feature: "Planning activity & risk flags (council portal)", explorer: false, professional: true, investor: true },
+  { feature: "Crime breakdown by category (police.uk data)", explorer: false, professional: true, investor: true },
+  { feature: "Broadband speed & fibre coverage (Ofcom)", explorer: false, professional: true, investor: true },
+  { feature: "Rental market context — rents & demand", explorer: false, professional: true, investor: true },
+  { feature: "Air quality index", explorer: false, professional: true, investor: true },
+  { feature: "Export to PDF — client-ready format", explorer: false, professional: true, investor: true },
+  { feature: "Save & revisit briefs", explorer: false, professional: true, investor: true },
   // ── Investor ─────────────────────────────────────────────────────────────────
   { feature: "Portfolio dashboard", explorer: false, professional: false, investor: true },
   { feature: "Sold prices map", explorer: false, professional: false, investor: true },
@@ -118,10 +118,10 @@ export default function PricingPage() {
               Pricing
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-3">
-              Clear pricing, real value
+              A buyer brief for any UK postcode
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Free to start — 3 briefs a month, no card required. Professional at £4.99/month gives you unlimited briefs built on data that works across ordinary UK postcodes: Land Registry price history, comparable local sales, flood risk, planning activity, schools, and crime context — not just major city coverage.
+              Free to start — 3 briefs a month, no card required. Professional at £4.99/month unlocks the full pre-offer toolkit: Land Registry price history, comparable sales, planning activity, crime context, negotiation brief, and PDF export. Works across ordinary UK towns, suburbs, and rural postcodes — not just London.
             </p>
           </div>
         </section>
@@ -267,10 +267,10 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              Useful for any UK postcode. Serious from the first brief.
+              One brief. Any UK postcode. Everything you need before making an offer.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Professional is built around data that works across ordinary UK towns, suburbs, and rural postcodes — not just London and major cities. Land Registry price history, comparable sales, planning, flood risk, schools, and more. Always.
+              Professional gives you a structured buyer brief with comparable sales, 5-year price trend, flood risk, planning activity, crime context, and a negotiation brief — built on official UK data sources that work across any postcode, not just London.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">

@@ -91,7 +91,7 @@ export default function Home() {
       name: "Professional",
       price: "£4.99",
       period: "/month",
-      description: "Built around data that works across ordinary UK postcodes. Price history, comparable sales, flood risk, planning, schools, and more — unlimited briefs.",
+      description: "A full buyer brief for any UK postcode. Comparable sales, 5-year price trend, planning, crime, flood risk, and a negotiation brief. Unlimited briefs.",
       features: [
         "Unlimited briefs",
         "Everything in Explorer",
@@ -465,7 +465,7 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground leading-relaxed mb-6">
                   Buying agents, mortgage advisers, and wealth managers use LuxProperty.ai
                   to run live due-diligence in client meetings — then export or share the
-                  brief in one click.
+                  buyer brief in one click.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -751,9 +751,9 @@ function exportToPDF(
   <div class="masthead">
     ${mastheadLogoHtml}
     <div class="meta">
-      Property Report<br>
+      Buyer Brief — ${isProperty ? "Property" : "Area"} Report<br>
       Generated ${date}${preparedByLine}<br>
-      Data: HM Land Registry · Postcodes.io
+      LuxProperty.ai Professional
     </div>
   </div>
 
@@ -764,6 +764,11 @@ function exportToPDF(
   </div>
 
   ${pdfOneGlanceSection}
+
+  <div style="margin-bottom:24px;padding:12px 16px;background:#faf8f4;border-left:3px solid #B8860B;font-size:11px;color:#6b7280;line-height:1.65">
+    <strong style="color:#1a1612;display:block;margin-bottom:4px">How to read this brief</strong>
+    This report uses official UK data sources: Land Registry (prices), Environment Agency (flood), data.police.uk (crime), Ofcom (broadband), Ofsted (schools), and ONS (rental benchmarks). It is a structured due-diligence tool — not a substitute for a RICS survey or legal advice.
+  </div>
 
   <div class="section">
     <div class="section-label">Executive Summary</div>
@@ -811,21 +816,6 @@ function exportToPDF(
     <ul>${leveragePoints}</ul>
   </div>` : ""}
 
-  <div class="section">
-    <div class="section-label">Market Outlook</div>
-    <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Price growth is a forward-looking range derived from the direction of recent Land Registry trends — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Not financial advice.</p>
-    <div class="two-col" style="margin-bottom:16px">
-      <div class="kpi"><div class="kpi-label">Price Growth (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
-      <div class="kpi"><div class="kpi-label">Rental Yield (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
-    </div>
-    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Risk Flags</p>
-    <ul>${riskFlags}</ul>
-  </div>
-
-  <div class="section">
-    <div class="section-label">Verdict</div>
-    <div class="verdict">${ai.verdict}</div>
-  </div>
 
   <div class="section">
     <div class="section-label">Flood &amp; Climate Risk</div>
@@ -935,11 +925,26 @@ function exportToPDF(
 
   ${crimeSection}
 
+  <div class="section">
+    <div class="section-label">Market Outlook</div>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Price growth is a forward-looking range derived from the direction of recent Land Registry trends — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Not financial advice.</p>
+    <div class="two-col" style="margin-bottom:16px">
+      <div class="kpi"><div class="kpi-label">Price Growth (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
+      <div class="kpi"><div class="kpi-label">Rental Yield (indicative) • Estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
+    </div>
+    <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Risk Flags</p>
+    <ul>${riskFlags}</ul>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Verdict</div>
+    <div class="verdict">${ai.verdict}</div>
+  </div>
   ${hs2Flags}
 
   <div class="footer">
     <span>${companyName || "LuxProperty.ai"} — Confidential Property Report</span>
-    <span>Data sourced from HM Land Registry Price Paid &amp; Postcodes.io. For informational purposes only.</span>
+    <span>Data: HM Land Registry · Postcodes.io · data.police.uk · Ofcom · ONS · Environment Agency · Ofsted. For due diligence reference only — not a substitute for a professional survey.</span>
   </div>
 </div>
 </body>
@@ -1651,6 +1656,9 @@ export default function BriefPage() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">{ai.floodRisk.detail}</p>
+                <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                  Why it matters: flood risk affects mortgage availability, insurance premiums, and future saleability. A high-risk zone can restrict lender options and add hundreds per year to buildings insurance.
+                </p>
                 <a
                   href="https://flood-map-for-planning.service.gov.uk"
                   target="_blank"
@@ -1680,6 +1688,9 @@ export default function BriefPage() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">{ai.councilTax.note}</p>
+                <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                  Why it matters: council tax is a fixed ongoing cost that doesn't change with property price. A Band E or F property adds £500–£1,000+/year vs Band B or C — factor this into your running cost estimate.
+                </p>
                 <a
                   href={`https://www.gov.uk/council-tax-bands`}
                   target="_blank"
@@ -1751,8 +1762,283 @@ export default function BriefPage() {
                     </tbody>
                   </table>
                 </div>
+                <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3 mt-2">
+                  Commute times are indicative journey planning estimates. For a specific address, verify via Google Maps or National Rail using the actual departure point.
+                </p>
               </div>
             </CollapsibleSection>
+
+
+            {/* ── UNIVERSAL DATA SECTIONS ──────────────────────────────── */}
+
+            {/* ── Nearby Stations ─────────────────────────────────────────── */}
+            {ai.nearbyStations && ai.nearbyStations.length > 0 && (
+              <CollapsibleSection title="Nearby Stations" testId="section-stations">
+                <div className="space-y-0">
+                  {ai.nearbyStations.map((station, i) => {
+                    // Detect if any London Tube / Overpass line for commute note
+                    const isLondonLine = station.lines.some(l =>
+                      ["jubilee","central","northern","victoria","piccadilly","bakerloo",
+                       "district","circle","metropolitan","elizabeth","elizabeth line",
+                       "hammersmith","overground","dlr","london overground"].includes(l.toLowerCase())
+                    );
+                    const isNationalRail = !isLondonLine && station.modes?.includes("national-rail");
+                    const commuteNote = isLondonLine
+                      ? `Direct access to central London`
+                      : isNationalRail
+                      ? `National Rail connections`
+                      : null;
+
+                    return (
+                      <div key={i} className="flex items-start justify-between gap-3 py-3 border-b border-border/40 last:border-0">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Train className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{station.name}</p>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {station.lines.map((line, j) => {
+                                const style = getLineStyle(line);
+                                return (
+                                  <span
+                                    key={j}
+                                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                    style={{ backgroundColor: style.bg, color: style.text }}
+                                  >
+                                    {line}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            {commuteNote && (
+                              <p className="text-xs text-muted-foreground mt-1">{commuteNote}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-[#B8860B]">{station.walkMins} min</p>
+                          <p className="text-[11px] text-muted-foreground">walk</p>
+                          {station.distanceMetres && (
+                            <p className="text-[11px] text-muted-foreground">{station.distanceMetres}m</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground pt-2">Walk times estimated at 80m/min. Source: OpenStreetMap.</p>
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* ── Nearby Schools ──────────────────────────────────────────────── */}
+            {ai.nearbySchools && ai.nearbySchools.length > 0 && (
+              <CollapsibleSection title="Nearby Schools" testId="section-schools">
+                <div className="space-y-0">
+                  {ai.nearbySchools.map((school, i) => {
+                    const ofstedColour =
+                      school.ofstedRating === "Outstanding"
+                        ? { pill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" }
+                        : school.ofstedRating === "Good"
+                        ? { pill: "bg-blue-500/15 text-blue-700 dark:text-blue-400", dot: "bg-blue-500" }
+                        : school.ofstedRating?.includes("Improvement")
+                        ? { pill: "bg-amber-500/15 text-amber-700 dark:text-amber-400", dot: "bg-amber-500" }
+                        : school.ofstedRating === "Inadequate"
+                        ? { pill: "bg-red-500/15 text-red-700 dark:text-red-400", dot: "bg-red-500" }
+                        : { pill: "bg-muted text-muted-foreground", dot: "bg-muted-foreground/40" };
+
+                    const walkContext =
+                      school.walkMins <= 5 ? "on your doorstep"
+                      : school.walkMins <= 10 ? "a short walk away"
+                      : school.walkMins <= 20 ? "comfortable walk"
+                      : "nearby";
+
+                    return (
+                      <div key={i} className="flex items-start justify-between gap-3 py-3.5 border-b border-border/40 last:border-0">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <GraduationCap className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <p className="text-sm font-semibold text-foreground leading-tight">{school.name}</p>
+                            <p className="text-xs text-muted-foreground">{school.type}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <div className={`h-2 w-2 rounded-full shrink-0 ${ofstedColour.dot}`} />
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ofstedColour.pill}`}>
+                                {school.ofstedRating && school.ofstedRating !== "Not rated" ? `Ofsted: ${school.ofstedRating}` : "Not yet rated"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-[#B8860B]">{school.walkMins} min</p>
+                          <p className="text-[11px] text-muted-foreground">{walkContext}</p>
+                          {school.distanceMetres && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{school.distanceMetres}m</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3 mt-1 mb-2">
+                    Why it matters: school quality can affect local property values and your own running costs if you have children. Outstanding or Good-rated schools within walking distance are a measurable asset to the brief.
+                  </p>
+                  <p className="text-xs text-muted-foreground pt-2">
+                    Ofsted ratings sourced from OpenStreetMap. For the definitive rating, see{" "}
+                    <a href="https://www.ofsted.gov.uk" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">ofsted.gov.uk</a>.
+                  </p>
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* ── Local Amenities ──────────────────────────────────────────────── */}
+            {ai.nearbyAmenities && (
+              ai.nearbyAmenities.supermarkets.length > 0 ||
+              ai.nearbyAmenities.cafesAndRestaurants.length > 0 ||
+              ai.nearbyAmenities.health.length > 0 ||
+              ai.nearbyAmenities.greenSpaces.length > 0
+            ) && (
+              <CollapsibleSection title="Local Amenities" testId="section-amenities">
+                <div className="space-y-5">
+                  {ai.nearbyAmenities.supermarkets.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <ShoppingCart className="h-3.5 w-3.5 text-primary" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Supermarkets & Shops</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        {ai.nearbyAmenities.supermarkets.map((s, i) => (
+                          <div key={i} className="flex justify-between items-center text-sm">
+                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
+                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {ai.nearbyAmenities.cafesAndRestaurants.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Coffee className="h-3.5 w-3.5 text-primary" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cafés & Restaurants</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        {ai.nearbyAmenities.cafesAndRestaurants.map((s, i) => (
+                          <div key={i} className="flex justify-between items-center text-sm">
+                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
+                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {ai.nearbyAmenities.health.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Stethoscope className="h-3.5 w-3.5 text-primary" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Health & Medical</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        {ai.nearbyAmenities.health.map((s, i) => (
+                          <div key={i} className="flex justify-between items-center text-sm">
+                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
+                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {ai.nearbyAmenities.greenSpaces.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <TreePine className="h-3.5 w-3.5 text-primary" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Parks & Green Spaces</p>
+                      </div>
+                      <div className="space-y-2.5">
+                        {ai.nearbyAmenities.greenSpaces.map((s, i) => {
+                          const parkContext =
+                            s.walkMins <= 3 ? "right on your street"
+                            : s.walkMins <= 7 ? "perfect for a morning run"
+                            : s.walkMins <= 12 ? "great for weekend walks"
+                            : "a pleasant stroll away";
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Leaf className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
+                                  <p className="text-xs text-muted-foreground">{parkContext}</p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-sm font-bold text-[#B8860B]">{s.walkMins} min</span>
+                                <p className="text-[11px] text-muted-foreground">walk</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground pt-1">Source: OpenStreetMap. Coverage is typically accurate but may not include every local business or amenity.</p>
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* ── Crime Statistics ─────────────────────────────────────────────── */}
+            {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
+              <CollapsibleSection title="Crime Statistics" testId="section-crime-unavailable">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
+                  <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
+                    <a href="https://www.police.uk/pu/your-area/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start">Check crime data at police.uk →</a>
+                  </div>
+                </div>
+              </CollapsibleSection>
+            )}
+            {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 && (
+              <CollapsibleSection title="Crime Statistics" testId="section-crime">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">{ai.crimeStats.totalCrimesPerMonth.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">crimes recorded near this area ({ai.crimeStats.date})</p>
+                    </div>
+                    <Shield className="h-8 w-8 text-primary/30" />
+                  </div>
+                  {ai.crimeStats.topCategories.length > 0 && (
+                    <div className="space-y-2">
+                      {ai.crimeStats.topCategories.map((cat, i) => (
+                        <div key={i} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-foreground font-medium">{cat.category}</span>
+                            <span className="text-muted-foreground">{cat.count} ({cat.pct}%)</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary/60 rounded-full"
+                              style={{ width: `${Math.min(cat.pct * 2, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
+                  {/* 12-month trend sparkline — only if we have coords */}
+                  {report.lat && report.lng && (
+                    <div className="pt-2 border-t border-border/40">
+                      <CrimeSparkline lat={report.lat} lng={report.lng} />
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                    Why it matters: crime context helps calibrate neighbourhood safety alongside your own visits. Anti-social behaviour, vehicle crime, and burglary rates vary significantly between adjacent postcodes and affect both liveability and insurance costs.
+                  </p>
+                  <p className="text-xs text-muted-foreground">Source: data.police.uk — Police recorded crime data.</p>
+                </div>
+              </CollapsibleSection>
+            )}
 
             {/* ── PROFESSIONAL+ SECTIONS ──────────────────────────────────── */}
 
@@ -1778,6 +2064,9 @@ export default function BriefPage() {
                     <p className="text-sm text-muted-foreground leading-relaxed">{ai.planningActivity.majorDevelopments}</p>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{ai.planningActivity.note}</p>
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                    Why it matters: active planning applications within 250m can affect outlook, noise, and future value. A major development approval can change a quiet street significantly — check the council portal before committing.
+                  </p>
                   <a
                     href={ai.planningActivity.councilPortalUrl}
                     target="_blank"
@@ -1800,9 +2089,10 @@ export default function BriefPage() {
                   </Card>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
+                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Professional & above</p>
+                    <p className="text-xs font-semibold text-foreground">Planning activity — Professional</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Applications, major developments, and the council portal link for this postcode.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -1870,9 +2160,10 @@ export default function BriefPage() {
                   </Card>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
+                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Professional & above</p>
+                    <p className="text-xs font-semibold text-foreground">Rental market — Professional</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Asking rents by property size and buy-to-let demand context.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -1940,9 +2231,10 @@ export default function BriefPage() {
                   </Card>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
+                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Professional & above</p>
+                    <p className="text-xs font-semibold text-foreground">Broadband — Professional</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Ofcom average speeds, full fibre availability, and provider coverage.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -2013,9 +2305,10 @@ export default function BriefPage() {
                   </Card>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
+                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                     <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Professional & above</p>
+                    <p className="text-xs font-semibold text-foreground">Air quality — Professional</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Pollution index and health context for this postcode.</p>
                     <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
                   </div>
                 </div>
@@ -2191,269 +2484,6 @@ export default function BriefPage() {
             {isInvestor && ai.recentSoldPrices && ai.recentSoldPrices.length > 0 && (
               <CollapsibleSection title="Street Price Ranking" testId="section-street-ranking">
                 <StreetPriceRanking soldPrices={ai.recentSoldPrices} />
-              </CollapsibleSection>
-            )}
-
-            {/* ── Nearby Stations ─────────────────────────────────────────── */}
-            {ai.nearbyStations && ai.nearbyStations.length > 0 && (
-              <CollapsibleSection title="Nearby Stations" testId="section-stations">
-                <div className="space-y-0">
-                  {ai.nearbyStations.map((station, i) => {
-                    // Detect if any London Tube / Overpass line for commute note
-                    const isLondonLine = station.lines.some(l =>
-                      ["jubilee","central","northern","victoria","piccadilly","bakerloo",
-                       "district","circle","metropolitan","elizabeth","elizabeth line",
-                       "hammersmith","overground","dlr","london overground"].includes(l.toLowerCase())
-                    );
-                    const isNationalRail = !isLondonLine && station.modes?.includes("national-rail");
-                    const commuteNote = isLondonLine
-                      ? `Direct access to central London`
-                      : isNationalRail
-                      ? `National Rail connections`
-                      : null;
-
-                    return (
-                      <div key={i} className="flex items-start justify-between gap-3 py-3 border-b border-border/40 last:border-0">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <Train className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">{station.name}</p>
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {station.lines.map((line, j) => {
-                                const style = getLineStyle(line);
-                                return (
-                                  <span
-                                    key={j}
-                                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: style.bg, color: style.text }}
-                                  >
-                                    {line}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                            {commuteNote && (
-                              <p className="text-xs text-muted-foreground mt-1">{commuteNote}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-[#B8860B]">{station.walkMins} min</p>
-                          <p className="text-[11px] text-muted-foreground">walk</p>
-                          {station.distanceMetres && (
-                            <p className="text-[11px] text-muted-foreground">{station.distanceMetres}m</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p className="text-xs text-muted-foreground pt-2">Walk times estimated at 80m/min. Source: OpenStreetMap.</p>
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* ── Nearby Schools ──────────────────────────────────────────────── */}
-            {ai.nearbySchools && ai.nearbySchools.length > 0 && (
-              <CollapsibleSection title="Nearby Schools" testId="section-schools">
-                <div className="space-y-0">
-                  {ai.nearbySchools.map((school, i) => {
-                    const ofstedColour =
-                      school.ofstedRating === "Outstanding"
-                        ? { pill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" }
-                        : school.ofstedRating === "Good"
-                        ? { pill: "bg-blue-500/15 text-blue-700 dark:text-blue-400", dot: "bg-blue-500" }
-                        : school.ofstedRating?.includes("Improvement")
-                        ? { pill: "bg-amber-500/15 text-amber-700 dark:text-amber-400", dot: "bg-amber-500" }
-                        : school.ofstedRating === "Inadequate"
-                        ? { pill: "bg-red-500/15 text-red-700 dark:text-red-400", dot: "bg-red-500" }
-                        : { pill: "bg-muted text-muted-foreground", dot: "bg-muted-foreground/40" };
-
-                    const walkContext =
-                      school.walkMins <= 5 ? "on your doorstep"
-                      : school.walkMins <= 10 ? "a short walk away"
-                      : school.walkMins <= 20 ? "comfortable walk"
-                      : "nearby";
-
-                    return (
-                      <div key={i} className="flex items-start justify-between gap-3 py-3.5 border-b border-border/40 last:border-0">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <GraduationCap className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <p className="text-sm font-semibold text-foreground leading-tight">{school.name}</p>
-                            <p className="text-xs text-muted-foreground">{school.type}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div className={`h-2 w-2 rounded-full shrink-0 ${ofstedColour.dot}`} />
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ofstedColour.pill}`}>
-                                {school.ofstedRating && school.ofstedRating !== "Not rated" ? `Ofsted: ${school.ofstedRating}` : "Not yet rated"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-[#B8860B]">{school.walkMins} min</p>
-                          <p className="text-[11px] text-muted-foreground">{walkContext}</p>
-                          {school.distanceMetres && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{school.distanceMetres}m</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p className="text-xs text-muted-foreground pt-2">
-                    Ofsted ratings sourced from OpenStreetMap. For the definitive rating, see{" "}
-                    <a href="https://www.ofsted.gov.uk" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">ofsted.gov.uk</a>.
-                  </p>
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* ── Local Amenities ──────────────────────────────────────────────── */}
-            {ai.nearbyAmenities && (
-              ai.nearbyAmenities.supermarkets.length > 0 ||
-              ai.nearbyAmenities.cafesAndRestaurants.length > 0 ||
-              ai.nearbyAmenities.health.length > 0 ||
-              ai.nearbyAmenities.greenSpaces.length > 0
-            ) && (
-              <CollapsibleSection title="Local Amenities" testId="section-amenities">
-                <div className="space-y-5">
-                  {ai.nearbyAmenities.supermarkets.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <ShoppingCart className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Supermarkets & Shops</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        {ai.nearbyAmenities.supermarkets.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
-                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {ai.nearbyAmenities.cafesAndRestaurants.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Coffee className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cafés & Restaurants</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        {ai.nearbyAmenities.cafesAndRestaurants.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
-                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {ai.nearbyAmenities.health.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Stethoscope className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Health & Medical</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        {ai.nearbyAmenities.health.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
-                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {ai.nearbyAmenities.greenSpaces.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <TreePine className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Parks & Green Spaces</p>
-                      </div>
-                      <div className="space-y-2.5">
-                        {ai.nearbyAmenities.greenSpaces.map((s, i) => {
-                          const parkContext =
-                            s.walkMins <= 3 ? "right on your street"
-                            : s.walkMins <= 7 ? "perfect for a morning run"
-                            : s.walkMins <= 12 ? "great for weekend walks"
-                            : "a pleasant stroll away";
-                          return (
-                            <div key={i} className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Leaf className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                                  <p className="text-xs text-muted-foreground">{parkContext}</p>
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <span className="text-sm font-bold text-[#B8860B]">{s.walkMins} min</span>
-                                <p className="text-[11px] text-muted-foreground">walk</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground pt-1">Source: OpenStreetMap. Coverage is typically accurate but may not include every local business or amenity.</p>
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* ── Crime Statistics ─────────────────────────────────────────────── */}
-            {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
-              <CollapsibleSection title="Crime Statistics" testId="section-crime-unavailable">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
-                  <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
-                  <div className="flex flex-col gap-1">
-                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
-                    <a href="https://www.police.uk/pu/your-area/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start">Check crime data at police.uk →</a>
-                  </div>
-                </div>
-              </CollapsibleSection>
-            )}
-            {ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 && (
-              <CollapsibleSection title="Crime Statistics" testId="section-crime">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">{ai.crimeStats.totalCrimesPerMonth.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">crimes recorded near this area ({ai.crimeStats.date})</p>
-                    </div>
-                    <Shield className="h-8 w-8 text-primary/30" />
-                  </div>
-                  {ai.crimeStats.topCategories.length > 0 && (
-                    <div className="space-y-2">
-                      {ai.crimeStats.topCategories.map((cat, i) => (
-                        <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-foreground font-medium">{cat.category}</span>
-                            <span className="text-muted-foreground">{cat.count} ({cat.pct}%)</span>
-                          </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary/60 rounded-full"
-                              style={{ width: `${Math.min(cat.pct * 2, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
-                  {/* 12-month trend sparkline — only if we have coords */}
-                  {report.lat && report.lng && (
-                    <div className="pt-2 border-t border-border/40">
-                      <CrimeSparkline lat={report.lat} lng={report.lng} />
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">Source: data.police.uk — Police recorded crime data.</p>
-                </div>
               </CollapsibleSection>
             )}
 
@@ -2694,10 +2724,10 @@ export default function BriefPage() {
                       <Lock className="h-5 w-5 text-primary" />
                     </div>
                     <h3 className="font-serif text-lg tracking-tight mb-2">
-                      Unlock the full brief
+                      Complete your buyer brief
                     </h3>
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                      Price history, comparable local sales, valuation range, planning activity, negotiation brief, and PDF export — built on data that works across ordinary UK postcodes. All in Professional at £4.99/month.
+                      You're seeing the free layers. Professional adds the sections that matter most before an offer: 5-year price trend, comparable sales, valuation range, planning activity, crime context, negotiation brief, and PDF export. Any UK postcode. £4.99/month.
                     </p>
                     <div className="space-y-2">
                       <a href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00" target="_blank" rel="noopener noreferrer">
