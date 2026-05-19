@@ -71,6 +71,7 @@ import { ClimateResilienceCard } from "@/components/climate-resilience-card";
 import { WhatWouldWorryMe } from "@/components/what-would-worry-me";
 import { NegotiationLeverage } from "@/components/negotiation-leverage";
 import { WhatPeopleMiss } from "@/components/what-people-miss";
+import { DevelopmentAlerts, pdfDevelopmentAlertsSection } from "@/components/development-alerts";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 
 function SkeletonReport() {
@@ -1373,6 +1374,8 @@ function exportToPDF(
 
   ${pdfMissedInsightsSection}
 
+  ${pdfDevelopmentAlertsSection(ai.nearbyDevelopments, ai.planningActivity)}
+
   <div class="section">
     <div class="section-label">Market Overview</div>
     <div class="kpi-grid">
@@ -2532,6 +2535,13 @@ export default function BriefPage() {
                 {(ai.missedInsights?.length ?? 0) > 0 && (
                   <WhatPeopleMiss missedInsights={ai.missedInsights} areaName={ai.area} />
                 )}
+                {/* Development Alerts — high-signal nearby changes, Professional+.
+                     Compact alert layer above Executive Summary. Full tracker is below. */}
+                <DevelopmentAlerts
+                  nearbyDevelopments={ai.nearbyDevelopments}
+                  planningActivity={ai.planningActivity}
+                  areaName={ai.area}
+                />
               </>
             )}
 
