@@ -31,7 +31,7 @@ const planDetails = {
     label: "Professional",
     price: "£4.99/month",
     color: "text-primary",
-    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend analysis", "Comparable sales & valuation range", "Negotiation brief & offer guidance", "Planning activity & risk flags", "Rental market snapshot", "Broadband, air quality & infrastructure", "Export to PDF & save briefs"],
+    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend (Land Registry)", "Comparable local sales & valuation range", "Negotiation brief & offer guidance", "Planning activity & risk flags", "Crime context & category breakdown", "Broadband speed & fibre availability", "Rental market context", "Export to PDF & save briefs"],
     upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
     upgradeTo: "Investor — £39.99/month",
   },

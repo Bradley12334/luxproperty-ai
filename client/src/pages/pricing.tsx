@@ -21,7 +21,7 @@ const tiers = [
     name: "Professional",
     price: "£4.99",
     period: "/month",
-    description: "The plan most serious buyers and advisers choose. Unlimited briefs, the full pre-offer toolkit, and everything you need to move with confidence.",
+    description: "The plan most buyers choose. Built around data that works across ordinary UK postcodes — price history, comparable sales, flood risk, planning, schools, and more. Unlimited briefs, always.",
     badge: "Best for Most",
     style: "professional",
     cta: "Start Professional",
@@ -63,12 +63,13 @@ const features: FeatureRow[] = [
   { feature: "Nearby schools, stations & parks", explorer: true, professional: true, investor: true },
   // ── Professional ─────────────────────────────────────────────────────────────
   { feature: "5-year price trend (Land Registry)", explorer: false, professional: true, investor: true },
-  { feature: "Comparable sales & valuation range", explorer: false, professional: true, investor: true },
+  { feature: "Comparable local sales & valuation range", explorer: false, professional: true, investor: true },
   { feature: "Negotiation brief & offer guidance", explorer: false, professional: true, investor: true },
   { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
-  { feature: "Rental market snapshot", explorer: false, professional: true, investor: true },
-  { feature: "Broadband & infrastructure", explorer: false, professional: true, investor: true },
-  { feature: "Air quality index", explorer: false, professional: true, investor: true },
+  { feature: "Crime context — category breakdown (police.uk)", explorer: false, professional: true, investor: true },
+  { feature: "Broadband speed & fibre availability (Ofcom)", explorer: false, professional: true, investor: true },
+  { feature: "Rental market context", explorer: false, professional: true, investor: true },
+  { feature: "Air quality index (London live; estimated elsewhere)", explorer: false, professional: true, investor: true },
   { feature: "Export to PDF", explorer: false, professional: true, investor: true },
   { feature: "Save briefs", explorer: false, professional: true, investor: true },
   // ── Investor ─────────────────────────────────────────────────────────────────
@@ -120,7 +121,7 @@ export default function PricingPage() {
               Clear pricing, real value
             </h1>
             <p className="text-muted-foreground text-base max-w-lg">
-              Free to start — 3 briefs a month, no card required. Professional at £4.99/month is the plan most serious buyers and advisers choose: unlimited briefs, comparable sales, valuation range, negotiation brief, PDF export, and the full pre-offer toolkit.
+              Free to start — 3 briefs a month, no card required. Professional at £4.99/month gives you unlimited briefs built on data that works across ordinary UK postcodes: Land Registry price history, comparable local sales, flood risk, planning activity, schools, and crime context — not just major city coverage.
             </p>
           </div>
         </section>
@@ -266,10 +267,10 @@ export default function PricingPage() {
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
             <h2 className="font-serif text-2xl tracking-tight mb-3">
-              Most buyers start free. Most stay on Professional.
+              Useful for any UK postcode. Serious from the first brief.
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Try it free with no commitment. When you're ready for comparable sales, valuation range, negotiation brief, and PDF export — Professional is £4.99/month.
+              Professional is built around data that works across ordinary UK towns, suburbs, and rural postcodes — not just London and major cities. Land Registry price history, comparable sales, planning, flood risk, schools, and more. Always.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">

@@ -2571,7 +2571,7 @@ export default function BriefPage() {
                       Unlock the full brief
                     </h3>
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                      Comparable sales, valuation range, negotiation brief, market outlook, and PDF export — all included in Professional at £4.99/month.
+                      Price history, comparable local sales, valuation range, planning activity, negotiation brief, and PDF export — built on data that works across ordinary UK postcodes. All in Professional at £4.99/month.
                     </p>
                     <div className="space-y-2">
                       <a href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00" target="_blank" rel="noopener noreferrer">
