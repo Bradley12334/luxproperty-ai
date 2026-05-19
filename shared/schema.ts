@@ -75,12 +75,21 @@ export interface AreaIntelligence {
 
   // ── Enrichment Data (Phase 2) ─────────────────────────────────────────────
 
-  /** Flood & Climate Risk — EA flood zone + surface water */
+  /** Flood & Climate Risk — EA flood zone + surface water + climate resilience */
   floodRisk: {
     zone: string;           // "Zone 1 (Low)", "Zone 2 (Medium)", "Zone 3 (High)"
     surfaceWater: string;   // "Low", "Medium", "High"
     riskBadge: "Low" | "Medium" | "High";
     detail: string;         // 1–2 sentence description
+    // NEW — Climate & Resilience layer
+    resilienceLabel: "Low risk" | "Some exposure" | "Elevated risk" | "High risk"; // overall verdict
+    climateSignals: Array<{  // 2–4 factual climate/environmental signals
+      label: string;         // e.g. "Subsidence sensitivity"
+      value: string;         // e.g. "Moderate — London clay geology"
+      context: string;       // plain-English buyer relevance sentence
+      flagged: boolean;      // true if this signal warrants attention
+    }>;
+    nextSteps: string[];     // 2–4 practical buyer actions (what to check next)
   };
 
   /** Council Tax — most common band + annual cost */

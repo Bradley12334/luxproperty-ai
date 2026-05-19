@@ -67,6 +67,7 @@ import { CrimeSparkline } from "@/components/crime-sparkline";
 import { MortgageCalculator } from "@/components/mortgage-calculator";
 import { StreetPriceRanking } from "@/components/street-price-ranking";
 import { NearbyDevelopmentTracker, sortDevs, IMPACT_META, fmtDistance } from "@/components/nearby-development-tracker";
+import { ClimateResilienceCard } from "@/components/climate-resilience-card";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 
 function SkeletonReport() {
@@ -1202,12 +1203,32 @@ ${offerStrategyHtml}` : ""}
   ${pdfDevelopmentTrackerSection}
 
   <div class="section">
-    <div class="section-label">Flood &amp; Climate Risk</div>
-    <div style="display:flex;gap:24px;margin-bottom:10px">
-      <div class="kpi"><div class="kpi-label">Risk Level</div><div class="kpi-value" style="font-size:16px">${ai.floodRisk.riskBadge}</div></div>
-      <div class="kpi"><div class="kpi-label">EA Flood Zone</div><div class="kpi-value" style="font-size:14px">${ai.floodRisk.zone}</div></div>
-      <div class="kpi"><div class="kpi-label">Surface Water</div><div class="kpi-value" style="font-size:14px">${ai.floodRisk.surfaceWater}</div></div>
+    <div class="section-label">Flood, Climate &amp; Resilience</div>
+    ${(() => {
+      const rl = ai.floodRisk.resilienceLabel ?? (ai.floodRisk.riskBadge === "High" ? "High risk" : ai.floodRisk.riskBadge === "Medium" ? "Elevated risk" : "Low risk");
+      const rlColour = rl === "High risk" ? "#991b1b" : rl === "Elevated risk" ? "#c2410c" : rl === "Some exposure" ? "#92400e" : "#065f46";
+      const rlBg = rl === "High risk" ? "#fee2e2" : rl === "Elevated risk" ? "#ffedd5" : rl === "Some exposure" ? "#fef3c7" : "#d1fae5";
+      const signalRows = (ai.floodRisk.climateSignals ?? []).map(s =>
+        `<tr><td style="padding:4px 8px 4px 0;font-size:11px;font-weight:600;color:#111827">${s.label}</td><td style="padding:4px 0;font-size:11px;color:#374151">${s.value}</td><td style="padding:4px 8px;font-size:11px;color:#6b7280;max-width:280px">${s.context}</td><td style="padding:4px 0">${s.flagged ? `<span style="font-size:10px;font-weight:700;background:#ffedd5;color:#c2410c;padding:2px 6px;border-radius:4px">Check</span>` : ""}</td></tr>`
+      ).join("");
+      const stepItems = (ai.floodRisk.nextSteps ?? []).map(step =>
+        `<li style="font-size:11px;color:#374151;line-height:1.6;margin-bottom:3px">${step}</li>`
+      ).join("");
+      return `
+    <div style="display:flex;align-items:center;gap:10px;background:${rlBg};border-radius:6px;padding:8px 12px;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700;color:${rlColour}">${rl}</span>
+      <span style="font-size:11px;color:#374151">${ai.floodRisk.detail}</span>
     </div>
+    <div style="display:flex;gap:20px;margin-bottom:10px">
+      <div class="kpi"><div class="kpi-label">Flood Exposure</div><div class="kpi-value" style="font-size:15px">${ai.floodRisk.riskBadge}</div></div>
+      <div class="kpi"><div class="kpi-label">EA Flood Zone</div><div class="kpi-value" style="font-size:13px">${ai.floodRisk.zone}</div></div>
+      <div class="kpi"><div class="kpi-label">Surface Water</div><div class="kpi-value" style="font-size:13px">${ai.floodRisk.surfaceWater}</div></div>
+    </div>
+    ${signalRows.length > 0 ? `<p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#6b7280;margin-bottom:5px">Environmental Signals</p><table style="width:100%;margin-bottom:10px"><tbody>${signalRows}</tbody></table>` : ""}
+    ${stepItems.length > 0 ? `<p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#6b7280;margin-bottom:4px">What to Check Before Offering</p><ul style="margin:0;padding-left:16px">${stepItems}</ul>` : ""}
+    <p style="font-size:10px;color:#9ca3af;margin-top:8px">Environmental signals are area-level indicators derived from EA flood monitoring, geological mapping, and EPC data. Not a substitute for a formal flood risk assessment, environmental search, or RICS survey.</p>`;
+    })()}
+  </div>
     <p class="body-text">${ai.floodRisk.detail}</p>
   </div>
 
@@ -2401,44 +2422,17 @@ export default function BriefPage() {
 
             {/* ── FREE TIER SECTIONS ──────────────────────────────────────── */}
 
-            {/* Flood & Climate Risk */}
-            <CollapsibleSection title="Flood & Climate Risk" testId="section-flood">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap gap-3 items-start">
-                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                    ai.floodRisk.riskBadge === "Low"
-                      ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                      : ai.floodRisk.riskBadge === "Medium"
-                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                      : "bg-red-500/15 text-red-700 dark:text-red-400"
-                  }`}>
-                    <Droplets className="h-3 w-3" />
-                    {ai.floodRisk.riskBadge} Risk
-                  </div>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Flood Zone (EA)</span>
-                    <span className="text-sm text-foreground font-medium">{ai.floodRisk.zone}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Surface Water Risk</span>
-                    <span className="text-sm text-foreground font-medium">{ai.floodRisk.surfaceWater}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{ai.floodRisk.detail}</p>
-                <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
-                  Why it matters: flood risk affects mortgage availability, insurance premiums, and future saleability. A high-risk zone can restrict lender options and add hundreds per year to buildings insurance.
-                </p>
-                <a
-                  href="https://flood-map-for-planning.service.gov.uk"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary underline underline-offset-2 self-start"
-                >
-                  Verify on EA Flood Map for Planning →
-                </a>
-              </div>
+            {/* ── Flood, Climate & Resilience ──────────────────────────────── */}
+            <CollapsibleSection title="Flood, Climate & Resilience" testId="section-flood">
+              <ClimateResilienceCard
+                riskBadge={ai.floodRisk.riskBadge}
+                zone={ai.floodRisk.zone}
+                surfaceWater={ai.floodRisk.surfaceWater}
+                detail={ai.floodRisk.detail}
+                resilienceLabel={ai.floodRisk.resilienceLabel}
+                climateSignals={ai.floodRisk.climateSignals}
+                nextSteps={ai.floodRisk.nextSteps}
+              />
             </CollapsibleSection>
 
             {/* Council Tax */}

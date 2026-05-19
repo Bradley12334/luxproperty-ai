@@ -764,6 +764,189 @@ function enrichDevelopments(devs: DevEntry[]): Required<DevEntry>[] {
 }
 
 
+// ─── Climate & Resilience Engine ──────────────────────────────────────
+// Derives the climate resilience layer from live flood data, outcode geography,
+// EPC data, and air quality. Returns resilienceLabel, climateSignals, nextSteps.
+// Called as a post-processing step after areaIntelligence is built so all live
+// data is available.
+function deriveClimateResilience(
+  floodRisk: import("../../../shared/schema").AreaIntelligence["floodRisk"],
+  outcode: string,
+  isLondon: boolean,
+  areaName: string,
+  epcRating?: string,
+  airRating?: string,
+): Pick<import("../../../shared/schema").AreaIntelligence["floodRisk"], "resilienceLabel" | "climateSignals" | "nextSteps"> {
+  type ClimateSignal = import("../../../shared/schema").AreaIntelligence["floodRisk"]["climateSignals"][number];
+
+  const badge = floodRisk.riskBadge;
+  const zone = floodRisk.zone;
+  const sw = floodRisk.surfaceWater;
+  const detail = floodRisk.detail;
+  const signals: ClimateSignal[] = [];
+
+  // ── 1. FLOOD RISK SIGNAL ────────────────────────────────────────────────────
+  if (badge === "High") {
+    signals.push({
+      label: "Flood exposure",
+      value: `High — ${zone}`,
+      context: "Elevated flood risk can restrict lender options, increase buildings insurance premiums, and affect future saleability. A dedicated flood assessment is strongly recommended before proceeding.",
+      flagged: true,
+    });
+  } else if (badge === "Medium") {
+    signals.push({
+      label: "Flood exposure",
+      value: `Medium — ${zone}`,
+      context: "Medium flood risk can affect insurance premiums and some lender terms. Worth confirming property-specific risk via the EA Flood Map before exchange.",
+      flagged: true,
+    });
+  } else {
+    signals.push({
+      label: "Flood exposure",
+      value: `Low — ${zone}`,
+      context: badge === "Low" && detail.toLowerCase().includes("active")
+        ? "An active flood alert is noted at area level — verify property-specific status at flood-map-for-planning.service.gov.uk."
+        : "Low flood probability at area level. Confirm at property level via the EA Flood Map before exchange, as micro-level risk can differ.",
+      flagged: false,
+    });
+  }
+
+  // ── 2. SURFACE WATER SIGNAL ─────────────────────────────────────────────────
+  if (sw === "High") {
+    signals.push({
+      label: "Surface water drainage",
+      value: "High surface water risk",
+      context: "Surface water flooding (overwhelmed drains during heavy rain) is distinct from river or tidal flooding and affects properties not near watercourses. Worth verifying drainage infrastructure at the specific property.",
+      flagged: true,
+    });
+  } else if (sw === "Medium") {
+    signals.push({
+      label: "Surface water drainage",
+      value: "Moderate surface water sensitivity",
+      context: "Some surface water sensitivity — heavy rainfall can occasionally overwhelm local drainage. Ask the vendor about past drainage issues and check the property-level flood report.",
+      flagged: false,
+    });
+  }
+
+  // ── 3. SUBSIDENCE / GROUND CONDITION SIGNAL ─────────────────────────────────
+  // London clay belt = material subsidence sensitivity
+  const londonClayOutcodes = ["SW","SE","W","N","NW","E","EC","WC","EN","HA","TW","KT","SM","CR","BR","DA","IG","RM","WD","SL"];
+  const isLondonClay = londonClayOutcodes.some(p => outcode.startsWith(p));
+  // Shrinkable clay postcodes beyond London
+  const shrinkableClayOutcodes = ["CM","CO","SS","MK","LU","SG","AL","HP","OX","RG","GU","RH","TN","ME","CT","BN"];
+  const isShrinkableClay = !isLondonClay && shrinkableClayOutcodes.some(p => outcode.startsWith(p));
+  // Chalk/limestone — low subsidence but sinkhole/dissolution risk for a few outcodes
+  const chalkOutcodes = ["NN","LE","PE","CB","IP","NR","NE","DH","DL","YO","TS","HG"];
+  const isChalk = !isLondonClay && !isShrinkableClay && chalkOutcodes.some(p => outcode.startsWith(p));
+  // Sandstone/gravel — generally stable
+  if (isLondonClay) {
+    signals.push({
+      label: "Subsidence sensitivity",
+      value: "Moderate — London clay geology",
+      context: "London clay shrinks and swells with moisture, making subsidence a standing risk for properties here. Mature trees within 10m of the foundations are a particular watch-out. Ask specifically about subsidence history in your solicitor's enquiries and in the RICS survey.",
+      flagged: true,
+    });
+  } else if (isShrinkableClay) {
+    signals.push({
+      label: "Subsidence sensitivity",
+      value: "Present — shrinkable clay geology",
+      context: "Shrinkable clay geology increases subsidence sensitivity, especially during prolonged dry summers. Include a subsidence check in your RICS survey and ask the vendor about claims history.",
+      flagged: false,
+    });
+  } else {
+    signals.push({
+      label: "Ground stability",
+      value: "Generally stable geology",
+      context: "This postcode area does not fall within a high-priority shrinkable clay belt. Ground stability risk appears low, though a RICS survey will confirm this for the specific property.",
+      flagged: false,
+    });
+  }
+
+  // ── 4. HEAT / URBAN HEAT ISLAND SIGNAL ─────────────────────────────────────
+  // Dense urban areas and London have materially higher urban heat island effect
+  const denseUrbanOutcodes = ["EC","WC","E1","E2","E3","SE1","SW1","W1","WC1","WC2","N1","NW1","M1","M2","B1","LS1","BS1"];
+  const isDenseUrban = denseUrbanOutcodes.some(p => outcode === p || outcode.startsWith(p));
+  if (isDenseUrban) {
+    signals.push({
+      label: "Heat exposure",
+      value: "Elevated — urban heat island effect",
+      context: "Dense urban areas retain heat significantly more than suburban or rural locations. For flats or upper-floor conversions without mechanical cooling, summer overheating is increasingly relevant. Check ventilation, insulation standard, and whether the property has or can accommodate air conditioning.",
+      flagged: false,
+    });
+  } else if (isLondon) {
+    signals.push({
+      label: "Heat exposure",
+      value: "Moderate — London urban area",
+      context: "London temperatures are rising. Properties with south-facing glazing and limited ventilation can overheat in summer. EPC data and insulation standard are relevant considerations for long-run running costs and comfort.",
+      flagged: false,
+    });
+  }
+
+  // ── 5. EPC / ENERGY RESILIENCE SIGNAL ──────────────────────────────────────
+  if (epcRating && ["E","F","G"].includes(epcRating)) {
+    signals.push({
+      label: "Energy efficiency",
+      value: `EPC ${epcRating} — below minimum threshold`,
+      context: `An EPC rating of ${epcRating} indicates below-standard energy performance. From 2028, properties in England must reach EPC C for new tenancies. Retrofit costs could be material and should be factored into offer negotiations.`,
+      flagged: true,
+    });
+  } else if (epcRating && ["C","D"].includes(epcRating)) {
+    signals.push({
+      label: "Energy efficiency",
+      value: `EPC ${epcRating} — meets current standard`,
+      context: `EPC ${epcRating} meets current regulatory requirements. Future EPC C minimum requirements are worth checking if you plan to let the property.`,
+      flagged: false,
+    });
+  }
+
+  // ── RESILIENCE LABEL ────────────────────────────────────────────────────────
+  const flagCount = signals.filter(s => s.flagged).length;
+  let resilienceLabel: import("../../../shared/schema").AreaIntelligence["floodRisk"]["resilienceLabel"];
+  if (badge === "High" || flagCount >= 3) {
+    resilienceLabel = "High risk";
+  } else if (badge === "Medium" || flagCount >= 2) {
+    resilienceLabel = "Elevated risk";
+  } else if (flagCount >= 1 || isLondonClay || isShrinkableClay) {
+    resilienceLabel = "Some exposure";
+  } else {
+    resilienceLabel = "Low risk";
+  }
+
+  // ── NEXT STEPS ──────────────────────────────────────────────────────────────
+  const nextSteps: string[] = [];
+
+  // Always: EA flood map verification
+  nextSteps.push("Check the property address on the EA Flood Map for Planning (flood-map-for-planning.service.gov.uk) before exchange — area-level risk can differ from property-level");
+
+  if (badge === "High" || badge === "Medium") {
+    nextSteps.push("Commission a dedicated flood risk assessment or obtain a Flood Re-eligible insurance quote early in the conveyancing process — not all lenders will lend in high-risk zones");
+    nextSteps.push("Ask your solicitor for a chancel repair, drainage, and environmental search specifically covering flood history");
+  }
+
+  if (isLondonClay || isShrinkableClay) {
+    nextSteps.push("Instruct a RICS Level 3 Building Survey and ask specifically about subsidence history, tree proximity, and drainage at this property");
+  } else {
+    nextSteps.push("Instruct a RICS Level 2 or 3 survey and confirm ground stability is not flagged at property level");
+  }
+
+  if (sw === "High" || sw === "Medium") {
+    nextSteps.push("Ask the vendor directly about any drainage issues, damp, or water ingress history — surface water incidents are often not captured in formal searches");
+  }
+
+  if (epcRating && ["E","F","G"].includes(epcRating)) {
+    nextSteps.push(`Obtain retrofit cost estimates for improvements to EPC ${epcRating} — factor these into your offer or negotiate vendor contribution`);
+  }
+
+  // Always: buildings insurance check
+  nextSteps.push("Obtain a buildings insurance quote before exchange — flood-prone areas, properties with subsidence history, or unusual construction can be materially more expensive to insure");
+
+  // Cap at 4 most relevant
+  const capped = nextSteps.slice(0, 4);
+
+  return { resilienceLabel, climateSignals: signals.slice(0, 4), nextSteps: capped };
+}
+
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -2046,6 +2229,9 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       surfaceWater: "Low",
       riskBadge: "Low" as const,
       detail: `Flood risk data for ${areaName} has not been retrieved for this report. The area has been assigned a Low risk default. For property-level confirmation, review the Environment Agency Flood Map for Planning before exchange.`,
+      resilienceLabel: "Low risk" as const, // will be overwritten by deriveClimateResilience
+      climateSignals: [],
+      nextSteps: [],
     },
     councilTax: enrichmentProfile?.councilTax ?? {
       mostCommonBand: tier === "prime" ? "Band G" : tier === "premium" ? "Band F" : "Band D",
@@ -2294,6 +2480,16 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   // ─── Lifestyle fit ────────────────────────────────────────────────────────────────────────────
   areaIntelligence.lifestyleFit = deriveLifestyleFit(areaIntelligence);
+  // ─── Climate & resilience layer (post-derive once flood + EPC live data is in scope) ───────────
+  const climateLayer = deriveClimateResilience(
+    areaIntelligence.floodRisk,
+    outcode,
+    isLondon,
+    areaName,
+    areaIntelligence.epcData?.rating,
+    areaIntelligence.airQuality?.rating,
+  );
+  areaIntelligence.floodRisk = { ...areaIntelligence.floodRisk, ...climateLayer };
   // ─── Resident sentiment bullets (re-derive now that live data is in scope) ─────────────────────
   areaIntelligence.neighbourhoodProfile.residentSentimentBullets = deriveResidentSentimentBullets(
     !!specificProfile?.residentSentiment,

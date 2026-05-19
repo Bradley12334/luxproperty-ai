@@ -9,6 +9,10 @@ export interface EnrichmentProfile {
     surfaceWater: string;
     riskBadge: "Low" | "Medium" | "High";
     detail: string;
+    // Optional — merged in by deriveClimateResilience post-processing
+    resilienceLabel?: "Low risk" | "Some exposure" | "Elevated risk" | "High risk";
+    climateSignals?: Array<{ label: string; value: string; context: string; flagged: boolean }>;
+    nextSteps?: string[];
   };
   councilTax: {
     mostCommonBand: string;
