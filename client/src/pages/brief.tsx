@@ -525,94 +525,123 @@ function RedFlagSummaryBlock({
   );
 }
 
-// ── Buyer Summary Block component ────────────────────────────────────────────
-function BuyerSummaryBlock({
+// ── Buyer Verdict Block — "Would I buy here?" ──────────────────────────────────
+function BuyerVerdictBlock({
   ai,
-  isPropertyReport,
 }: {
   ai: BriefReport["areaIntelligence"];
-  isPropertyReport: boolean;
 }) {
-  const summary = deriveBuyerSummary(ai, isPropertyReport);
+  const v = ai.buyerVerdict;
+  if (!v) return null;
 
-  const rows: Array<{
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    accentClass: string;
-    borderClass: string;
-    bgClass: string;
-  }> = [
-    {
-      icon: <Target className="h-3.5 w-3.5" />,
-      label: "Best for",
-      value: summary.bestFor,
-      accentClass: "text-[#B8860B]",
-      borderClass: "border-[#B8860B]/20",
-      bgClass: "bg-[#B8860B]/[0.04]",
-    },
-    {
-      icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-      label: "Main strengths",
-      value: summary.mainStrengths,
-      accentClass: "text-emerald-700 dark:text-emerald-400",
-      borderClass: "border-emerald-600/15",
-      bgClass: "bg-emerald-50/50 dark:bg-emerald-950/20",
-    },
-    {
-      icon: <ShieldAlert className="h-3.5 w-3.5" />,
-      label: "Watch-outs",
-      value: summary.watchOuts,
-      accentClass: "text-amber-700 dark:text-amber-400",
-      borderClass: "border-amber-500/15",
-      bgClass: "bg-amber-50/50 dark:bg-amber-950/20",
-    },
-    {
-      icon: <Zap className="h-3.5 w-3.5" />,
-      label: "Buyer takeaway",
-      value: summary.buyerTakeaway,
-      accentClass: "text-[#B8860B]",
-      borderClass: "border-[#B8860B]/15",
-      bgClass: "bg-[#B8860B]/[0.03]",
-    },
-  ];
+  const isStrong  = v.verdictLabel === "Strong case";
+  const isGood    = v.verdictLabel === "Good case";
+  const isCaution = v.verdictLabel === "Proceed carefully";
+  const isThin    = v.verdictLabel === "Thin data — verify first";
+
+  // Verdict label colour
+  const labelColors = isStrong
+    ? { pill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", dot: "bg-emerald-500", border: "border-emerald-500/20" }
+    : isGood
+    ? { pill: "bg-[#B8860B]/15 text-[#B8860B] border-[#B8860B]/30", dot: "bg-[#B8860B]", border: "border-[#B8860B]/25" }
+    : isCaution
+    ? { pill: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25", dot: "bg-red-500", border: "border-red-500/20" }
+    : { pill: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-400/25", dot: "bg-slate-400", border: "border-slate-400/20" };
+
+  // Confidence badge colour
+  const confColor = v.confidenceLevel === "High"
+    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+    : v.confidenceLevel === "Moderate"
+    ? "bg-[#B8860B]/10 text-[#B8860B] border-[#B8860B]/25"
+    : "bg-slate-400/10 text-slate-600 dark:text-slate-400 border-slate-400/20";
 
   return (
     <div
-      className="rounded-xl border border-[#B8860B]/30 overflow-hidden shadow-sm"
-      data-testid="section-buyer-summary"
+      className={`rounded-xl border ${labelColors.border} overflow-hidden shadow-sm`}
+      data-testid="section-buyer-verdict"
     >
-      {/* Header strip */}
-      <div className="px-5 sm:px-6 py-3.5 bg-[#B8860B]/[0.07] border-b border-[#B8860B]/20 flex items-center gap-2.5">
-        <Lightbulb className="h-3.5 w-3.5 text-[#B8860B] shrink-0" />
-        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8860B]">
-          Pre-offer Summary
-        </span>
-        <span className="ml-auto text-[10px] text-muted-foreground/50 font-medium tracking-wide hidden sm:block">
-          Read this first
-        </span>
+      {/* Header — verdict label + headline question */}
+      <div className="px-5 sm:px-6 py-4 bg-[#1A1612]/[0.03] dark:bg-white/[0.03] border-b border-border/30">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <Lightbulb className="h-3.5 w-3.5 text-[#B8860B] shrink-0" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Would I buy here?
+            </span>
+          </div>
+          {/* Verdict label pill */}
+          <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${labelColors.pill}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${labelColors.dot} shrink-0`} />
+            {v.verdictLabel}
+          </span>
+        </div>
+        {/* Rationale — the decisive evidence sentence */}
+        <p className="mt-2.5 text-sm text-foreground/90 leading-relaxed font-medium">
+          {v.verdictRationale}
+        </p>
       </div>
 
-      {/* Four rows — stacked, each visually distinct */}
+      {/* Three structured rows */}
       <div className="divide-y divide-border/30">
-        {rows.map((row, i) => (
-          <div
-            key={i}
-            className={`px-5 sm:px-6 py-4 sm:py-[18px] flex gap-3.5 items-start ${row.bgClass}`}
-          >
-            {/* Label column */}
-            <div className={`flex items-center gap-1.5 min-w-[110px] sm:min-w-[130px] pt-0.5 shrink-0 ${row.accentClass}`}>
-              {row.icon}
-              <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">
-                {row.label}
-              </span>
-            </div>
-            {/* Value */}
-            <p className="text-sm text-foreground leading-relaxed">
-              {row.value}
-            </p>
+
+        {/* Best for */}
+        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start bg-[#B8860B]/[0.03]">
+          <div className="flex items-center gap-1.5 min-w-[120px] sm:min-w-[140px] pt-0.5 shrink-0 text-[#B8860B]">
+            <Target className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">Best for</span>
           </div>
-        ))}
+          <p className="text-sm text-foreground leading-relaxed">{v.bestFor}</p>
+        </div>
+
+        {/* Strongest positives */}
+        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start bg-emerald-50/30 dark:bg-emerald-950/10">
+          <div className="flex items-center gap-1.5 min-w-[120px] sm:min-w-[140px] pt-0.5 shrink-0 text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">Positives</span>
+          </div>
+          {v.strongestPositives.length > 0 ? (
+            <ul className="space-y-1.5">
+              {v.strongestPositives.map((pos, i) => (
+                <li key={i} className="flex gap-2 items-baseline">
+                  <span className="text-emerald-500 text-[10px] shrink-0 mt-0.5">✓</span>
+                  <span className="text-sm text-foreground leading-relaxed">{pos}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No standout positives identified from available data.</p>
+          )}
+        </div>
+
+        {/* Main watch-outs */}
+        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start bg-amber-50/30 dark:bg-amber-950/10">
+          <div className="flex items-center gap-1.5 min-w-[120px] sm:min-w-[140px] pt-0.5 shrink-0 text-amber-700 dark:text-amber-400">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">Watch-outs</span>
+          </div>
+          {v.mainWatchOuts.length > 0 ? (
+            <ul className="space-y-1.5">
+              {v.mainWatchOuts.map((wo, i) => (
+                <li key={i} className="flex gap-2 items-baseline">
+                  <span className="text-amber-500 text-[10px] shrink-0 mt-0.5">–</span>
+                  <span className="text-sm text-foreground leading-relaxed">{wo}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground/70">No material watch-outs from available data.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Confidence footer */}
+      <div className="px-5 sm:px-6 py-3 border-t border-border/30 bg-muted/20 flex items-start gap-2.5">
+        <span className={`inline-flex items-center text-[9px] font-bold uppercase tracking-[0.14em] px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${confColor}`}>
+          {v.confidenceLevel} confidence
+        </span>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {v.confidenceNote}
+        </p>
       </div>
     </div>
   );
@@ -810,38 +839,66 @@ function exportToPDF(
     <p style="margin-top:8px;font-size:11px;color:#9ca3af">${ai.crimeStats.vsNationalNote}</p>
   </div>` : "";
 
-  // Buyer Summary for PDF
-  const pdfBuyerSummary = deriveBuyerSummary(ai, !!isProperty);
-  const pdfOneGlanceSection = `
+  // "Would I buy here?" verdict for PDF — uses the pre-computed buyerVerdict from engine
+  const pdfVerdict = ai.buyerVerdict;
+  const pdfVerdictLabelColor = pdfVerdict?.verdictLabel === "Strong case"
+    ? "#166534" : pdfVerdict?.verdictLabel === "Good case"
+    ? "#92400e" : pdfVerdict?.verdictLabel === "Proceed carefully"
+    ? "#991b1b" : "#374151";
+  const pdfVerdictLabelBg = pdfVerdict?.verdictLabel === "Strong case"
+    ? "#f0fdf4" : pdfVerdict?.verdictLabel === "Good case"
+    ? "#fefce8" : pdfVerdict?.verdictLabel === "Proceed carefully"
+    ? "#fef2f2" : "#f9fafb";
+  const pdfConfColor = pdfVerdict?.confidenceLevel === "High"
+    ? "#166534" : pdfVerdict?.confidenceLevel === "Moderate"
+    ? "#92400e" : "#374151";
+  const pdfConfBg = pdfVerdict?.confidenceLevel === "High"
+    ? "#f0fdf4" : pdfVerdict?.confidenceLevel === "Moderate"
+    ? "#fffbeb" : "#f9fafb";
+  const pdfOneGlanceSection = pdfVerdict ? `
   <div class="section">
-    <div class="section-label">Pre-offer Summary</div>
-    <table style="width:100%;border-collapse:collapse">
-      <tr>
-        <td style="padding:11px 14px;background:#fefce8;border-left:3px solid #B8860B;border-bottom:1px solid #f3f4f6">
-          <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:5px">Best for</div>
-          <p style="font-size:12px;line-height:1.6;color:#111827;margin:0">${pdfBuyerSummary.bestFor}</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:11px 14px;background:#f0fdf4;border-left:3px solid #22c55e;border-bottom:1px solid #f3f4f6">
-          <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#166534;margin-bottom:5px">Main strengths</div>
-          <p style="font-size:12px;line-height:1.6;color:#111827;margin:0">${pdfBuyerSummary.mainStrengths}</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:11px 14px;background:#fffbeb;border-left:3px solid #f59e0b;border-bottom:1px solid #f3f4f6">
-          <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:5px">Watch-outs</div>
-          <p style="font-size:12px;line-height:1.6;color:#111827;margin:0">${pdfBuyerSummary.watchOuts}</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:11px 14px;background:#faf8f4;border-left:3px solid #B8860B">
-          <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:5px">Buyer takeaway</div>
-          <p style="font-size:12px;line-height:1.6;color:#111827;margin:0">${pdfBuyerSummary.buyerTakeaway}</p>
-        </td>
-      </tr>
-    </table>
-  </div>`;
+    <div class="section-label">Would I Buy Here?</div>
+    <div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
+      <div style="padding:14px 16px;background:#faf8f4;border-bottom:1px solid #e5e7eb">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#9ca3af">Verdict</div>
+          <div style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:0.08em;padding:3px 10px;border-radius:20px;background:${pdfVerdictLabelBg};color:${pdfVerdictLabelColor};border:1px solid ${pdfVerdictLabelColor}30">${pdfVerdict.verdictLabel}</div>
+        </div>
+        <p style="font-size:12px;line-height:1.65;color:#111827;margin:0;font-weight:500">${pdfVerdict.verdictRationale}</p>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="padding:11px 14px;background:#fefce8;border-left:3px solid #B8860B;border-bottom:1px solid #f3f4f6;vertical-align:top">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:5px">Best for</div>
+            <p style="font-size:12px;line-height:1.6;color:#111827;margin:0">${pdfVerdict.bestFor}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:11px 14px;background:#f0fdf4;border-left:3px solid #22c55e;border-bottom:1px solid #f3f4f6;vertical-align:top">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#166534;margin-bottom:6px">Strongest positives</div>
+            <ul style="padding:0;margin:0;list-style:none;display:flex;flex-direction:column;gap:5px">${pdfVerdict.strongestPositives.map(p => `<li style="font-size:12px;line-height:1.6;color:#111827;padding-left:14px;position:relative"><span style="position:absolute;left:0;color:#22c55e;font-weight:700">✓</span>${p}</li>`).join("")}</ul>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:11px 14px;background:#fffbeb;border-left:3px solid #f59e0b;border-bottom:1px solid #f3f4f6;vertical-align:top">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#92400e;margin-bottom:6px">Watch-outs</div>
+            ${pdfVerdict.mainWatchOuts.length > 0
+              ? `<ul style="padding:0;margin:0;list-style:none;display:flex;flex-direction:column;gap:5px">${pdfVerdict.mainWatchOuts.map(w => `<li style="font-size:12px;line-height:1.6;color:#111827;padding-left:14px;position:relative"><span style="position:absolute;left:0;color:#f59e0b;font-weight:700">–</span>${w}</li>`).join("")}</ul>`
+              : `<p style="font-size:12px;color:#6b7280;margin:0">No material watch-outs from available data.</p>`
+            }
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;background:#f9fafb;border-left:1px solid #e5e7eb;vertical-align:middle">
+            <div style="display:inline-flex;align-items:center;gap:7px">
+              <span style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:2px 8px;border-radius:12px;background:${pdfConfBg};color:${pdfConfColor};border:1px solid ${pdfConfColor}30">${pdfVerdict.confidenceLevel} confidence</span>
+              <span style="font-size:11px;color:#6b7280;line-height:1.55">${pdfVerdict.confidenceNote}</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>` : "";
 
   // Strengths & Considerations for PDF
   const { strengths: pdfStrengths, considerations: pdfConsiderations } = deriveStrengthsAndConsiderations(ai);
@@ -1670,8 +1727,10 @@ export default function BriefPage() {
               <RedFlagSummaryBlock flags={ai.redFlags ?? []} />
             )}
 
-            {/* Buyer Summary — decision-oriented executive readout, always first */}
-            <BuyerSummaryBlock ai={ai} isPropertyReport={!!isPropertyReport} />
+            {/* Buyer Verdict — structured "Would I buy here?" decision layer, Professional+ */}
+            {isPaid && (
+              <BuyerVerdictBlock ai={ai} />
+            )}
 
             {/* Explorer Verdict — shown to all users, top-level area screening judgement */}
             <ExplorerVerdictBlock explorerVerdict={ai.explorerVerdict} />

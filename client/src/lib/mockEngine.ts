@@ -59,6 +59,191 @@ function isOutsideEnglandWales(outcode: string): boolean {
   return nonEnglandWalesPrefixes.some(p => outcode.startsWith(p));
 }
 
+
+// ─── Structured Verdict Engine ────────────────────────────────────────────────
+function deriveVerdict(
+  ai: import("../../../shared/schema").AreaIntelligence,
+  isPropertyReport: boolean,
+  totalSalesThisYear: number,
+  hasData: boolean,
+): import("../../../shared/schema").AreaIntelligence["buyerVerdict"] {
+
+  const yoy = ai.marketOverview.priceChangeYoY;
+  const yoyNum = parseFloat(yoy.replace(/[^\d.\-]/g, ""));
+  const avgPrice = ai.marketOverview.averagePrice;
+  const priceNum = parseFloat(avgPrice.replace(/[^\d]/g, ""));
+  const dom = ai.marketOverview.avgDaysOnMarket;
+
+  const floodRisk       = ai.floodRisk?.riskBadge ?? "Low";
+  const airRating       = ai.airQuality?.rating ?? "Good";
+  const broadband       = ai.broadband;
+  const crimePerMonth   = ai.crimeStats?.totalCrimesPerMonth ?? 0;
+  const safetyRating    = ai.neighbourhoodProfile?.safetyRating ?? 70;
+  const transportRating = ai.neighbourhoodProfile?.transportRating ?? 5;
+  const schoolsRating   = ai.neighbourhoodProfile?.schoolsRating ?? 5;
+
+  const closestStation  = ai.nearbyStations?.slice().sort((a, b) => a.walkMins - b.walkMins)?.[0];
+  const stationWalkMins = closestStation?.walkMins ?? 999;
+  const closestPark     = ai.nearbyAmenities?.greenSpaces?.[0];
+  const topSchool       = ai.nearbySchools?.find(s => s.ofstedRating === "Outstanding" || s.ofstedRating === "Good");
+  const cafeCount       = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
+  const supermarketCount = ai.nearbyAmenities?.supermarkets?.length ?? 0;
+
+  const isTransitRich   = transportRating >= 7 || stationWalkMins <= 8;
+  const isTransitLight  = transportRating < 5 || stationWalkMins > 20;
+  const isAmenityLight  = cafeCount === 0 && supermarketCount === 0;
+  const hasBroadbandStrength = broadband?.rating === "Excellent" || broadband?.rating === "Very Good";
+  const hasDataConfidence = avgPrice !== "Insufficient data" && avgPrice !== "Scotland/NI \u2014 see note" && !isNaN(yoyNum);
+  const isThinData      = !hasDataConfidence || !hasData || priceNum === 0 || totalSalesThisYear < 3;
+  const marketRising    = !isNaN(yoyNum) && yoyNum > 0;
+  const marketFalling   = !isNaN(yoyNum) && yoyNum < -2;
+  const marketStrong    = !isNaN(yoyNum) && yoyNum >= 4;
+
+  // ── Confidence level ────────────────────────────────────────────────────────
+  let confidenceLevel: "High" | "Moderate" | "Low";
+  let confidenceNote: string;
+
+  if (isThinData) {
+    confidenceLevel = "Low";
+    confidenceNote = totalSalesThisYear < 3
+      ? `Only ${totalSalesThisYear} registered transaction${totalSalesThisYear === 1 ? "" : "s"} in the most recent year \u2014 treat all figures as directional. Commission a RICS surveyor before offering.`
+      : "Price and trend data for this postcode is limited. Structural signals (transport, schools, flood) are reliable; valuation figures are indicative only.";
+  } else if (totalSalesThisYear >= 20 && !isNaN(yoyNum) && (ai.nearbyStations?.length ?? 0) > 0 && (ai.nearbySchools?.length ?? 0) > 0) {
+    confidenceLevel = "High";
+    confidenceNote = `Based on ${totalSalesThisYear} Land Registry transactions, live station and school data, and full environmental coverage \u2014 this verdict is well-supported.`;
+  } else {
+    confidenceLevel = "Moderate";
+    const missing: string[] = [];
+    if (totalSalesThisYear < 10) missing.push("transaction volume is moderate");
+    if (!(ai.nearbyStations?.length)) missing.push("station data unavailable");
+    if (!(ai.nearbySchools?.length)) missing.push("school data unavailable");
+    confidenceNote = missing.length > 0
+      ? `${missing[0].charAt(0).toUpperCase() + missing[0].slice(1)} \u2014 the verdict is sound but gains from verifying locally.`
+      : `Built from Land Registry data, live environmental signals, and local amenities \u2014 broadly reliable with normal margin.`;
+  }
+
+  // ── Strongest positives ─────────────────────────────────────────────────────
+  const positives: string[] = [];
+
+  if (closestStation && stationWalkMins <= 8) {
+    const lineNote = (closestStation.lines?.length ?? 0) > 0 ? ` (${closestStation.lines.slice(0, 2).join(", ")})` : "";
+    positives.push(`${closestStation.name}${lineNote} is a ${stationWalkMins}-minute walk`);
+  } else if (closestStation && stationWalkMins <= 14 && transportRating >= 6) {
+    positives.push(`${closestStation.name} is ${stationWalkMins} min away \u2014 reasonable daily commute`);
+  }
+  if (topSchool && schoolsRating >= 7) {
+    const walkNote = topSchool.walkMins <= 12 ? ` (${topSchool.walkMins} min walk)` : "";
+    positives.push(`${topSchool.name} rated ${topSchool.ofstedRating} by Ofsted${walkNote}`);
+  } else if (!topSchool && schoolsRating >= 8) {
+    positives.push("above-average school provision for the area");
+  }
+  if (floodRisk === "Low") positives.push("low flood risk \u2014 insurance and mortgage terms unaffected");
+  if (hasBroadbandStrength) positives.push(`${broadband!.rating.toLowerCase()} broadband (${broadband!.avgDownloadSpeed})`);
+  if (closestPark && closestPark.walkMins <= 7) positives.push(`${closestPark.name} is ${closestPark.walkMins} min on foot`);
+  if (airRating === "Good" && (isTransitLight || !isTransitRich)) positives.push("clean air \u2014 NO\u2082 and PM2.5 within WHO guidelines");
+  if (marketStrong) positives.push(`strong ${yoy} annual price growth \u2014 above-average capital trajectory`);
+  else if (marketRising) positives.push(`steady ${yoy} year-on-year price growth`);
+  if (cafeCount >= 3) positives.push("good local amenity density \u2014 cafes, restaurants, and essentials walkable");
+
+  const strongestPositives = positives.slice(0, 3);
+
+  // ── Main watch-outs ──────────────────────────────────────────────────────────
+  const watchOuts: string[] = [];
+
+  if (floodRisk === "High") watchOuts.push("high flood risk \u2014 get a dedicated assessment and confirm insurance terms before offering");
+  else if (floodRisk === "Medium") watchOuts.push("medium flood risk \u2014 worth a specific assessment before exchange");
+  if (marketFalling) watchOuts.push(`prices down ${yoy.replace("-", "")} year-on-year \u2014 understand local drivers before committing`);
+  else if (!isNaN(yoyNum) && yoyNum < 0 && yoyNum >= -2) watchOuts.push(`slight price softening (${yoy} YoY) \u2014 monitor whether structural or temporary`);
+  if (crimePerMonth > 80 && safetyRating < 45) {
+    const topCat = ai.crimeStats?.topCategories?.[0];
+    watchOuts.push(`above-average crime levels${topCat ? ` \u2014 top category: ${topCat.category}` : ""} \u2014 visit at different times of day`);
+  }
+  if (airRating === "Very Poor") watchOuts.push(`very poor air quality (NO\u2082: ${String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}) \u2014 material for respiratory health`);
+  else if (airRating === "Poor") watchOuts.push(`poor air quality (NO\u2082: ${String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}) \u2014 worth noting for families with young children`);
+  if (isTransitLight) {
+    watchOuts.push(stationWalkMins < 999
+      ? `nearest station is ${stationWalkMins} min away \u2014 most journeys will require a car`
+      : "no station within easy walking distance \u2014 car-dependent area");
+  }
+  if (isAmenityLight) watchOuts.push("limited walkable amenities \u2014 essentials require a drive");
+  if (typeof dom === "number" && dom > 70) watchOuts.push(`slow market \u2014 homes averaging ${dom} days to sell, suggesting weaker underlying demand`);
+  if (broadband?.rating === "Poor" || broadband?.rating === "Limited") watchOuts.push(`${broadband!.rating.toLowerCase()} broadband (${broadband!.avgDownloadSpeed}) \u2014 verify at the specific property if you work from home`);
+  if (watchOuts.length === 0 && (ai.investmentOutlook?.riskFlags?.length ?? 0) > 0) {
+    const raw = ai.investmentOutlook.riskFlags[0];
+    watchOuts.push(raw.charAt(0).toLowerCase() + raw.slice(1));
+  }
+
+  const mainWatchOuts = watchOuts.slice(0, 3);
+
+  // ── Best for ─────────────────────────────────────────────────────────────────
+  const buyerTypes: string[] = [];
+  if (topSchool && schoolsRating >= 7) buyerTypes.push("families prioritising schools");
+  if (isTransitRich) buyerTypes.push("daily commuters");
+  if (hasBroadbandStrength && !isTransitRich) buyerTypes.push("remote workers");
+  if (closestPark && closestPark.walkMins <= 7 && !isTransitRich) buyerTypes.push("buyers who value outdoor space");
+  if (priceNum > 1_000_000) buyerTypes.unshift("high-net-worth buyers");
+  if (priceNum <= 350_000 && !isThinData) buyerTypes.push("first-time buyers");
+
+  let bestFor: string;
+  if (isThinData) {
+    bestFor = "Buyers comfortable making a decision with limited transactional data \u2014 structural signals (schools, transport, flood) are intact but price precision is low.";
+  } else if (priceNum > 1_000_000) {
+    bestFor = buyerTypes.length > 1
+      ? `High-net-worth buyers \u2014 particularly ${buyerTypes.slice(1, 3).join(" and ")}. Prime-market postcode with long-term capital stability.`
+      : "High-net-worth buyers seeking a premium, established address with structural long-term capital stability.";
+  } else if (isTransitLight && isAmenityLight) {
+    bestFor = "Buyers prioritising space and calm over connectivity \u2014 families, home workers, and those comfortable with car-dependent living. Less suited to daily rail commuters.";
+  } else if (buyerTypes.length >= 2) {
+    bestFor = `${buyerTypes[0].charAt(0).toUpperCase() + buyerTypes[0].slice(1)} and ${buyerTypes[1]} \u2014 the strongest buyer signals in this area.`;
+  } else if (buyerTypes.length === 1) {
+    bestFor = `${buyerTypes[0].charAt(0).toUpperCase() + buyerTypes[0].slice(1)} \u2014 and owner-occupiers looking for a settled residential base.`;
+  } else {
+    const characterSnip = (ai.neighbourhoodProfile?.character ?? "").split(".")[0];
+    bestFor = characterSnip.length > 20 && characterSnip.length < 130
+      ? characterSnip + "."
+      : "A broad mix of buyers \u2014 the area shows no single dominant buyer signal, making it suitable across household types.";
+  }
+
+  // ── Verdict label ────────────────────────────────────────────────────────────
+  type VL = "Strong case" | "Good case" | "Proceed carefully" | "Thin data \u2014 verify first";
+  let verdictLabel: VL;
+
+  if (isThinData) {
+    verdictLabel = "Thin data \u2014 verify first";
+  } else if (floodRisk === "High" || airRating === "Very Poor" || (crimePerMonth > 80 && safetyRating < 45) || (marketFalling && watchOuts.length >= 2)) {
+    verdictLabel = "Proceed carefully";
+  } else if (positives.length >= 3 && watchOuts.length === 0) {
+    verdictLabel = "Strong case";
+  } else if (positives.length >= 2 && watchOuts.length <= 1 && floodRisk === "Low") {
+    verdictLabel = "Good case";
+  } else if (positives.length >= 1 && watchOuts.length <= 2) {
+    verdictLabel = "Good case";
+  } else {
+    verdictLabel = "Proceed carefully";
+  }
+
+  // ── Verdict rationale ────────────────────────────────────────────────────────
+  let verdictRationale: string;
+
+  if (isThinData) {
+    verdictRationale = `Transaction volume is too low for a statistically grounded assessment \u2014 focus on structural signals (transport, schools, flood) and commission a RICS survey before offering.`;
+  } else if (verdictLabel === "Strong case") {
+    const topPos = positives[0] ?? "strong area fundamentals";
+    verdictRationale = marketStrong
+      ? `${yoy} price growth, ${topPos}, and no material risk flags make this a strong case \u2014 the evidence supports moving into due diligence.`
+      : `${topPos.charAt(0).toUpperCase() + topPos.slice(1)}, alongside clean environmental signals and amenity coverage, makes this a well-supported choice.`;
+  } else if (verdictLabel === "Good case") {
+    const topPos = positives[0] ?? "solid area fundamentals";
+    const topWatch = watchOuts[0] ?? "minor trade-offs to review";
+    verdictRationale = `${topPos.charAt(0).toUpperCase() + topPos.slice(1)} supports the case \u2014 the main trade-off is ${topWatch}. Address this before offering and the fundamentals justify proceeding.`;
+  } else {
+    const topRisk = watchOuts[0] ?? "material risk factors";
+    verdictRationale = `${topRisk.charAt(0).toUpperCase() + topRisk.slice(1)} \u2014 do not proceed without fully pricing in this risk and completing independent due diligence.`;
+  }
+
+  return { verdictLabel, verdictRationale, bestFor, strongestPositives, mainWatchOuts, confidenceLevel, confidenceNote };
+}
+
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
 const outcodeMetaCache: Record<string, any> = {};
@@ -1444,8 +1629,17 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       date: "",
     },
 
-    // placeholder — populated immediately below after object construction
+    // placeholders — populated immediately below after object construction
     redFlags: [],
+    buyerVerdict: {
+      verdictLabel: "Good case" as const,
+      verdictRationale: "",
+      bestFor: "",
+      strongestPositives: [],
+      mainWatchOuts: [],
+      confidenceLevel: "Moderate" as const,
+      confidenceNote: "",
+    },
   };
 
   // ─── Red-flag derivation ─────────────────────────────────────────────
@@ -1539,6 +1733,14 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
     areaIntelligence.redFlags = flags;
   }
+
+  // ─── Buyer verdict ────────────────────────────────────────────────────────────
+  areaIntelligence.buyerVerdict = deriveVerdict(
+    areaIntelligence,
+    queryType === "address",
+    totalSalesThisYear,
+    hasData,
+  );
 
   // ─── Offer strategy engine ───────────────────────────────────────────────────────────────────────
   // Confidence: Strong ≥ 4 comparable sales; Moderate = 2–3 or 1–2yr data; Thin = 0–1 or no data

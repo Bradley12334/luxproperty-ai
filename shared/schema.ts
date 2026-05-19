@@ -209,6 +209,28 @@ export interface AreaIntelligence {
     detail: string;
     severity: "high" | "medium";
   }>;
+
+  /**
+   * Structured "Would I buy here?" verdict — Professional+.
+   * Derived from actual evidence in the brief. Replaces the generic
+   * BuyerSummary readout as the headline decision layer.
+   */
+  buyerVerdict: {
+    /** Headline judgement — one of four calibrated labels */
+    verdictLabel: "Strong case" | "Good case" | "Proceed carefully" | "Thin data — verify first";
+    /** One-sentence verdict rationale — the most decisive evidence */
+    verdictRationale: string;
+    /** Buyer profile most suited to this area/property */
+    bestFor: string;
+    /** Up to 3 specific, evidence-led positives */
+    strongestPositives: string[];
+    /** Up to 3 specific, decision-relevant risks or trade-offs */
+    mainWatchOuts: string[];
+    /** Evidence quality: High / Moderate / Low */
+    confidenceLevel: "High" | "Moderate" | "Low";
+    /** One sentence explaining what drives the confidence level */
+    confidenceNote: string;
+  };
 }
 
 export interface PropertyDeepDive {
