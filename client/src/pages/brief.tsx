@@ -1564,6 +1564,24 @@ ${offerStrategyHtml}` : ""}
       })[l.toLowerCase()] ?? {"bg":"#B8860B","text":"#fff"}; return `<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:9999px;background:${st.bg};color:${st.text}">${l}</span>`; }).join("")}</div></td><td style="text-align:right;padding:7px 0;color:#B8860B;font-weight:600;white-space:nowrap">${s.walkMins} min</td></tr>`
     ).join("");
 
+    // Best for commuting — PDF
+    const TUBE_LINES_BF = ["jubilee","central","northern","victoria","piccadilly","bakerloo","district","circle","metropolitan","elizabeth","elizabeth line","hammersmith & city","hammersmith","overground","london overground","dlr"];
+    const elizabethStPDF = pdfStations.find((s: any) => s.lines.some((l: string) => l.toLowerCase().includes("elizabeth")));
+    const jubileeStPDF = pdfStations.find((s: any) => s.lines.some((l: string) => l.toLowerCase() === "jubilee"));
+    const northernStPDF = pdfStations.find((s: any) => s.lines.some((l: string) => l.toLowerCase() === "northern"));
+    const centralStPDF = pdfStations.find((s: any) => s.lines.some((l: string) => l.toLowerCase() === "central"));
+    const dlrStPDF = pdfStations.find((s: any) => s.lines.some((l: string) => l.toLowerCase() === "dlr"));
+    const overgroundStPDF = pdfStations.find((s: any) => s.lines.some((l: string) => l.toLowerCase().includes("overground")));
+    const nationalRailStPDF = pdfStations.find((s: any) => s.modes?.includes("national-rail") && !s.lines.some((l: string) => TUBE_LINES_BF.includes(l.toLowerCase())));
+    let bestForLinePDF: string | null = null;
+    if (elizabethStPDF) bestForLinePDF = `Best for City/Canary Wharf: ${elizabethStPDF.name} (Elizabeth line — Liverpool St, Canary Wharf, Paddington in one seat).`;
+    else if (jubileeStPDF) bestForLinePDF = `Best for Canary Wharf/West End: ${jubileeStPDF.name} (Jubilee — Canary Wharf, London Bridge, Westminster, Bond St).`;
+    else if (northernStPDF) bestForLinePDF = `Best for City/West End: ${northernStPDF.name} (Northern line — Bank, London Bridge, Waterloo, King's Cross).`;
+    else if (centralStPDF) bestForLinePDF = `Best for West End/City: ${centralStPDF.name} (Central line — Oxford Circus, St Paul's, Bank).`;
+    else if (dlrStPDF) bestForLinePDF = `Best for Canary Wharf: ${dlrStPDF.name} (DLR — direct to Canary Wharf without changing).`;
+    else if (overgroundStPDF) bestForLinePDF = `Best for cross-London travel: ${overgroundStPDF.name} (London Overground — multi-zone without Zone 1).`;
+    else if (nationalRailStPDF) bestForLinePDF = `Best for London commuting: ${nationalRailStPDF.name} (National Rail direct services).`;
+
     return `
     <div class="section">
       <div class="section-label">Nearby Stations</div>
@@ -1572,7 +1590,8 @@ ${offerStrategyHtml}` : ""}
           <span style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af">Commute picture</span>
           <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:9999px;background:${connectivityBg};color:${connectivityColor}">${connectivityLabel}</span>
         </div>
-        <p style="font-size:12px;color:#374151;line-height:1.55;margin:0">${commutePicture}</p>
+        <p style="font-size:12px;color:#374151;line-height:1.55;margin:0 0 ${bestForLinePDF ? '8px' : '0'} 0">${commutePicture}</p>
+        ${bestForLinePDF ? `<p style="font-size:11px;font-weight:600;color:#374151;margin:0"><strong style="color:#9ca3af;font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase">&#9733; Best for commuting</strong><br>${bestForLinePDF}</p>` : ""}
       </div>
       <table><thead><tr><th>Station</th><th>Lines</th><th style="text-align:right">Walk</th></tr></thead>
       <tbody>${rows}</tbody></table>
@@ -1657,6 +1676,73 @@ ${offerStrategyHtml}` : ""}
       <table><thead><tr><th>School</th><th>Type</th><th>Ofsted</th><th style="text-align:right">Walk</th></tr></thead>
       <tbody>${ofstedRows}</tbody></table>
       <p style="margin-top:8px;font-size:10px;color:#9ca3af">Ratings from OpenStreetMap. Verify at ofsted.gov.uk. Proximity does not guarantee catchment placement — confirm with school or local authority.</p>
+    </div>`;
+  })() : ""}
+
+  ${(ai.nearbyAmenities && (ai.nearbyAmenities.supermarkets?.length > 0 || ai.nearbyAmenities.cafesAndRestaurants?.length > 0 || ai.nearbyAmenities.health?.length > 0)) ? (() => {
+    const pdfSupermarkets = ai.nearbyAmenities.supermarkets ?? [];
+    const pdfCafes = ai.nearbyAmenities.cafesAndRestaurants ?? [];
+    const pdfHealth = ai.nearbyAmenities.health ?? [];
+    const pdfGreenSpaces = ai.nearbyAmenities.greenSpaces ?? [];
+
+    // Grocery tier
+    const premiumGrocersPDF = ["waitrose","marks & spencer","m&s","marks and spencer","whole foods","planet organic"];
+    const valueGrocersPDF = ["lidl","aldi","iceland","farmfoods","heron foods"];
+    const hasPremiumPDF = pdfSupermarkets.some((s: any) => premiumGrocersPDF.some(p => s.name.toLowerCase().includes(p)));
+    const hasValuePDF = pdfSupermarkets.some((s: any) => valueGrocersPDF.some(v => s.name.toLowerCase().includes(v)));
+    const hasSupermarketPDF = pdfSupermarkets.length > 0;
+    const premiumStorePDF = hasPremiumPDF ? pdfSupermarkets.find((s: any) => premiumGrocersPDF.some(p => s.name.toLowerCase().includes(p))) : null;
+
+    const groceryVerdictPDF = hasPremiumPDF
+      ? `${premiumStorePDF?.name ?? "A premium grocer"} gives this area a premium grocery anchor.`
+      : hasValuePDF && hasSupermarketPDF ? `Budget grocery options are close by — daily essentials are covered, but no premium supermarket within walking distance.`
+      : hasSupermarketPDF ? `Supermarket coverage present but mainstream — no premium anchor within walking distance.`
+      : `No supermarkets recorded in the immediate radius.`;
+
+    const cafeVerdictPDF = pdfCafes.length >= 4
+      ? `Active café and restaurant scene (${pdfCafes.length} venues) — strong street-level liveability.`
+      : pdfCafes.length >= 2 ? `Some dining options nearby — thin but functional.`
+      : pdfCafes.length === 1 ? `Limited café presence — one venue recorded. Eating out requires travelling further.`
+      : `No cafés or restaurants recorded in the immediate area.`;
+
+    const healthVerdictPDF = pdfHealth.length >= 2
+      ? `GP and health facilities within reach (${pdfHealth.length} recorded).`
+      : pdfHealth.length === 1 ? `One health facility recorded — check NHS GP finder for new patient availability.`
+      : "";
+
+    const amenityScorePDF = (hasSupermarketPDF ? 1 : 0) + (pdfCafes.length >= 2 ? 1 : 0) + (pdfHealth.length >= 1 ? 1 : 0);
+    const overallLabelPDF = amenityScorePDF >= 3 ? "Well provisioned" : amenityScorePDF === 2 ? "Partially self-sufficient" : amenityScorePDF === 1 ? "Limited amenity base" : "Sparse — car-dependent";
+    const overallColorPDF = amenityScorePDF >= 3 ? "#166534" : amenityScorePDF === 2 ? "#1d4ed8" : amenityScorePDF === 1 ? "#92400e" : "#991b1b";
+    const overallBgPDF = amenityScorePDF >= 3 ? "#f0fdf4" : amenityScorePDF === 2 ? "#eff6ff" : amenityScorePDF === 1 ? "#fefce8" : "#fef2f2";
+    const highStreetPDF = amenityScorePDF >= 3 ? "Overall: well-provisioned for daily living. Essentials, eating options, and health services accessible on foot or nearby." : amenityScorePDF === 2 ? "Overall: partially self-sufficient — most needs met but one or two essentials require travelling further." : amenityScorePDF === 1 ? "Overall: limited amenity base. Most day-to-day needs require a car or trip to a nearby town centre." : "Overall: sparse amenity coverage within the data radius. Verify what's available on foot before committing.";
+
+    const supermarketRows = pdfSupermarkets.map((s: any) =>
+      `<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:5px 10px 5px 0;font-size:12px;color:#111827">${s.name}</td><td style="padding:5px 8px;font-size:11px;color:#9ca3af">${s.type}</td><td style="text-align:right;padding:5px 0;color:#B8860B;font-size:11px;font-weight:600">${s.distanceMetres}m</td></tr>`
+    ).join("");
+    const cafeRows = pdfCafes.slice(0, 6).map((s: any) =>
+      `<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:5px 10px 5px 0;font-size:12px;color:#111827">${s.name}</td><td style="padding:5px 8px;font-size:11px;color:#9ca3af">${s.type}</td><td style="text-align:right;padding:5px 0;color:#B8860B;font-size:11px;font-weight:600">${s.distanceMetres}m</td></tr>`
+    ).join("");
+    const greenRows = pdfGreenSpaces.slice(0, 4).map((s: any) =>
+      `<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:5px 10px 5px 0;font-size:12px;color:#111827">${s.name}</td><td style="text-align:right;padding:5px 0;color:#B8860B;font-size:11px;font-weight:600">${s.walkMins} min</td></tr>`
+    ).join("");
+
+    return `
+    <div class="section">
+      <div class="section-label">Local Amenities</div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px 14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af">Amenity picture</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:9999px;background:${overallBgPDF};color:${overallColorPDF}">${overallLabelPDF}</span>
+        </div>
+        ${hasSupermarketPDF ? `<p style="font-size:12px;color:#374151;line-height:1.5;margin:0 0 5px 0">${groceryVerdictPDF}</p>` : ""}
+        <p style="font-size:12px;color:#374151;line-height:1.5;margin:0 0 5px 0">${cafeVerdictPDF}</p>
+        ${healthVerdictPDF ? `<p style="font-size:11px;color:#6b7280;margin:0 0 6px 0">${healthVerdictPDF}</p>` : ""}
+        <p style="font-size:11px;color:#6b7280;margin:0;padding-top:6px;border-top:1px solid #e5e7eb">${highStreetPDF}</p>
+      </div>
+      ${pdfSupermarkets.length > 0 ? `<p style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:5px">Supermarkets & Shops</p><table><tbody>${supermarketRows}</tbody></table>` : ""}
+      ${pdfCafes.length > 0 ? `<p style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#9ca3af;margin:10px 0 5px 0">Cafés & Restaurants</p><table><tbody>${cafeRows}</tbody></table>${pdfCafes.length > 6 ? `<p style="font-size:10px;color:#9ca3af;margin-top:4px">(${pdfCafes.length - 6} additional venues not shown)</p>` : ""}` : ""}
+      ${pdfGreenSpaces.length > 0 ? `<p style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#9ca3af;margin:10px 0 5px 0">Parks & Green Spaces</p><table><tbody>${greenRows}</tbody></table>` : ""}
+      <p style="margin-top:8px;font-size:10px;color:#9ca3af">Source: OpenStreetMap. Coverage is typically accurate but may not include every local business or amenity.</p>
     </div>`;
   })() : ""}
 
@@ -2682,6 +2768,67 @@ export default function BriefPage() {
               {isPaid ? (
                 /* Professional+: full 9-subsection neighbourhood deep-dive */
                 <div className="grid gap-5 sm:grid-cols-2">
+                  {/* Area character synthesis — derived summary for non-enriched areas or as a quick header read */}
+                  {(() => {
+                    const tier = ai.tier ?? "";
+                    const safety = ai.neighbourhoodProfile?.safetyRating ?? 50;
+                    const schools = ai.neighbourhoodProfile?.schoolsRating ?? 5;
+                    const transport = ai.neighbourhoodProfile?.transportRating ?? 5;
+                    const cafes = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
+                    const coverageThin = ai.neighbourhoodProfile?.coverageThin;
+
+                    // Only show the synthesis block if data looks curated enough to derive character
+                    // (coverageThin = true means the engine has limited enrichment, synthesis is most useful there)
+                    // Also show even for enriched areas to give a quick 2-line character header
+
+                    // Derive character signals
+                    const isAffluent = tier.toLowerCase().includes("prime") || tier.toLowerCase().includes("prestige") || tier.toLowerCase().includes("luxury");
+                    const isFamily = schools >= 7 && safety >= 65;
+                    const isTransitRich2 = transport >= 7;
+                    const isSafe = safety >= 70;
+                    const isVibrant = cafes >= 3;
+                    const isQuiet = cafes <= 1 && !isTransitRich2;
+
+                    // Character archetype
+                    let archetype: string;
+                    let archetypeDetail: string;
+
+                    if (isAffluent && isFamily && isSafe) {
+                      archetype = "Affluent family area";
+                      archetypeDetail = "High safety ratings and strong school provision signal this as a settled, family-oriented neighbourhood. Typical buyer: professional household prioritising schools and stability.";
+                    } else if (isAffluent && isTransitRich2) {
+                      archetype = "Affluent, well-connected";
+                      archetypeDetail = "Prime location with strong transit access. Attracts commuter professionals and second-home buyers. Expect above-average prices and limited supply.";
+                    } else if (isFamily && isQuiet) {
+                      archetype = "Quiet, family-oriented";
+                      archetypeDetail = "Low footfall, limited evening scene, but solid for families who value calm streets and school access over buzz. Not a destination for younger buyers seeking a lively high street.";
+                    } else if (isVibrant && isTransitRich2 && !isFamily) {
+                      archetype = "Urban, mixed-use";
+                      archetypeDetail = "Active street-level scene with good transit links. Suits younger professionals and downsizers. Family-focused buyers should weight the school picture carefully.";
+                    } else if (isTransitRich2 && !isFamily && !isAffluent) {
+                      archetype = "Transient, commuter-facing";
+                      archetypeDetail = "Strong transport access drives demand here more than neighbourhood character. Expect high rental demand alongside an owner-occupier base. Less settled community feel than outer areas.";
+                    } else if (isQuiet && !isSafe && !isFamily) {
+                      archetype = "Mixed character";
+                      archetypeDetail = "The signals here are mixed — limited amenity base, moderate safety rating, and no dominant buyer archetype. Suitable buyers should visit in the evening as well as during the day.";
+                    } else {
+                      archetype = "Suburban residential";
+                      archetypeDetail = "A broadly residential area with moderate scores across safety, schools, and transport. Buyers looking for character or buzz may need to look beyond this postcode; buyers prioritising value and stability may find it suitable.";
+                    }
+
+                    return (
+                      <div className="sm:col-span-2 rounded-lg border border-border/50 bg-muted/20 p-4 flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Area character read</span>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{archetype}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{archetypeDetail}</p>
+                        {coverageThin && (
+                          <p className="text-[10px] text-muted-foreground/50 italic">Derived from data signals — limited curated enrichment available for this postcode.</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {[
                     { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
                     { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities },
@@ -2973,6 +3120,43 @@ export default function BriefPage() {
                             </ul>
                           </div>
                         )}
+                        {/* Best station for City/major employment commute */}
+                        {(() => {
+                          const allLines2 = stations.flatMap(s => s.lines.map((l: string) => l.toLowerCase()));
+                          // Rank stations by commuter value for City/West End/Canary Wharf
+                          const elizabethSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase().includes("elizabeth")));
+                          const jubileeSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "jubilee"));
+                          const northernSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "northern"));
+                          const centralSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "central"));
+                          const dlrSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "dlr"));
+                          const overgroundSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase().includes("overground")));
+                          const nationalRailSt = stations.find(s => s.modes?.includes("national-rail") && !s.lines.some((l: string) => [...TUBE_LINES].includes(l.toLowerCase())));
+
+                          let bestForLine: string | null = null;
+                          if (elizabethSt) {
+                            bestForLine = `Best for City and Canary Wharf commuting: ${elizabethSt.name} (Elizabeth line — direct to Liverpool St, Canary Wharf, City Thameslink and Paddington).`;
+                          } else if (jubileeSt) {
+                            bestForLine = `Best for Canary Wharf and West End: ${jubileeSt.name} (Jubilee line — fast to Canary Wharf, London Bridge, Westminster, Bond St).`;
+                          } else if (northernSt) {
+                            bestForLine = `Best for the City and West End: ${northernSt.name} (Northern line — Bank, London Bridge, Waterloo, King's Cross, Camden).`;
+                          } else if (centralSt) {
+                            bestForLine = `Best for the West End and City: ${centralSt.name} (Central line — Oxford Circus, St Paul's, Bank, Stratford).`;
+                          } else if (dlrSt) {
+                            bestForLine = `Best for Canary Wharf and East London: ${dlrSt.name} (DLR — direct to Canary Wharf without changing).`;
+                          } else if (overgroundSt) {
+                            bestForLine = `Best for cross-London travel: ${overgroundSt.name} (London Overground — connects multiple zones without passing through Zone 1).`;
+                          } else if (nationalRailSt) {
+                            const dest = stations.find(s => s.name.toLowerCase().includes("victoria")) ? "Victoria" : stations.find(s => s.name.toLowerCase().includes("paddington")) ? "Paddington" : stations.find(s => s.name.toLowerCase().includes("waterloo")) ? "Waterloo" : "a major London terminus";
+                            bestForLine = `Best for London commuting: ${nationalRailSt.name} (National Rail — direct services to ${dest}).`;
+                          }
+
+                          return bestForLine ? (
+                            <div className="mt-2.5 pt-2.5 border-t border-border/40">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">★ Best for commuting</p>
+                              <p className="text-xs text-foreground/80 leading-relaxed">{bestForLine}</p>
+                            </div>
+                          ) : null;
+                        })()}
                         <p className="text-[10px] text-muted-foreground/50 mt-2.5">{totalStations} station{totalStations !== 1 ? "s" : ""} within {stationsWithin20 === totalStations ? "20 min walk" : "1,500m"} · {stationsWithin10} within 10 min</p>
                       </div>
                     );
@@ -3215,6 +3399,77 @@ export default function BriefPage() {
             ) && (
               <CollapsibleSection title="Local Amenities" testId="section-amenities">
                 <div className="space-y-5">
+                  {/* ── Amenity picture interpretation ── */}
+                  {(() => {
+                    const supermarkets = ai.nearbyAmenities?.supermarkets ?? [];
+                    const cafes = ai.nearbyAmenities?.cafesAndRestaurants ?? [];
+                    const health = ai.nearbyAmenities?.health ?? [];
+
+                    // Grocery tier
+                    const premiumGrocers = ["waitrose","marks & spencer","m&s","marks and spencer","whole foods","planet organic"];
+                    const valueGrocers = ["lidl","aldi","iceland","farmfoods","heron foods"];
+                    const hasPremium = supermarkets.some(s => premiumGrocers.some(p => s.name.toLowerCase().includes(p)));
+                    const hasValue = supermarkets.some(s => valueGrocers.some(v => s.name.toLowerCase().includes(v)));
+                    const hasSupermarket = supermarkets.length > 0;
+
+                    const groceryVerdict: string =
+                      hasPremium ? `${supermarkets.find(s => premiumGrocers.some(p => s.name.toLowerCase().includes(p)))!.name} gives this area a premium grocery anchor.`
+                      : hasValue && hasSupermarket ? `Budget grocery options are close by — daily essentials are covered, but the nearest premium supermarket may require a short drive.`
+                      : hasSupermarket ? `Supermarket coverage is present but mainstream — no premium anchor within walking distance.`
+                      : `No supermarkets recorded within the data radius — most grocery shopping will require a car or short trip.`;
+
+                    // Café density
+                    const cafeVerdict: string =
+                      cafes.length >= 4 ? `An active café and restaurant scene (${cafes.length} venues within range) — the kind of street-level energy that supports daily-life liveability.`
+                      : cafes.length >= 2 ? `Some café and dining options nearby — thin but functional for occasional use. Not a destination area for eating out.`
+                      : cafes.length === 1 ? `Limited café presence — one venue recorded. Most eating out will require travelling to a nearby high street or town centre.`
+                      : `No cafés or restaurants recorded in the immediate area — the high street, if any, is not within walking range of this postcode.`;
+
+                    // Health coverage
+                    const healthVerdict: string =
+                      health.length >= 2 ? `GP and health services are within reach (${health.length} facilities recorded).`
+                      : health.length === 1 ? `One health facility recorded nearby — adequate, but check if it is accepting new NHS patients.`
+                      : `No GP or health facilities in the immediate data radius — check NHS GP finder for the nearest practice.`;
+
+                    // Overall high-street read
+                    const amenityScore = (hasSupermarket ? 1 : 0) + (cafes.length >= 2 ? 1 : 0) + (health.length >= 1 ? 1 : 0);
+                    const highStreetVerdict: string =
+                      amenityScore >= 3 ? `Overall: well-provisioned for daily living. Essentials, eating options, and health services are all accessible on foot or nearby.`
+                      : amenityScore === 2 ? `Overall: partially self-sufficient — most needs are met but one or two essentials require travelling further.`
+                      : amenityScore === 1 ? `Overall: limited amenity base. This postcode relies on nearby town centres or a car for most day-to-day needs.`
+                      : `Overall: sparse amenity coverage within the data radius. Verify what's available on foot before committing.`;
+
+                    const overallColor: string =
+                      amenityScore >= 3 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+                      : amenityScore === 2 ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
+                      : amenityScore === 1 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+                      : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25";
+
+                    const overallLabel: string =
+                      amenityScore >= 3 ? "Well provisioned"
+                      : amenityScore === 2 ? "Partially self-sufficient"
+                      : amenityScore === 1 ? "Limited amenity base"
+                      : "Sparse — car-dependent";
+
+                    return (
+                      <div className="mb-1 rounded-lg border border-border/50 bg-muted/30 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">Amenity picture</p>
+                        <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border mb-3 ${overallColor}`}>
+                          {overallLabel}
+                        </div>
+                        <div className="space-y-2">
+                          {hasSupermarket && (
+                            <p className="text-xs text-foreground/85 leading-relaxed">{groceryVerdict}</p>
+                          )}
+                          <p className="text-xs text-foreground/85 leading-relaxed">{cafeVerdict}</p>
+                          {health.length > 0 && (
+                            <p className="text-xs text-muted-foreground leading-relaxed">{healthVerdict}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/40 pt-2 mt-1">{highStreetVerdict}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {ai.nearbyAmenities.supermarkets.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-2">
