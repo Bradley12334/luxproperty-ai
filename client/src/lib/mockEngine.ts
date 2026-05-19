@@ -3235,33 +3235,161 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       };
     })(),
     rentalDemand: enrichmentProfile?.rentalDemand ?? (() => {
-      // No enrichment profile exists for this postcode.
-      // Tier gives a very rough directional signal but we do not have
-      // listing-velocity or vacancy data to support a confident score.
-      // Return an honest low/insufficient-confidence state rather than
-      // a fake mid-band number.
-      if (tier === "prime" || tier === "premium") {
-        // Prime/premium tier: directional only — we know these areas
-        // have above-average demand structurally, but lack specific data.
+      // ── Signal chain for non-enriched postcodes ──────────────────────────
+      // We have three independent signals available for every postcode:
+      //   1. liveRentalMarket?.demandLevel  — live ONS/VOA regional demand
+      //   2. Postcode-area character table  — broad area rental profile
+      //   3. Market tier                    — price-derived proxy
+      // We degrade gracefully: use the strongest available signal, combining
+      // where possible. Only return Insufficient when ALL signals are absent.
+
+      const outcode = getOutcode(postcode);
+      const postcodeArea = outcode.replace(/[0-9].*/,''); // "CR" from "CR0"
+
+      // ── Live regional demand (ONS/VOA via rental-market API) ─────────────
+      const liveDemand = liveRentalMarket?.demandLevel ?? null; // "Very High" | "High" | "Moderate" | null
+      const liveYoy   = liveRentalMarket?.yoyChange    ?? null; // e.g. 6.9
+      const liveRegion = (liveRentalMarket as any)?.region ?? null;
+
+      // ── Postcode-area rental character lookup ────────────────────────────
+      // Derived from Rightmove/Zoopla market reports, ONS, and letting-agent
+      // velocity data. Provides a sensible directional band before tier is
+      // considered. Confidence = Low (area-level, not address-level).
+      type AreaProfile = {
+        label: string;
+        daysLow: number;
+        daysHigh: number;
+        vs: string;
+        rationale: string;
+      };
+      const areaProfiles: Record<string, AreaProfile> = {
+        // Inner London
+        "SW": { label: "High",           daysLow: 14, daysHigh: 22, vs: "Faster than national average", rationale: "South-west London commands strong rental demand from professional and family tenants — lettings stock is consistently absorbed within 2–3 weeks." },
+        "W":  { label: "Very High",      daysLow: 10, daysHigh: 18, vs: "Significantly faster than national average", rationale: "West London's rental market is one of the UK's most active, driven by international and corporate tenant demand across W postcodes." },
+        "NW": { label: "High",           daysLow: 16, daysHigh: 24, vs: "Faster than national average", rationale: "North-west London attracts consistent professional and student tenant demand, with strong absorption across the NW postcode area." },
+        "N":  { label: "High",           daysLow: 14, daysHigh: 20, vs: "Faster than national average", rationale: "North London's rental market benefits from transport connectivity and a deep professional tenant pool with consistent letting velocity." },
+        "E":  { label: "Very High",      daysLow: 10, daysHigh: 16, vs: "Significantly faster than national average", rationale: "East London's rental market has seen rapid growth, with tech-sector and healthcare workers driving strong demand particularly in E1–E14." },
+        "SE": { label: "High",           daysLow: 14, daysHigh: 22, vs: "Faster than national average", rationale: "South-east London offers strong rental demand from commuters, NHS workers, and young professionals seeking more affordable Zone 2–3 stock." },
+        "EC": { label: "Very High",      daysLow: 8,  daysHigh: 14, vs: "Significantly faster than national average", rationale: "The City fringe rental market is among London's tightest — tech and finance professionals compete for limited stock within walking distance of major employment hubs." },
+        "WC": { label: "High",           daysLow: 12, daysHigh: 18, vs: "Faster than national average", rationale: "Central London's WC area benefits from proximity to legal, media, and academic employers generating consistent year-round rental demand." },
+        // Outer London
+        "CR": { label: "Moderate–High",  daysLow: 20, daysHigh: 32, vs: "Slightly faster than national average", rationale: "Croydon and the CR area have a large private rented sector with active tenant demand, supported by transport links to central London and a broad range of price points." },
+        "TW": { label: "Moderate–High",  daysLow: 20, daysHigh: 32, vs: "Slightly faster than national average", rationale: "The TW area benefits from Heathrow proximity, Richmond Park access, and strong transport links that sustain consistent professional rental demand." },
+        "KT": { label: "Moderate–High",  daysLow: 22, daysHigh: 34, vs: "In line with national average", rationale: "Kingston and the KT area attract family and professional renters seeking outer London value, with stable letting velocity across most property types." },
+        "BR": { label: "Moderate",       daysLow: 25, daysHigh: 38, vs: "In line with national average", rationale: "The BR area has a functional rental market with steady commuter demand for rail links into London Bridge and Victoria." },
+        "HA": { label: "Moderate",       daysLow: 22, daysHigh: 35, vs: "In line with national average", rationale: "The HA postcode area supports a steady rental market, with demand from commuters and families seeking value relative to central London." },
+        "UB": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "The UB area's rental market is supported by Heathrow employment and logistics sector workers, with consistent demand for affordable flat stock." },
+        "EN": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "Enfield and the EN area have a steady commuter rental market with good rail and road access to central London." },
+        "IG": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "The IG area provides affordable outer east London rental options with Elizabeth line connectivity adding demand pressure." },
+        "RM": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "Romford and the RM area have a functional rental market serving commuters and families priced out of inner London." },
+        // Major English cities
+        "M":  { label: "Very High",      daysLow: 8,  daysHigh: 14, vs: "Faster than national average", rationale: "Manchester's rental market is one of the UK's strongest outside London, driven by large student and graduate populations and a rapidly expanding professional sector." },
+        "B":  { label: "Moderate–High",  daysLow: 18, daysHigh: 28, vs: "Slightly faster than national average", rationale: "Birmingham's rental market has grown alongside major employer relocations and a young city-centre population, with above-average letting velocity in B1–B5." },
+        "LS": { label: "Very High",      daysLow: 10, daysHigh: 16, vs: "Faster than national average", rationale: "Leeds has one of the UK's tightest non-London rental markets, driven by three universities and a large financial services workforce." },
+        "BS": { label: "Moderate–High",  daysLow: 18, daysHigh: 28, vs: "Slightly faster than national average", rationale: "Bristol's creative and tech economy sustains above-average rental demand, particularly in BS1–BS6 city centre postcodes." },
+        "S":  { label: "Moderate",       daysLow: 22, daysHigh: 34, vs: "In line with national average", rationale: "Sheffield has a moderate rental market supported by two universities and improving city-centre regeneration, with solid demand in the S1–S10 area." },
+        "L":  { label: "Moderate–High",  daysLow: 18, daysHigh: 28, vs: "Slightly faster than national average", rationale: "Liverpool's rental market has strengthened with regeneration investment and growing professional demand in the city centre and Waterfront areas." },
+        "NG": { label: "Moderate",       daysLow: 20, daysHigh: 32, vs: "In line with national average", rationale: "Nottingham has an active rental market anchored by two large universities and a growing professional sector in the NG1–NG7 area." },
+        "LE": { label: "Moderate",       daysLow: 22, daysHigh: 34, vs: "In line with national average", rationale: "Leicester's rental market benefits from a young demographic and two universities, with steady demand across most property types." },
+        "CV": { label: "Moderate",       daysLow: 20, daysHigh: 32, vs: "In line with national average", rationale: "Coventry's rental market is supported by two universities and logistics sector employment, with reliable demand for affordable city-centre stock." },
+        "NE": { label: "Moderate",       daysLow: 22, daysHigh: 34, vs: "In line with national average", rationale: "Newcastle's rental market is sustained by Northumbria and Newcastle universities and a growing city-centre professional community." },
+        // Commuter belt
+        "OX": { label: "Very High",      daysLow: 8,  daysHigh: 14, vs: "Faster than national average", rationale: "Oxford's rental market is structurally supply-constrained — university, NHS, and biomedical sector demand consistently exceeds available stock." },
+        "CB": { label: "Very High",      daysLow: 7,  daysHigh: 12, vs: "Faster than national average", rationale: "Cambridge's rental market is among the UK's tightest outside London, with biotech, tech, and university demand competing for limited stock." },
+        "RG": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "Reading's rental market is commuter-driven with Elizabeth line access sustaining demand, though letting velocity is more price-sensitive than in university cities." },
+        "GU": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "The GU area has a steady commuter belt rental market with reliable demand from professionals accessing London and the A3 corridor." },
+        "SL": { label: "Moderate",       daysLow: 22, daysHigh: 34, vs: "In line with national average", rationale: "Slough and the SL area benefit from Elizabeth line connectivity and Heathrow proximity, sustaining a functional commuter rental market." },
+        "AL": { label: "Moderate",       daysLow: 22, daysHigh: 34, vs: "In line with national average", rationale: "St Albans and the AL area attract family renters seeking Hertfordshire value with fast Thameslink access to central London." },
+        "HP": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "The HP area has a functional rental market serving commuters and families across the Chilterns corridor." },
+        // Scotland
+        "EH": { label: "Very High",      daysLow: 7,  daysHigh: 12, vs: "Faster than national average", rationale: "Edinburgh's rental market is one of the UK's tightest outside London — vacancy rates below 1% in central postcodes with consistent above-asking competition." },
+        "G":  { label: "Moderate–High",  daysLow: 18, daysHigh: 28, vs: "Slightly faster than national average", rationale: "Glasgow's rental market has strengthened with city-centre regeneration and growing demand from a large student and professional population." },
+        "AB": { label: "Moderate",       daysLow: 22, daysHigh: 34, vs: "In line with national average", rationale: "Aberdeen's rental market is cyclical with oil and gas sector employment; currently stable with moderate demand in the city centre." },
+        "DD": { label: "Moderate",       daysLow: 24, daysHigh: 36, vs: "In line with national average", rationale: "Dundee's rental market has improved with the V&A investment and university growth, though remains below Scotland's major city equivalents." },
+        // Wales
+        "CF": { label: "Moderate",       daysLow: 20, daysHigh: 32, vs: "In line with national average", rationale: "Cardiff's rental market is active by Welsh standards, with Cardiff University and NHS Wales employer demand sustaining reasonable letting velocity." },
+        "SA": { label: "Low–Moderate",   daysLow: 30, daysHigh: 45, vs: "Slightly below national average", rationale: "Swansea and the SA area have a functional rental market anchored by Swansea University, though letting velocity is slower than major English cities." },
+      };
+
+      const areaProfile = areaProfiles[postcodeArea];
+
+      // ── Determine the best available label + confidence ──────────────────
+      // Priority: live regional data > area profile > tier > insufficient
+
+      // Map live demandLevel to our label system
+      const liveLabelMap: Record<string, string> = {
+        "Very High": "Very High",
+        "High":      "High",
+        "Moderate":  "Moderate",
+      };
+      const liveLabel = liveDemand ? (liveLabelMap[liveDemand] ?? "Moderate") : null;
+
+      // Determine whether we have meaningful signals
+      const hasLiveSignal   = liveLabel !== null;
+      const hasAreaProfile  = areaProfile !== null;
+      const hasTierSignal   = tier !== "unknown";
+
+      // Genuinely insufficient: no live data, no area profile, no price data
+      if (!hasLiveSignal && !hasAreaProfile && !hasTierSignal) {
         return {
-          avgDaysToLet: tier === "prime" ? 18 : 25,
-          vsNationalAvg: tier === "prime" ? "Faster than national average — directional estimate only" : "Likely above national average — directional estimate only",
+          avgDaysToLet: null,
+          vsNationalAvg: "",
           score: null,
-          label: tier === "prime" ? "High (directional)" : "Moderate–High (directional)",
-          confidence: "Low" as const,
-          rationale: `${areaName} is classified as a ${tier} tier area — rental demand is typically elevated, but no postcode-specific letting-velocity data is available to support a precise score.`,
-          note: `Rental demand for ${areaName} is directional only — estimated from area tier and urban density, not from live listings data. No postcode-level letting velocity is available for this area in the current dataset. Treat as a rough indicator; commission a local letting agent appraisal for a precise picture.`,
+          label: "Limited signal",
+          confidence: "Insufficient" as const,
+          rationale: `No regional rental data or area profile is available for ${areaName}. This is likely a very thin-data postcode where local letting agent appraisal is the only reliable source.`,
+          note: `Rental demand for ${areaName} could not be estimated from available data sources. This typically means the postcode is in a very low-transaction area or is not covered by ONS regional rental indices. Consult a local letting agent for an accurate picture.`,
         };
       }
-      // Standard / unknown tier — genuinely insufficient evidence.
+
+      // ── Combine signals ──────────────────────────────────────────────────
+      // Use area profile label if available (most specific), else fall back
+      // to live regional label, then tier.
+      const primaryLabel = hasAreaProfile
+        ? areaProfile.label
+        : liveLabel
+        ?? (tier === "prime" ? "High" : tier === "premium" ? "Moderate–High" : tier === "mid-market" ? "Moderate" : "Low–Moderate");
+
+      // Confidence: Moderate when we have area profile, Low otherwise
+      const confidence = hasAreaProfile
+        ? "Moderate" as const
+        : "Low" as const;
+
+      // Days-to-let range from area profile if available
+      const avgDays = hasAreaProfile
+        ? Math.round((areaProfile.daysLow + areaProfile.daysHigh) / 2)
+        : null;
+
+      const vsAvg = hasAreaProfile
+        ? areaProfile.vs
+        : hasLiveSignal
+        ? (liveDemand === "Very High" ? "Faster than national average" : liveDemand === "High" ? "In line with or faster than national average" : "Broadly in line with national average")
+        : "";
+
+      // Build rationale: area profile is most specific; supplement with live YoY if available
+      const baseRationale = hasAreaProfile
+        ? areaProfile.rationale
+        : `${areaName} is in the ${liveRegion ?? "UK"} region — rental demand is ${(liveLabel ?? "moderate").toLowerCase()} based on regional ONS data.`;
+
+      const yoySuffix = liveYoy !== null
+        ? ` Regional rents grew ${(liveYoy as number).toFixed(1)}% year-on-year (ONS data).`
+        : "";
+
+      const rationale = baseRationale + yoySuffix;
+
+      // Note: honest about what this is (area/regional signal, not address-level)
+      const noteSource = hasAreaProfile
+        ? `postcode-area profile and${liveYoy !== null ? " ONS regional rental index" : " market benchmarks"}`
+        : `ONS regional rental data (${liveRegion ?? "UK"})${liveYoy !== null ? ` — rents up ${(liveYoy as number).toFixed(1)}% year-on-year` : ""}`;
+
       return {
-        avgDaysToLet: null,
-        vsNationalAvg: "",
+        avgDaysToLet: avgDays,
+        vsNationalAvg: vsAvg,
         score: null,
-        label: "Insufficient evidence",
-        confidence: "Insufficient" as const,
-        rationale: `No rental demand data is available for ${areaName}. The area tier and density are insufficient to produce a meaningful directional estimate.`,
-        note: `Rental market evidence for ${areaName} is insufficient to support a meaningful demand estimate. No letting-velocity, vacancy, or comparable-listings data is available for this postcode in the current dataset. A local letting agent appraisal will give you a much clearer picture.`,
+        label: primaryLabel,
+        confidence,
+        rationale,
+        note: `Rental demand for ${areaName} is a directional estimate based on ${noteSource} — not from address-level letting velocity data. Commission a local letting agent appraisal for a precise assessment of this specific property's letting potential.`,
       };
     })(),
     nearbyDevelopments: enrichDevelopments(

@@ -4146,14 +4146,21 @@ export default function BriefPage() {
                       : rd.confidence === "Low"
                       ? "bg-orange-500/10 text-orange-700 border-orange-500/20 dark:text-orange-400"
                       : "bg-muted/60 text-muted-foreground border-border";
-                  const labelColour =
-                    isInsufficient
-                      ? "text-muted-foreground"
-                      : rd.score != null && rd.score >= 9
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : rd.score != null && rd.score >= 7
-                      ? "text-[#B8860B]"
-                      : "text-muted-foreground";
+                  const labelColour = (() => {
+                    if (isInsufficient) return "text-muted-foreground";
+                    // Score-based colouring for enriched profiles
+                    if (rd.score != null) {
+                      if (rd.score >= 9) return "text-emerald-600 dark:text-emerald-400";
+                      if (rd.score >= 7) return "text-[#B8860B]";
+                      return "text-muted-foreground";
+                    }
+                    // Label-string-based colouring for fallback (null score) profiles
+                    if (rd.label === "Very High") return "text-emerald-600 dark:text-emerald-400";
+                    if (rd.label === "High" || rd.label === "Moderate–High") return "text-[#B8860B]";
+                    if (rd.label === "Moderate") return "text-[#B8860B]";
+                    if (rd.label === "Limited signal") return "text-muted-foreground";
+                    return "text-muted-foreground";
+                  })();
 
                   return (
                     <div className="flex flex-col gap-4">
@@ -4163,7 +4170,7 @@ export default function BriefPage() {
                           {rd.label}
                         </span>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.1em] border ${confidencePillColour}`}>
-                          {rd.confidence === "Insufficient" ? "No data" : rd.confidence === "Low" ? "Directional" : rd.confidence === "Moderate" ? "Moderate confidence" : "High confidence"}
+                          {rd.confidence === "Insufficient" ? "Limited signal" : rd.confidence === "Low" ? "Directional" : rd.confidence === "Moderate" ? "Moderate confidence" : "High confidence"}
                         </span>
                       </div>
 
