@@ -282,5 +282,122 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: "Unknown action. Use ?action=forgot|reset|welcome" });
+  // ── CONTACT / FEEDBACK ─────────────────────────────────────────────────
+  if (action === "contact") {
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    const OWNER_EMAIL = process.env.OWNER_EMAIL || "bradleyskana@hotmail.com";
+
+    if (!RESEND_API_KEY) {
+      console.error("[contact] RESEND_API_KEY not set");
+      return res.status(500).json({ error: "Email service not configured" });
+    }
+
+    const { name, email, message } = req.body || {};
+
+    // Validation
+    if (!name || typeof name !== "string" || name.trim().length < 1) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+    if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ error: "A valid email address is required" });
+    }
+    if (!message || typeof message !== "string" || message.trim().length < 5) {
+      return res.status(400).json({ error: "Message must be at least 5 characters" });
+    }
+    if (message.trim().length > 2000) {
+      return res.status(400).json({ error: "Message must be under 2000 characters" });
+    }
+
+    // Sanitise
+    const safeName = name.trim().slice(0, 120).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const safeEmail = email.trim().slice(0, 254);
+    const safeMessage = message.trim().slice(0, 2000).replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+    const submittedAt = new Date().toUTCString();
+
+    // Optional: persist to Supabase
+    try {
+      const supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_KEY
+      );
+      await supabase.from("contact_submissions").insert({
+        name: safeName,
+        email: safeEmail,
+        message: message.trim().slice(0, 2000),
+        submitted_at: new Date().toISOString(),
+      });
+    } catch (dbErr) {
+      // Non-fatal — log and continue to email send
+      console.warn("[contact] DB insert failed (non-fatal):", dbErr?.message);
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>New feedback — LuxProperty.ai</title></head>
+<body style="margin:0;padding:0;background:#FAF8F4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF8F4;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+        <tr>
+          <td style="padding-bottom:24px;text-align:center;">
+            <p style="margin:0;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#B8860B;font-weight:600;">LUXPROPERTY.AI — FEEDBACK</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#1A1612;border-radius:12px;padding:36px 40px;">
+            <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:#FAF8F4;">New website feedback</p>
+            <p style="margin:0 0 24px;font-size:13px;color:#9A9490;">Submitted ${submittedAt}</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <tr><td style="border-top:1px solid #2A2420;"></td></tr>
+            </table>
+            <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.10em;text-transform:uppercase;color:#B8860B;font-weight:600;">From</p>
+            <p style="margin:0 0 20px;font-size:15px;color:#FAF8F4;">${safeName} &lt;<a href="mailto:${safeEmail}" style="color:#B8860B;text-decoration:none;">${safeEmail}</a>&gt;</p>
+            <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.10em;text-transform:uppercase;color:#B8860B;font-weight:600;">Message</p>
+            <div style="background:#2A2420;border-radius:8px;padding:16px 20px;">
+              <p style="margin:0;font-size:14px;color:#FAF8F4;line-height:1.65;">${safeMessage}</p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-top:20px;text-align:center;">
+            <p style="margin:0;font-size:11px;color:#9A9490;">LuxProperty AI Ltd · Company No. 17158079</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "LuxProperty.ai Feedback <welcome@luxproperty.ai>",
+          to: [OWNER_EMAIL],
+          reply_to: safeEmail,
+          subject: `Feedback from ${safeName} — LuxProperty.ai`,
+          html,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error("[contact] Resend error:", err);
+        return res.status(500).json({ error: "Failed to send message" });
+      }
+
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("[contact] Send error:", err);
+      return res.status(500).json({ error: "Failed to send message" });
+    }
+  }
+
+  return res.status(400).json({ error: "Unknown action. Use ?action=forgot|reset|welcome|contact" });
 }

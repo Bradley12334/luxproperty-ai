@@ -18,6 +18,7 @@ import TermsPage from "@/pages/terms";
 import AccountPage from "@/pages/account";
 import AreaPage from "@/pages/area";
 import ComparePage from "@/pages/compare";
+import FeedbackPage from "@/pages/feedback";
 
 function AppRouter() {
   return (
@@ -33,6 +34,7 @@ function AppRouter() {
       <Route path="/area/:postcode" component={AreaPage} />
       <Route path="/compare" component={ComparePage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/feedback" component={FeedbackPage} />
       <Route component={NotFound} />
     </Switch>
   );

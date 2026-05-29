@@ -45,3 +45,19 @@ alter table public.password_reset_tokens disable row level security;
 insert into public.users (email, name, password_hash, plan)
 values ('bradleyskana@hotmail.com', 'Bradley Skana', 'lux2026!', 'investor')
 on conflict (email) do update set plan = 'investor';
+
+-- ─── Contact / feedback submissions ─────────────────────────────────────────
+create table if not exists public.contact_submissions (
+  id           uuid primary key default gen_random_uuid(),
+  name         text not null,
+  email        text not null,
+  message      text not null,
+  submitted_at timestamptz not null default now()
+);
+
+-- Only the service role (server-side) can read/write — no public access
+alter table public.contact_submissions disable row level security;
+
+-- Index for admin review by date
+create index if not exists contact_submissions_submitted_at_idx
+  on public.contact_submissions(submitted_at desc);

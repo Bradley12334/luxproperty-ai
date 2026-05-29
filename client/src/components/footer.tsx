@@ -59,6 +59,11 @@ export function Footer() {
                   Terms of Service
                 </span>
               </Link>
+              <Link href="/feedback">
+                <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                  Send feedback
+                </span>
+              </Link>
             </div>
           </div>
         </div>
