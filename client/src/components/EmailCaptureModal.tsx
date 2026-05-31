@@ -13,13 +13,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Mail, ArrowRight, CheckCircle, AlertCircle } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
-
-// ─── Supabase client (anon key is safe here — RLS protects the table) ────────
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL as string,
-  import.meta.env.VITE_SUPABASE_ANON_KEY as string
-);
+import { supabase } from "@/lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ModalStatus = "idle" | "loading" | "success" | "error";
