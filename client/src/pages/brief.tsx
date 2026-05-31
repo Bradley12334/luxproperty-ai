@@ -74,6 +74,7 @@ import { NegotiationLeverage } from "@/components/negotiation-leverage";
 import { WhatPeopleMiss } from "@/components/what-people-miss";
 import { DevelopmentAlerts, pdfDevelopmentAlertsSection } from "@/components/development-alerts";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
+import { FeatureGate, useEmailCaptured } from "@/components/FeatureGate";
 
 function SkeletonReport() {
   return (
@@ -2668,6 +2669,9 @@ export default function BriefPage() {
   const { user } = useAuth();
   const isPaid = user?.plan === "professional" || user?.plan === "investor";
   const isInvestor = user?.plan === "investor";
+  // Email-captured visitors see Market Outlook without a paid plan
+  const { captured: emailCaptured } = useEmailCaptured();
+  const hasMarketOutlookAccess = isPaid || emailCaptured;
   const { toast } = useToast();
 
   useEffect(() => {
@@ -4554,8 +4558,8 @@ export default function BriefPage() {
               </>
             )}
 
-            {/* === MARKET OUTLOOK + VERDICT — gated for paid plans === */}
-            {isPaid ? (
+            {/* === MARKET OUTLOOK + VERDICT — gated (paid plan or email capture) === */}
+            {hasMarketOutlookAccess ? (
               <div className="space-y-6">
                 {/* Market Outlook — unlocked */}
                 <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
@@ -4613,60 +4617,52 @@ export default function BriefPage() {
                 {/* Price Alerts — investor only */}
               </div>
             ) : (
-              /* Paywall — free / not signed in */
-              <div className="relative">
-                {/* Blurred preview */}
-                <div className="space-y-6 blur-sm opacity-50 select-none pointer-events-none" aria-hidden="true">
-                  <Card className="p-5 sm:p-6">
+              /* Email capture gate — free visitors who submit email see Market Outlook */
+              <FeatureGate
+                featureName="investment_score"
+                modalHeadline="Unlock Market Outlook & Verdict"
+                modalSubtext="Enter your email to see price growth forecasts, rental yield, market flags, and the full brief verdict. Free — no payment required."
+              >
+                {/* This children block renders after email is captured (gate unlocked) */}
+                {/* It is never shown directly — FeatureGate replaces itself with children on unlock */}
+                <div className="space-y-6">
+                  <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
                     <SectionHeading>Market Outlook</SectionHeading>
+                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                      Price growth is a forward-looking range derived from the direction of recent Land Registry trends for this area — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
+                    </p>
                     <div className="mb-4">
-                      <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Price Growth (indicative) <EstimateTag /></p>
+                        <p className="font-serif text-2xl tracking-tight text-foreground">{ai.investmentOutlook.growthForecast}</p>
+                      </div>
                     </div>
-                    <div className="pt-4 border-t border-border/40 mb-4">
-                      <KpiValue label="Rental yield (indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
+                    <div className="pt-4 border-t border-border/40">
+                      <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
+                      <p className="font-serif text-2xl tracking-tight text-foreground">{ai.investmentOutlook.rentalYieldEstimate}</p>
                     </div>
                     {ai.investmentOutlook.riskFlags.length > 0 && (
-                      <ul className="space-y-1.5">
-                        {ai.investmentOutlook.riskFlags.map((flag, i) => (
-                          <li key={i} className="text-sm text-foreground/80 pl-5">{flag}</li>
-                        ))}
-                      </ul>
+                      <div className="mt-4">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                          <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                          Market flags
+                        </p>
+                        <ul className="space-y-1.5">
+                          {ai.investmentOutlook.riskFlags.map((flag, i) => (
+                            <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
+                              {flag}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </Card>
-                  <Card className="p-5 sm:p-6 border-primary/20">
+                  <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
                     <SectionHeading>Verdict</SectionHeading>
                     <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
                   </Card>
                 </div>
-
-                {/* Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <Card className="max-w-sm w-full mx-4 p-6 text-center shadow-lg border-primary/20 bg-card">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                      <Lock className="h-5 w-5 text-primary" />
-                    </div>
-                    <h3 className="font-serif text-lg tracking-tight mb-2">
-                      Before you offer, you need this
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                      Professional answers the question buyers actually ask: <em>Would I seriously consider buying here — and what do I need to know before I offer?</em> You get comparable sales, a negotiation brief, 5-year price trend, crime breakdown, planning activity, and a PDF to keep. Any UK postcode. £4.99/month.
-                    </p>
-                    <div className="space-y-2">
-                      <a href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00" target="_blank" rel="noopener noreferrer">
-                        <Button className="w-full font-semibold" data-testid="button-paywall-upgrade">
-                          Start Professional — £4.99/month
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </a>
-                      <a href="/#/pricing" className="block">
-                        <Button variant="ghost" className="w-full text-xs text-muted-foreground hover:text-foreground" data-testid="button-paywall-view-plans">
-                          View all plans
-                        </Button>
-                      </a>
-                    </div>
-                  </Card>
-                </div>
-              </div>
+              </FeatureGate>
             )}
           </div>
 
