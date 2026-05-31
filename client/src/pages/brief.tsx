@@ -75,6 +75,7 @@ import { WhatPeopleMiss } from "@/components/what-people-miss";
 import { DevelopmentAlerts, pdfDevelopmentAlertsSection } from "@/components/development-alerts";
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 import { FeatureGate, useEmailCaptured } from "@/components/FeatureGate";
+import { LockedPreview } from "@/components/LockedPreview";
 
 function SkeletonReport() {
   return (
@@ -4623,48 +4624,14 @@ export default function BriefPage() {
                 modalHeadline="Unlock Market Outlook & Verdict"
                 modalSubtext="Enter your email to see price growth forecasts, rental yield, market flags, and the full brief verdict. Free — no payment required."
                 teaser={
-                  <div className="relative">
-                    {/* Blurred preview — identical markup to the real content */}
-                    <div className="space-y-6 blur-sm opacity-50 select-none pointer-events-none" aria-hidden="true">
-                      <Card className="p-5 sm:p-6">
-                        <SectionHeading>Market Outlook</SectionHeading>
-                        <div className="mb-4">
-                          <KpiValue label="Price Growth (indicative)" value={ai.investmentOutlook.growthForecast} />
-                        </div>
-                        <div className="pt-4 border-t border-border/40 mb-4">
-                          <KpiValue label="Rental yield (indicative)" value={ai.investmentOutlook.rentalYieldEstimate} />
-                        </div>
-                        {ai.investmentOutlook.riskFlags.length > 0 && (
-                          <ul className="space-y-1.5">
-                            {ai.investmentOutlook.riskFlags.map((flag, i) => (
-                              <li key={i} className="text-sm text-foreground/80 pl-5">{flag}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </Card>
-                      <Card className="p-5 sm:p-6 border-primary/20">
-                        <SectionHeading>Verdict</SectionHeading>
-                        <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
-                      </Card>
-                    </div>
-                    {/* Overlay CTA — clicking anywhere on this fires the email modal via FeatureGate */}
-                    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                      <Card className="max-w-sm w-full mx-4 p-6 text-center shadow-lg border-primary/20 bg-card pointer-events-auto">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                          <Lock className="h-5 w-5 text-primary" />
-                        </div>
-                        <h3 className="font-serif text-lg tracking-tight mb-2">Before you offer, you need this</h3>
-                        <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                          See price growth forecasts, rental yield, risk flags, and the full brief verdict — free, no payment required.
-                        </p>
-                        <Button className="w-full font-semibold" data-testid="button-email-gate-cta">
-                          Get Instant Access
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                        <p className="mt-3 text-xs text-muted-foreground">Or upgrade for comparable sales, 5-yr trends &amp; PDF — <a href="/#/pricing" className="underline">view plans</a></p>
-                      </Card>
-                    </div>
-                  </div>
+                  <LockedPreview
+                    title="Market Outlook & Verdict"
+                    description="Price growth forecast, rental yield estimate, market risk flags, and the full AI brief verdict."
+                    planLabel="Free — enter email"
+                    pricingHref="/pricing"
+                    skeletonRows={4}
+                    testId="section-market-outlook-locked"
+                  />
                 }
               >
                 {/* Children rendered after email is captured */}
