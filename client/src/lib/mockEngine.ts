@@ -2330,6 +2330,53 @@ async function fetchCrimeStats(lat: number, lng: number): Promise<{
   } catch { return null; }
 }
 
+async function fetchCouncilTax(postcode: string): Promise<{
+  authority: string;
+  lad_code: string | null;
+  country: string;
+  bandD: number | null;
+  bandCosts: Record<string, number>;
+  mostLikelyBandRange: string;
+  confidence: "Guidance" | "Estimate";
+  checkerUrl: string;
+  note: string;
+  source: string;
+  dataYear: string;
+} | null> {
+  try {
+    const res = await fetch(`/api/council-tax?postcode=${encodeURIComponent(postcode)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
+  } catch { return null; }
+}
+
+async function fetchDwellingMix(postcode: string): Promise<{
+  lad_code: string;
+  district: string;
+  country: string;
+  dwellingMix: {
+    detached: number;
+    semiDetached: number;
+    terraced: number;
+    flats: number;
+    other: number;
+  };
+  dominantType: string;
+  totalHouseholds: number;
+  source: string;
+  dataYear: string;
+} | null> {
+  try {
+    const res = await fetch(`/api/council-tax?type=dwelling-mix&postcode=${encodeURIComponent(postcode)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
+  } catch { return null; }
+}
+
 // ─── Median helper ────────────────────────────────────────────────────────────
 function median(prices: number[]): number {
   if (prices.length < 5) return 0; // need at least 5 for reliability
@@ -2384,6 +2431,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   let livePlanningActivity: Awaited<ReturnType<typeof fetchPlanningActivity>> = null;
   let liveRentalMarket: Awaited<ReturnType<typeof fetchRentalMarket>> = null;
   let liveBroadband: Awaited<ReturnType<typeof fetchBroadband>> = null;
+  let liveCouncilTax: Awaited<ReturnType<typeof fetchCouncilTax>> = null;
+  let liveDwellingMix: Awaited<ReturnType<typeof fetchDwellingMix>> = null;
 
   if (!outsideEnglandWales && district) {
     [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
@@ -2402,7 +2451,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
 
   // Fetch all live data in parallel
-  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime, livePlanningActivity, liveRentalMarket, liveBroadband] = await Promise.all([
+  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime, livePlanningActivity, liveRentalMarket, liveBroadband, liveCouncilTax, liveDwellingMix] = await Promise.all([
     (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
     fetchEpcData(outcode),
     (meta?.lat && meta?.lng && isLondon) ? fetchAirQuality(meta.lat, meta.lng) : Promise.resolve(null),
@@ -2414,6 +2463,8 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     (meta?.lat && meta?.lng) ? fetchPlanningActivity(postcode, meta.lat, meta.lng, district) : Promise.resolve(null),
     fetchRentalMarket(postcode),
     fetchBroadband(postcode),
+    fetchCouncilTax(postcode),
+    fetchDwellingMix(postcode),
   ]) as any;
 
   const yearMedians = yearData.map(median);
@@ -2450,7 +2501,15 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const totalTxns = yearData.reduce((s, yr) => s + yr.length, 0);
   const avgDaysOnMarket = tier === "prime" ? 54 : tier === "premium" ? 44 : tier === "mid-market" ? 38 : 32;
   const rentalYield = tier === "prime" ? "2.5% – 3.2% gross" : tier === "premium" ? "3.0% – 3.8% gross" : "3.8% – 5.0% gross";
-  const growthForecast = yoyChange.startsWith("+") ? "+3.0% – 5.5% p.a. (2026–2029)" : "+1.5% – 3.5% p.a. (2026–2029)";
+  // Market signal — rule-based from real price data. No invented forward-looking numbers.
+  const growthForecast = (() => {
+    if (!hasData || yoyChange === "—") return "Insufficient transaction data to derive a market signal for this area.";
+    const direction = yoyChange.startsWith("+") ? "upward" : "downward";
+    const demandLevel = totalTxns > 200 ? "high" : totalTxns > 80 ? "moderate" : "low";
+    const yoyAbs = yoyChange.replace("+", "").replace("-", "");
+    const volumeNote = totalTxns > 0 ? `${totalTxns} Land Registry transactions recorded over 5 years` : "limited transaction volume";
+    return `Recent price trend is ${direction} (${yoyChange} year-on-year based on Land Registry data). Transaction volume is ${demandLevel} (${volumeNote}). This reflects observed market activity — not a forecast. Future values depend on interest rates, local supply, and national conditions.`;
+  })();
   // Comparables
   const comparables = recentTxns.slice(0, 4).map(t => ({
     address: t.address,
@@ -3055,117 +3114,74 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       climateSignals: [],
       nextSteps: [],
     },
-    councilTax: enrichmentProfile?.councilTax ?? (() => {
-      // Use the local authority name from postcodes.io metadata where available.
-      // Fall back to areaName as last resort.
-      const authority = meta?.district || areaName;
-      const country = meta?.country || "England";
-      const isScotland = country === "Scotland";
-      const isWales = country === "Wales";
-
-      // Postcode area → approximate band guidance lookup.
-      // Derived from VOA / Scottish Assessors data for common urban areas.
-      // Not exhaustive — falls through to tier-based estimate for unknown areas.
-      const outcode = getOutcode(postcode);
-      const postcodeArea = outcode.replace(/[0-9].*/,''); // e.g. "SW" from "SW10"
-
-      type BandHint = { band: string; cost: string; confidence: "Guidance" | "Estimate" };
-      const bandByArea: Record<string, BandHint> = {
-        // Inner London
-        "SW": { band: "Band E–G", cost: "£1,600–£2,600/yr (est.)", confidence: "Estimate" },
-        "W":  { band: "Band E–G", cost: "£1,600–£2,600/yr (est.)", confidence: "Estimate" },
-        "NW": { band: "Band D–F", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
-        "N":  { band: "Band D–E", cost: "£1,600–£1,900/yr (est.)", confidence: "Estimate" },
-        "E":  { band: "Band C–D", cost: "£1,200–£1,700/yr (est.)", confidence: "Estimate" },
-        "SE": { band: "Band C–D", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
-        "EC": { band: "Band C–D", cost: "£1,400–£2,000/yr (est.)", confidence: "Estimate" },
-        "WC": { band: "Band D–E", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
-        // Outer London
-        "TW": { band: "Band D–E", cost: "£1,800–£2,300/yr (est.)", confidence: "Estimate" },
-        "KT": { band: "Band D–E", cost: "£1,900–£2,400/yr (est.)", confidence: "Estimate" },
-        "CR": { band: "Band C–D", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
-        "BR": { band: "Band D",     cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
-        "HA": { band: "Band D",     cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
-        "UB": { band: "Band C–D", cost: "£1,500–£1,900/yr (est.)", confidence: "Estimate" },
-        "EN": { band: "Band D",     cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
-        "IG": { band: "Band C–D", cost: "£1,500–£1,900/yr (est.)", confidence: "Estimate" },
-        "RM": { band: "Band C–D", cost: "£1,500–£1,900/yr (est.)", confidence: "Estimate" },
-        // Major cities & commuter belts (England)
-        "M":  { band: "Band B–C", cost: "£1,300–£1,700/yr (est.)", confidence: "Estimate" },
-        "B":  { band: "Band B–C", cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
-        "LS": { band: "Band B–C", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
-        "BS": { band: "Band C–D", cost: "£1,700–£2,100/yr (est.)", confidence: "Estimate" },
-        "S":  { band: "Band B–C", cost: "£1,200–£1,600/yr (est.)", confidence: "Estimate" },
-        "L":  { band: "Band B–C", cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
-        "NG": { band: "Band B–C", cost: "£1,300–£1,700/yr (est.)", confidence: "Estimate" },
-        "LE": { band: "Band C",     cost: "£1,500–£1,800/yr (est.)", confidence: "Estimate" },
-        "CV": { band: "Band B–C", cost: "£1,200–£1,600/yr (est.)", confidence: "Estimate" },
-        "NE": { band: "Band B–C", cost: "£1,200–£1,600/yr (est.)", confidence: "Estimate" },
-        "OX": { band: "Band D",     cost: "£1,800–£2,100/yr (est.)", confidence: "Estimate" },
-        "CB": { band: "Band C–D", cost: "£1,700–£2,000/yr (est.)", confidence: "Estimate" },
-        "RG": { band: "Band C–D", cost: "£1,800–£2,200/yr (est.)", confidence: "Estimate" },
-        "GU": { band: "Band D–E", cost: "£1,900–£2,400/yr (est.)", confidence: "Estimate" },
-        "SL": { band: "Band D",     cost: "£1,800–£2,100/yr (est.)", confidence: "Estimate" },
-        "AL": { band: "Band D",     cost: "£2,000–£2,400/yr (est.)", confidence: "Estimate" },
-        "HP": { band: "Band D–E", cost: "£2,000–£2,500/yr (est.)", confidence: "Estimate" },
-        "SG": { band: "Band D",     cost: "£2,000–£2,400/yr (est.)", confidence: "Estimate" },
-        "CM": { band: "Band D",     cost: "£1,900–£2,300/yr (est.)", confidence: "Estimate" },
-        "SS": { band: "Band C–D", cost: "£1,600–£2,000/yr (est.)", confidence: "Estimate" },
-        // Scotland
-        "EH": { band: "Band D–E", cost: "£1,800–£2,200/yr (est.)", confidence: "Estimate" },
-        "G":  { band: "Band C–D", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
-        "AB": { band: "Band C",     cost: "£1,400–£1,700/yr (est.)", confidence: "Estimate" },
-        "DD": { band: "Band B–C", cost: "£1,200–£1,500/yr (est.)", confidence: "Estimate" },
-        "KY": { band: "Band C",     cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
-        "FK": { band: "Band C",     cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
-        "PA": { band: "Band C",     cost: "£1,300–£1,600/yr (est.)", confidence: "Estimate" },
-        "PH": { band: "Band C",     cost: "£1,200–£1,500/yr (est.)", confidence: "Estimate" },
-        // Wales
-        "CF": { band: "Band C–D", cost: "£1,400–£1,800/yr (est.)", confidence: "Estimate" },
-        "SA": { band: "Band B–C", cost: "£1,100–£1,500/yr (est.)", confidence: "Estimate" },
-        "LL": { band: "Band B–C", cost: "£1,000–£1,400/yr (est.)", confidence: "Estimate" },
-        "NP": { band: "Band C",     cost: "£1,400–£1,700/yr (est.)", confidence: "Estimate" },
-        "LD": { band: "Band B",     cost: "£1,000–£1,400/yr (est.)", confidence: "Estimate" },
-      };
-
-      const hint = bandByArea[postcodeArea];
-      const band = hint?.band ?? (tier === "prime" ? "Band E–G" : tier === "premium" ? "Band D–F" : "Band B–D");
-      const cost = hint?.cost ?? (tier === "prime" ? "£2,000–£3,000/yr (est.)" : tier === "premium" ? "£1,600–£2,400/yr (est.)" : "£1,200–£1,800/yr (est.)");
-      const conf: "Estimate" = "Estimate";
-
-      const checkerUrl = isScotland
-        ? "https://www.saa.gov.uk/council-tax/council-tax-band/"
-        : isWales
-        ? "https://www.voa.gov.uk/portal/"
-        : "https://www.gov.uk/council-tax/working-out-your-council-tax";
-
-      const authorityNote = authority !== areaName
-        ? `${authority} is the billing authority for this postcode.`
-        : `The local authority for ${areaName} has not been confirmed — verify the correct council.`;
-
-      const checkerName = isScotland
-        ? "Scottish Assessors Association"
-        : isWales
-        ? "Valuation Office Agency (Wales)"
-        : "gov.uk address checker";
-
-      return {
-        mostCommonBand: band,
-        annualCost: cost,
-        borough: authority,
-        confidence: conf,
-        checkerUrl,
-        note: `${authorityNote} Band shown is a postcode-area estimate based on typical stock for this type of area — not a confirmed figure for any specific address. Council tax is set per-property and varies by band and authority. Use the ${checkerName} to confirm the exact band before exchange.`,
-      };
-    })(),
-    propertyTypeSplit: enrichmentProfile?.propertyTypeSplit ?? {
-      flats: isLondon ? 62 : 48,
-      terraced: isLondon ? 22 : 28,
-      semiDetached: isLondon ? 10 : 16,
-      detached: isLondon ? 4 : 6,
-      other: 2,
-      dominantType: `Detailed transaction data for ${areaName} is limited — figures below are based on regional stock patterns for this postcode area. Proportions are indicative.`,
-    },
+    councilTax: liveCouncilTax
+      ? (() => {
+          // Real VOA 2024/25 data from /api/council-tax
+          const ct = liveCouncilTax;
+          const mostLikelyBand = ct.mostLikelyBandRange || "—";
+          const bandD = ct.bandD;
+          const bandCosts = ct.bandCosts || {};
+          const typicalMin = bandCosts["C"] || bandCosts["D"] || null;
+          const typicalMax = bandCosts["E"] || bandCosts["F"] || null;
+          const annualCostRange = typicalMin && typicalMax
+            ? `£${typicalMin.toLocaleString("en-GB")}–£${typicalMax.toLocaleString("en-GB")}/yr (${mostLikelyBand} range, ${ct.authority})`
+            : bandD
+            ? `Band D: £${bandD.toLocaleString("en-GB")}/yr (${ct.authority})`
+            : "Contact council for current rate";
+          return {
+            mostCommonBand: `Band ${mostLikelyBand}`,
+            annualCost: annualCostRange,
+            borough: ct.authority,
+            confidence: ct.confidence,
+            checkerUrl: ct.checkerUrl,
+            note: ct.note,
+            bandCosts: ct.bandCosts,
+            source: ct.source,
+            dataYear: ct.dataYear,
+          };
+        })()
+      : enrichmentProfile?.councilTax ?? (() => {
+          // Fallback: postcode-area estimate (no live data)
+          const authority = meta?.district || areaName;
+          const country = meta?.country || "England";
+          const isScotland = country === "Scotland";
+          const isWales = country === "Wales";
+          const checkerUrl = isScotland
+            ? "https://www.saa.gov.uk/council-tax/council-tax-band/"
+            : isWales
+            ? "https://www.voa.gov.uk/portal/"
+            : "https://www.gov.uk/council-tax/working-out-your-council-tax";
+          const checkerName = isScotland ? "Scottish Assessors Association" : isWales ? "Valuation Office Agency (Wales)" : "gov.uk address checker";
+          const fallbackBand = isLondon ? "Band D–F" : isScotland ? "Band C–D" : "Band C–E";
+          const fallbackCost = isLondon ? "£1,500–£2,200/yr (est.)" : isScotland ? "£1,300–£1,700/yr (est.)" : "£1,500–£2,100/yr (est.)";
+          return {
+            mostCommonBand: fallbackBand,
+            annualCost: fallbackCost,
+            borough: authority,
+            confidence: "Estimate" as const,
+            checkerUrl,
+            note: `Council tax data for ${authority} could not be retrieved. The figures above are a regional estimate only — not a confirmed charge. Use the ${checkerName} for the confirmed band and annual cost for any specific property.`,
+          };
+        })(),
+    propertyTypeSplit: liveDwellingMix
+      ? {
+          flats: liveDwellingMix.dwellingMix.flats,
+          terraced: liveDwellingMix.dwellingMix.terraced,
+          semiDetached: liveDwellingMix.dwellingMix.semiDetached,
+          detached: liveDwellingMix.dwellingMix.detached,
+          other: liveDwellingMix.dwellingMix.other,
+          dominantType: liveDwellingMix.dominantType,
+          source: liveDwellingMix.source,
+          dataYear: liveDwellingMix.dataYear,
+        }
+      : enrichmentProfile?.propertyTypeSplit ?? {
+          flats: isLondon ? 62 : 48,
+          terraced: isLondon ? 22 : 28,
+          semiDetached: isLondon ? 10 : 16,
+          detached: isLondon ? 4 : 6,
+          other: 2,
+          dominantType: `ONS Census dwelling data for ${areaName} could not be retrieved. Figures are based on regional stock patterns for this postcode area — proportions are indicative only.`,
+        },
     commuteTable: (() => {
       if (liveTflCommute && liveTflCommute.length > 0) {
         return liveTflCommute.map(j => ({

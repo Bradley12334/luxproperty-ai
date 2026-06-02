@@ -1954,9 +1954,9 @@ ${offerStrategyHtml}` : ""}
 
   <div class="section">
     <div class="section-label">Market Outlook</div>
-    <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Price growth is a forward-looking range derived from the direction of recent Land Registry trends — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Not financial advice.</p>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:12px">Market signals are derived from Land Registry transaction data — not a prediction or forecast. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Not financial advice.</p>
     <div class="two-col" style="margin-bottom:16px">
-      <div class="kpi"><div class="kpi-label">Price growth outlook (indicative)</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.growthForecast}</div></div>
+      <div class="kpi"><div class="kpi-label">Recent market signals</div><div class="kpi-value" style="font-size:13px">${ai.investmentOutlook.growthForecast}</div></div>
       <div class="kpi"><div class="kpi-label">Rental yield estimate</div><div class="kpi-value" style="font-size:16px">${ai.investmentOutlook.rentalYieldEstimate}</div></div>
     </div>
     <p style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Market flags</p>
@@ -4688,13 +4688,13 @@ export default function BriefPage() {
                 <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
                   <SectionHeading>Market Outlook</SectionHeading>
                   <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                    Price growth is a forward-looking range derived from the direction of recent Land Registry trends for this area — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
+                    Market signals are derived from Land Registry transaction data — not a prediction or forecast. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
                   </p>
-                  {/* Price growth — relevant to all buyers */}
+                  {/* Market signals — rule-based from real price data, no invented forecasts */}
                   <div className="mb-4">
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Price Growth (indicative) <EstimateTag /></p>
-                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-price-growth">
+                      <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
+                      <p className="text-sm text-foreground leading-relaxed" data-testid="text-kpi-price-growth">
                         {ai.investmentOutlook.growthForecast}
                       </p>
                     </div>
@@ -4761,12 +4761,12 @@ export default function BriefPage() {
                   <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
                     <SectionHeading>Market Outlook</SectionHeading>
                     <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                      Price growth is a forward-looking range derived from the direction of recent Land Registry trends for this area — not a prediction. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
+                      Market signals are derived from Land Registry transaction data — not a prediction or forecast. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
                     </p>
                     <div className="mb-4">
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Price Growth (indicative) <EstimateTag /></p>
-                        <p className="font-serif text-2xl tracking-tight text-foreground">{ai.investmentOutlook.growthForecast}</p>
+                        <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
+                        <p className="text-sm text-foreground leading-relaxed">{ai.investmentOutlook.growthForecast}</p>
                       </div>
                     </div>
                     <div className="pt-4 border-t border-border/40">
