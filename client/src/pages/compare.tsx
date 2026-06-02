@@ -66,11 +66,15 @@ interface CompareColumnProps {
 
 function CompareColumn({ report, label }: CompareColumnProps) {
   const ai = report.areaIntelligence;
-  const walkScore = calculateWalkScore(
+  const liveWalkScore = calculateWalkScore(
     ai.nearbyStations ?? [],
     ai.nearbySchools ?? [],
     ai.nearbyAmenities
   );
+  // Use area walkability (0-10 → 0-100) as floor when Overpass data is sparse
+  const areaWalk = ai.neighbourhoodProfile?.walkability;
+  const fallbackWalk = areaWalk != null ? Math.round(areaWalk * 10) : 0;
+  const walkScore = liveWalkScore < 20 && fallbackWalk > liveWalkScore ? fallbackWalk : liveWalkScore;
 
   const latestPrice = ai.priceTrend?.length
     ? parsePrice(ai.priceTrend[ai.priceTrend.length - 1].averagePrice)

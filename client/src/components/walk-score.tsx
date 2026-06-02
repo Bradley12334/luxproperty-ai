@@ -23,6 +23,10 @@ interface WalkScoreProps {
   stations?: Station[];
   schools?: School[];
   amenities?: NearbyAmenities;
+  /** Area-level walkability (0–10 scale from neighbourhoodProfile) used as a
+   *  floor when live Overpass data is sparse or absent. Prevents 0/100 on
+   *  areas with good transport/amenities where Overpass simply returned nothing. */
+  areaWalkability?: number;
 }
 
 export function calculateWalkScore(stations: Station[] = [], schools: School[] = [], amenities?: NearbyAmenities): number {
@@ -64,8 +68,14 @@ function getScoreLabel(score: number): { label: string; colour: string } {
   return { label: "Minimal Walkability", colour: "#dc2626" };
 }
 
-export function WalkScore({ stations = [], schools = [], amenities }: WalkScoreProps) {
-  const score = calculateWalkScore(stations, schools, amenities);
+export function WalkScore({ stations = [], schools = [], amenities, areaWalkability }: WalkScoreProps) {
+  const liveScore = calculateWalkScore(stations, schools, amenities);
+  // If live Overpass data is absent/sparse and we have an area walkability signal,
+  // use it as a floor. areaWalkability is on a 0–10 scale → convert to 0–100.
+  // Only apply if live score is suspiciously low (< 20) to avoid overriding real data.
+  const fallbackScore = areaWalkability != null ? Math.round(areaWalkability * 10) : 0;
+  const score = liveScore < 20 && fallbackScore > liveScore ? fallbackScore : liveScore;
+  const usingFallback = score !== liveScore;
   const { label, colour } = getScoreLabel(score);
   const circumference = 2 * Math.PI * 40; // r=40
 
@@ -91,6 +101,7 @@ export function WalkScore({ stations = [], schools = [], amenities }: WalkScoreP
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-foreground" style={{ color: colour }}>{score}</span>
           <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">/100</span>
+        {usingFallback && <span className="text-[8px] text-muted-foreground/60 mt-0.5">est.</span>}
         </div>
       </div>
 

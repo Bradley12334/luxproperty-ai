@@ -3084,6 +3084,7 @@ export default function BriefPage() {
                     stations={ai.nearbyStations ?? []}
                     schools={ai.nearbySchools ?? []}
                     amenities={ai.nearbyAmenities}
+                    areaWalkability={ai.neighbourhoodProfile?.walkability}
                   />
                 </div>
               )}
