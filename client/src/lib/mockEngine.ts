@@ -89,9 +89,32 @@ function deriveVerdict(
   const cafeCount       = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
   const supermarketCount = ai.nearbyAmenities?.supermarkets?.length ?? 0;
 
-  const isTransitRich   = transportRating >= 7 || stationWalkMins <= 8;
-  const isTransitLight  = transportRating < 5 || stationWalkMins > 20;
-  const isAmenityLight  = cafeCount === 0 && supermarketCount === 0;
+  // ── OVERPASS FALLBACK GUARDS ───────────────────────────────────────────────
+  // When Overpass returns no data (timeout / rate-limit), stationWalkMins = 999
+  // and cafeCount / supermarketCount = 0. Without guards, isTransitLight and
+  // isAmenityLight become true for well-connected areas like central London,
+  // flipping the verdict to "Proceed carefully" on every Overpass failure.
+  //
+  // Rule: if Overpass returned zero stations, DO NOT infer poor connectivity —
+  // use the area-level transportRating instead, which is stable and geography-based.
+  // Same logic for amenities: use the area-level walkability as proxy.
+  const hasLiveStationData = (ai.nearbyStations?.length ?? 0) > 0;
+  const hasLiveAmenityData = (cafeCount > 0 || supermarketCount > 0);
+
+  // Transit: rich/light derived from live data when available, else from stable area rating
+  const isTransitRich   = hasLiveStationData
+    ? (transportRating >= 7 || stationWalkMins <= 8)
+    : transportRating >= 7;
+  const isTransitLight  = hasLiveStationData
+    ? (transportRating < 5 || stationWalkMins > 20)
+    : transportRating < 5;
+
+  // Amenity: only flag as "light" when Overpass actually returned data showing no amenities
+  // If Overpass returned nothing at all, use walkability >= 7 as "not light" proxy
+  const walkabilityRating = ai.neighbourhoodProfile?.walkability ?? 0;
+  const isAmenityLight  = hasLiveAmenityData
+    ? (cafeCount === 0 && supermarketCount === 0)
+    : walkabilityRating < 5;  // only flag light if walkability is also poor
   const hasBroadbandStrength = broadband?.rating === "Excellent" || broadband?.rating === "Very Good";
   const hasDataConfidence = avgPrice !== "Insufficient data" && avgPrice !== "Scotland/NI \u2014 see note" && !isNaN(yoyNum);
   const isThinData      = !hasDataConfidence || !hasData || priceNum === 0 || totalSalesThisYear < 3;
@@ -1819,7 +1842,10 @@ function deriveShortlistVerdict(
 
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const outcodeDistrictCache: Record<string, string> = {};
-const outcodeMetaCache: Record<string, any> = {};
+// Cache keyed by FULL postcode (normalised, no spaces) — NOT outcode.
+// Keying by outcode caused all postcodes sharing an outcode (e.g. SW1A 1AA and SW1A 2AA)
+// to receive the same outcode-centroid lat/lng, producing wrong Overpass POI results.
+const postcodeMetaCache: Record<string, any> = {};
 
 // ─── Postcodes.io: get district name ─────────────────────────────────────────
 async function getDistrict(postcode: string): Promise<string> {
@@ -1851,42 +1877,85 @@ async function fetchPostcodeMeta(postcode: string): Promise<{
   constituency: string; ward: string; country: string;
   lat?: number; lng?: number;
 } | null> {
+  // ── CANONICAL POSTCODE LOOKUP ──────────────────────────────────────────────
+  // Cache key = full normalised postcode (no spaces, uppercase).
+  // Previously keyed by outcode — this caused SW1A 1AA and SW1A 2AA to share
+  // the same cached lat/lng (outcode centroid), producing wrong Overpass results.
+  // All downstream geography derivations (isLondon, isWales, nation guards,
+  // Overpass POI queries) must use values from this single resolved context.
+  const clean = postcode.trim().replace(/\s+/g, "").toUpperCase();
   const outcode = getOutcode(postcode);
-  if (outcodeMetaCache[outcode]) return outcodeMetaCache[outcode];
+
+  if (postcodeMetaCache[clean]) return postcodeMetaCache[clean];
+
   try {
-    const clean = postcode.trim().replace(/\s+/g, "");
+    // Primary: full postcode lookup — returns property-level centroid coordinates
     const res = await fetch(`https://api.postcodes.io/postcodes/${clean}`);
     if (res.ok) {
       const d = await res.json();
-      const result = {
-        area: d.result?.outcode || outcode,
-        district: d.result?.admin_district || "",
-        region: d.result?.region || "England",
-        constituency: d.result?.parliamentary_constituency || "",
-        ward: d.result?.admin_ward || "",
-        country: d.result?.country || "England",
-        lat: d.result?.latitude ?? undefined,
-        lng: d.result?.longitude ?? undefined,
-      };
-      outcodeMetaCache[outcode] = result;
-      return result;
+      if (d.result) {
+        const result = {
+          area: d.result.outcode || outcode,
+          district: d.result.admin_district || "",
+          region: d.result.region || "England",
+          constituency: d.result.parliamentary_constituency || "",
+          ward: d.result.admin_ward || "",
+          country: d.result.country || "England",
+          lat: d.result.latitude ?? undefined,
+          lng: d.result.longitude ?? undefined,
+        };
+        postcodeMetaCache[clean] = result;
+        return result;
+      }
     }
-    // Fall back to outcode lookup
+    // Secondary: terminated postcode — try to resolve via nearest active postcode
+    try {
+      const termRes = await fetch(`https://api.postcodes.io/terminated_postcodes/${clean}`);
+      if (termRes.ok) {
+        const td = await termRes.json();
+        if (td.result?.latitude && td.result?.longitude) {
+          const nearRes = await fetch(
+            `https://api.postcodes.io/postcodes?lon=${td.result.longitude}&lat=${td.result.latitude}&limit=1`
+          );
+          if (nearRes.ok) {
+            const nd = await nearRes.json();
+            const nr = nd?.result?.[0];
+            if (nr) {
+              const result = {
+                area: nr.outcode || outcode,
+                district: nr.admin_district || "",
+                region: nr.region || "England",
+                constituency: nr.parliamentary_constituency || "",
+                ward: nr.admin_ward || "",
+                country: nr.country || "England",
+                lat: td.result.latitude,   // use terminated postcode's own coordinates
+                lng: td.result.longitude,
+              };
+              postcodeMetaCache[clean] = result;
+              return result;
+            }
+          }
+        }
+      }
+    } catch {}
+    // Tertiary: outcode-level fallback — geography only, coordinates are centroid (less precise)
     const res2 = await fetch(`https://api.postcodes.io/outcodes/${outcode}`);
     if (res2.ok) {
       const d = await res2.json();
-      const result = {
-        area: outcode,
-        district: (d.result?.admin_district || [])[0] || "",
-        region: (d.result?.admin_county || [])[0] || (d.result?.country || [])[0] || "England",
-        constituency: (d.result?.parliamentary_constituency || [])[0] || "",
-        ward: (d.result?.admin_ward || [])[0] || "",
-        country: (d.result?.country || [])[0] || "England",
-        lat: d.result?.latitude ?? undefined,
-        lng: d.result?.longitude ?? undefined,
-      };
-      outcodeMetaCache[outcode] = result;
-      return result;
+      if (d.result) {
+        const result = {
+          area: outcode,
+          district: (d.result.admin_district || [])[0] || "",
+          region: (d.result.admin_county || [])[0] || (d.result.country || [])[0] || "England",
+          constituency: (d.result.parliamentary_constituency || [])[0] || "",
+          ward: (d.result.admin_ward || [])[0] || "",
+          country: (d.result.country || [])[0] || "England",
+          lat: d.result.latitude ?? undefined,     // outcode centroid — less precise
+          lng: d.result.longitude ?? undefined,
+        };
+        postcodeMetaCache[clean] = result;
+        return result;
+      }
     }
   } catch {}
   return null;
@@ -1906,23 +1975,37 @@ async function fetchLandRegistryYear(district: string, year: number): Promise<nu
 }
 
 // ─── Land Registry: recent transactions for comparables ──────────────────────
+// DATE WINDOW PINNED: uses the same LAND_REGISTRY_BASE_YEAR anchor as the
+// 5-year trend. The window covers the most recent 2 full years to give
+// adequate comparable volume. This prevents the "latest 50" from drifting
+// as new transactions are registered — results are stable for the whole
+// deploy cycle until LAND_REGISTRY_BASE_YEAR is updated.
+const COMPARABLES_FROM_YEAR = 2023;  // = LAND_REGISTRY_BASE_YEAR - 2
+const COMPARABLES_TO_YEAR   = 2025;  // = LAND_REGISTRY_BASE_YEAR
+
 async function fetchRecentTransactions(district: string, outcode: string): Promise<Array<{
   address: string; price: number; date: string; type: string;
 }>> {
   if (!district) return [];
   try {
-    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=50&propertyAddress.district=${encodeURIComponent(district)}&_sort=-transactionDate`;
+    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=50&propertyAddress.district=${encodeURIComponent(district)}&min-transactionDate=${COMPARABLES_FROM_YEAR}-01-01&max-transactionDate=${COMPARABLES_TO_YEAR}-12-31&_sort=-transactionDate`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
     const items: any[] = data?.result?.items || [];
 
+    // Prefer exact outcode matches for comparables; fall back to district-level
     const filtered = items.filter((item: any) =>
       (item?.propertyAddress?.postcode || "").startsWith(outcode)
     );
     const used = filtered.length >= 3 ? filtered : items;
 
-    return used.slice(0, 6).map((item: any) => {
+    // Sort by date descending (most recent first) — deterministic given fixed date window
+    const sorted = used
+      .filter((item: any) => item.transactionDate)
+      .sort((a: any, b: any) => b.transactionDate.localeCompare(a.transactionDate));
+
+    return sorted.slice(0, 6).map((item: any) => {
       const addr = item.propertyAddress || {};
       const parts = [addr.saon, addr.paon, addr.street, addr.town].filter(Boolean);
       const propType = item.propertyType?.prefLabel?.[0]?._value || "Property";
@@ -1997,12 +2080,14 @@ async function fetchFloodRisk(lat: number, lng: number): Promise<{
 }
 
 // ─── Live Sold Prices with Geocoding (Land Registry + postcodes.io) ───────────
+// DATE PINNED: uses same COMPARABLES_FROM_YEAR / COMPARABLES_TO_YEAR window
+// as fetchRecentTransactions so map pins and comparables are from the same stable pool.
 async function fetchSoldPricesWithCoords(district: string, outcode: string): Promise<Array<{
   address: string; price: string; date: string; type: string; lat: number; lng: number;
 }>> {
   if (!district) return [];
   try {
-    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=50&propertyAddress.district=${encodeURIComponent(district)}&_sort=-transactionDate`;
+    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=50&propertyAddress.district=${encodeURIComponent(district)}&min-transactionDate=${COMPARABLES_FROM_YEAR}-01-01&max-transactionDate=${COMPARABLES_TO_YEAR}-12-31&_sort=-transactionDate`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
@@ -2466,9 +2551,22 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const constituency = meta?.constituency || "";
   const country = meta?.country || "England";
 
-  // If Scotland/NI, skip Land Registry
-  const currentYear = new Date().getFullYear();
-  const years = [currentYear - 4, currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
+  // ── PINNED YEAR RANGE ─────────────────────────────────────────────────────
+  // Fixed anchor: 2025. Do NOT use new Date().getFullYear().
+  // Using the live year causes the 5-year window to silently roll forward on
+  // Jan 1 each year: different Land Registry buckets → different medians →
+  // different tiers, YoY, and every derived score. A search on Dec 31 2025
+  // and one on Jan 1 2026 would return different results for the same postcode.
+  // The pinned anchor is updated deliberately (code change + deploy), not by
+  // the clock. When the data year advances, update LAND_REGISTRY_BASE_YEAR here.
+  const LAND_REGISTRY_BASE_YEAR = 2025;
+  const years = [
+    LAND_REGISTRY_BASE_YEAR - 4,
+    LAND_REGISTRY_BASE_YEAR - 3,
+    LAND_REGISTRY_BASE_YEAR - 2,
+    LAND_REGISTRY_BASE_YEAR - 1,
+    LAND_REGISTRY_BASE_YEAR,
+  ];
 
   let yearData: number[][] = [[], [], [], [], []];
   let recentTxns: Array<{ address: string; price: number; date: string; type: string }> = [];
@@ -2556,6 +2654,9 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     : latestMedian > 0 ? "emerging" : "unknown";
 
   const totalTxns = yearData.reduce((s, yr) => s + yr.length, 0);
+  // avgDaysOnMarket: area-level estimate by tier. Labeled "(est.)" in UI.
+  // This is a national benchmark from Rightmove/RICS — not property-specific.
+  // Stable: only changes if tier changes, which requires a LR year anchor roll.
   const avgDaysOnMarket = tier === "prime" ? 54 : tier === "premium" ? 44 : tier === "mid-market" ? 38 : 32;
   const rentalYield = tier === "prime" ? "2.5% – 3.2% gross" : tier === "premium" ? "3.0% – 3.8% gross" : "3.8% – 5.0% gross";
   // Market signal — rule-based from real price data. No invented forward-looking numbers.
@@ -2589,10 +2690,14 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   const totalSalesThisYear = yearData[4]?.length || 0;
   const demandSignal = totalSalesThisYear > 40 ? "High" : totalSalesThisYear > 15 ? "Moderate" : "Low";
 
+  // pricePerSqmEstimate: derived from area median ÷ assumed average floor area.
+  // Floor area assumptions (75/85/95 m²) are national averages by tier — this is
+  // a directional estimate only and is labeled as such in the UI output.
+  // Stable: depends only on latestMedian (Land Registry) and tier (both pinned).
   const pricePerSqmEstimate = latestMedian > 0
-    ? tier === "prime" ? `${fmt(Math.round(latestMedian / 75))} per m²`
-    : tier === "premium" ? `${fmt(Math.round(latestMedian / 85))} per m²`
-    : `${fmt(Math.round(latestMedian / 95))} per m²`
+    ? tier === "prime" ? `${fmt(Math.round(latestMedian / 75))} per m² (est.)`
+    : tier === "premium" ? `${fmt(Math.round(latestMedian / 85))} per m² (est.)`
+    : `${fmt(Math.round(latestMedian / 95))} per m² (est.)`
     : "—";
 
   const buyerType = tier === "prime"
@@ -2955,7 +3060,26 @@ export async function generateBrief(query: string): Promise<BriefReport> {
 
   // Numeric ratings — use specific profile or fall back to tier/region-based
   const schoolsRating = specificProfile?.schoolsRating ?? (isLondon ? 8.4 : region.includes("South East") ? 8.1 : 7.8);
-  const safetyRating  = specificProfile?.safetyRating  ?? (tier === "prime" ? 8.9 : tier === "premium" ? 8.3 : 7.7);
+  // safetyRating: use curated profile when available.
+  // For non-curated postcodes use a FIXED region/nation default — NOT derived
+  // from `tier`, which would change whenever the Land Registry year anchor changes.
+  // Defaults are conservative mid-range values. The live crime API produces a
+  // real safetyRating via crimeStats which is shown in the verdict separately.
+  const safetyRating  = specificProfile?.safetyRating  ?? (
+    country === "Scotland" ? 7.8
+    : country === "Wales" ? 7.5
+    : country === "Northern Ireland" ? 7.6
+    : isLondon ? 7.4       // London average (not premium-weighted)
+    : region.includes("South East") ? 7.6
+    : region.includes("South West") ? 7.7
+    : region.includes("East of England") ? 7.7
+    : region.includes("East Midlands") ? 7.4
+    : region.includes("West Midlands") ? 7.3
+    : region.includes("Yorkshire") ? 7.3
+    : region.includes("North West") ? 7.2
+    : region.includes("North East") ? 7.1
+    : 7.5  // generic fallback
+  );
   const walkability   = specificProfile?.walkability   ?? (isLondon ? 9.1 : region.includes("South") ? 7.6 : 7.1);
 
   // Transport rating — use specific profile or original logic
@@ -3300,11 +3424,24 @@ export async function generateBrief(query: string): Promise<BriefReport> {
           note: `Live DEFRA readings from ${liveAirQuality.siteName} (${liveAirQuality.localAuthority}). AQI index: ${liveAirQuality.maxIndex}/10. Source: uk-air.defra.gov.uk.${epcNote}`,
         };
       }
+      // ── AIR QUALITY FALLBACK ─────────────────────────────────────────────────
+      // The live DEFRA ERG API only covers London monitoring stations.
+      // For non-London postcodes, we assign a deterministic area-level estimate
+      // based on settlement type (urban / suburban / rural), not isLondon alone.
+      // All values are explicitly labeled as estimates — not presented as real readings.
+      // Deterministic: same postcode → same region → same tier → same estimate.
+      const isUrbanCore = !isLondon && (
+        ["M", "B", "LS", "BS", "S", "L", "NE", "NG", "LE", "CV", "CF"].some(p => outcode.startsWith(p))
+        || (region.includes("East Midlands") && tier === "prime")
+      );
+      const aqNo2  = isLondon ? "30–40 µg/m³ (est.)" : isUrbanCore ? "20–30 µg/m³ (est.)" : "10–20 µg/m³ (est.)";
+      const aqPm25 = isLondon ? "12–16 µg/m³ (est.)" : isUrbanCore ? "8–12 µg/m³ (est.)"  : "5–9 µg/m³ (est.)";
+      const aqRating: "Good" | "Moderate" = isLondon ? "Moderate" : isUrbanCore ? "Moderate" : "Good";
       return enrichmentProfile?.airQuality ?? {
-        no2Level: isLondon ? "30–40 µg/m³ (est.)" : "15–25 µg/m³ (est.)",
-        pm25Level: isLondon ? "12–16 µg/m³ (est.)" : "8–12 µg/m³ (est.)",
-        rating: isLondon ? "Moderate" as const : "Good" as const,
-        note: `Air quality figures for ${areaName} are estimated from urban density and regional modelling — no live DEFRA monitor is available for this postcode in this report.${epcNote} Figures should be treated as indicative.`,
+        no2Level: aqNo2,
+        pm25Level: aqPm25,
+        rating: aqRating,
+        note: `Air quality for ${areaName} is an area-level estimate — no live DEFRA monitoring station data is available for this postcode in this report. Figures are derived from urban density and regional modelling and should be treated as indicative only. For property-level verification, visit uk-air.defra.gov.uk.${epcNote}`,
       };
     })(),
     rentalDemand: enrichmentProfile?.rentalDemand ?? (() => {

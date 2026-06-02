@@ -142,10 +142,14 @@ export default async function handler(req, res) {
     // Silently fall through to default
   }
 
-  // If live count failed, use a deterministic estimate based on outcode
-  // Derived from relative planning density tiers (not random — same postcode always returns same value)
+  // If live count failed, use a deterministic density-tier estimate.
+  // This is clearly labeled as indicative — it is a structural density signal,
+  // not a count of actual applications. Same outcode → same result always.
+  let recentApplicationsIsEstimate = false;
   if (recentApplications === null) {
-    // Deterministic hash: sum of char codes in outcode, modded into a plausible range
+    recentApplicationsIsEstimate = true;
+    // Deterministic: sum of char codes in outcode, modded into a plausible range by tier.
+    // This is a rough signal of planning activity density only — not a real count.
     const hashBase = outcode.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
     const isUrban = ["E", "N", "NW", "SE", "SW", "W", "EC", "WC", "B", "M", "LS", "BS", "L", "S", "NG", "LE", "CV", "NE"].some(p => outcode.startsWith(p));
     const isDenseUrban = ["EC", "WC", "E1", "SE1", "SW1", "W1", "N1", "NW1", "M1", "B1", "BS1", "LS1"].some(p => outcode.startsWith(p));
@@ -169,6 +173,8 @@ export default async function handler(req, res) {
     developments: knownDevs,
     councilPortalUrl,
     district: district || outcode,
-    note: `${recentApplications} planning applications in the 1km area (last 12 months, indicative). Check ${councilPortalUrl.replace("https://", "")} for live decisions.`,
+    note: recentApplicationsIsEstimate
+      ? `~${recentApplications} planning applications estimated in the 1km area based on area density (live count unavailable — indicative only). Check ${councilPortalUrl.replace("https://", "")} for actual decisions.`
+      : `${recentApplications} planning applications recorded in the 1km area. Check ${councilPortalUrl.replace("https://", "")} for live decisions.`,
   });
 }

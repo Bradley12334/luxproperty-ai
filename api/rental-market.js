@@ -115,20 +115,22 @@ export default async function handler(req, res) {
     if (country === "Scotland") { onsCode = "S92000003"; regionLabel = "Scotland"; }
     if (country === "Wales")    { onsCode = "W92000004"; regionLabel = "Wales"; }
 
-    // Step 3: Fetch ONS YoY rental change
+    // Step 3: ONS YoY rental change
+    // ── PINNED PERIOD ─────────────────────────────────────────────────────────
+    // We use PINNED_ONS_PERIOD rather than querying "latest" from the ONS API.
+    // The "latest" approach caused the returned YoY figure to silently change
+    // whenever ONS published a new edition — same postcode, different result.
+    // The pinned period is updated deliberately when a new edition is confirmed.
+    // Source: ONS Index of Private Housing Rental Prices
+    const PINNED_ONS_PERIOD = "Jan-25";  // Last confirmed: January 2025 edition
+
     let yoyChange = null;
-    let latestDate = null;
+    let latestDate = PINNED_ONS_PERIOD;
     if (onsCode && !["S92000003", "W92000004"].includes(onsCode)) {
       try {
-        // Get latest time period
-        const timeDims = await fetchJson(
-          `https://api.beta.ons.gov.uk/v1/datasets/index-private-housing-rental-prices/editions/time-series/versions/41/dimensions/time/options?limit=1`
-        );
-        latestDate = timeDims?.items?.[0]?.option || "Jan-24";
-
-        // Fetch observation
+        // Fetch observation for the pinned period — deterministic
         const obs = await fetchJson(
-          `https://api.beta.ons.gov.uk/v1/datasets/index-private-housing-rental-prices/editions/time-series/versions/41/observations?time=${latestDate}&geography=${onsCode}&indexandyearchange=year-on-year-change`
+          `https://api.beta.ons.gov.uk/v1/datasets/index-private-housing-rental-prices/editions/time-series/versions/41/observations?time=${PINNED_ONS_PERIOD}&geography=${onsCode}&indexandyearchange=year-on-year-change`
         );
         yoyChange = obs?.observations?.[0]?.observation
           ? parseFloat(obs.observations[0].observation)
@@ -141,7 +143,6 @@ export default async function handler(req, res) {
     // Fallback YoY if ONS fetch failed or Scotland/Wales
     if (yoyChange === null) {
       yoyChange = FALLBACK_YOY[onsCode] ?? 5.5;
-      latestDate = latestDate ?? "Jan-24";
     }
 
     // Step 4: Get median rents
