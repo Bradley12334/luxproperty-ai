@@ -1980,10 +1980,10 @@ async function fetchSoldPricesWithCoords(district: string, outcode: string): Pro
           const geoData = await geoRes.json();
           for (const r of geoData?.result || []) {
             if (r?.result?.latitude && r?.result?.longitude) {
-              // Jitter slightly so pins don't stack perfectly on same postcode
+              // Use exact postcode centroid — no jitter (deterministic, same postcode → same pin)
               coordsMap[r.query] = {
-                lat: r.result.latitude + (Math.random() - 0.5) * 0.002,
-                lng: r.result.longitude + (Math.random() - 0.5) * 0.002,
+                lat: r.result.latitude,
+                lng: r.result.longitude,
               };
             }
           }
@@ -2315,17 +2315,22 @@ async function fetchBroadband(postcode: string): Promise<{
   }
 }
 
-async function fetchCrimeStats(lat: number, lng: number): Promise<{
+async function fetchCrimeStats(lat: number, lng: number, country?: string): Promise<{
   totalCrimesPerMonth: number;
   topCategories: Array<{ category: string; count: number; pct: number }>;
   vsNationalNote: string;
   date: string;
+  unavailable?: boolean;
+  reason?: string;
 } | null> {
   try {
-    const res = await fetch(`/api/crime-stats?lat=${lat}&lng=${lng}`);
+    const countryParam = country ? `&country=${encodeURIComponent(country)}` : "";
+    const res = await fetch(`/api/crime-stats?lat=${lat}&lng=${lng}${countryParam}`);
     if (!res.ok) return null;
     const data = await res.json();
     if (data.error) return null;
+    // Scotland/NI: return the unavailable marker so the UI can show a proper message
+    if (data.unavailable) return data as any;
     return data;
   } catch { return null; }
 }
@@ -2448,7 +2453,11 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   }
 
   // Derive isLondon early so it can be used in API guards below
-  const isLondon = country === "England" && !!outcode.match(/^(SW|SE|EC|WC|E[0-9]|N[0-9]|NW|W[0-9]|WC)[0-9]/);
+  // isLondon: region-first (most reliable — comes from postcodes.io), then unambiguous prefix fallback
+  // Prefix fallback excludes: DA (straddles Kent/Bexley), WD (Watford/Hertfordshire), SL (Berkshire)
+  // EH, PA, G etc. (Scotland) correctly excluded because they don't match any London prefix
+  const LONDON_PREFIXES_FALLBACK = /^(E\d|EC\d|N\d|NW\d|SE\d|SW\d|W\d|WC\d|BR\d|CR\d|EN\d|HA\d|IG\d|KT\d|RM\d|SM\d|TW\d|UB\d)/;
+  const isLondon = (region === "London") || (country === "England" && !region && LONDON_PREFIXES_FALLBACK.test(outcode));
 
   // Fetch all live data in parallel
   [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime, livePlanningActivity, liveRentalMarket, liveBroadband, liveCouncilTax, liveDwellingMix] = await Promise.all([
@@ -2459,7 +2468,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     (meta?.lat && meta?.lng) ? fetchNearbyStations(meta.lat, meta.lng) : Promise.resolve([]),
     (meta?.lat && meta?.lng) ? fetchNearbySchools(meta.lat, meta.lng) : Promise.resolve([]),
     (meta?.lat && meta?.lng) ? fetchNearbyAmenities(meta.lat, meta.lng) : Promise.resolve(null),
-    (meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng) : Promise.resolve(null),
+    (meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng, country) : Promise.resolve(null),
     (meta?.lat && meta?.lng) ? fetchPlanningActivity(postcode, meta.lat, meta.lng, district) : Promise.resolve(null),
     fetchRentalMarket(postcode),
     fetchBroadband(postcode),
@@ -3431,12 +3440,24 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       greenSpaces: [],
     },
 
-    crimeStats: liveCrime ?? {
-      totalCrimesPerMonth: 0,
-      topCategories: [],
-      vsNationalNote: `Police-recorded crime data could not be retrieved for ${areaName} in this report. This is a data-availability issue rather than a signal about crime levels. For current figures, visit data.police.uk and enter this postcode — the tool shows category-level crime counts for the surrounding area by month.`,
-      date: "",
-    },
+    crimeStats: (() => {
+      // Scotland/NI: Police Scotland and PSNI don't publish to data.police.uk
+      if ((liveCrime as any)?.unavailable) {
+        return {
+          totalCrimesPerMonth: 0,
+          topCategories: [] as Array<{ category: string; count: number; pct: number }>,
+          vsNationalNote: (liveCrime as any).reason || `Crime statistics for ${country} are not available through data.police.uk.`,
+          date: "",
+          unavailable: true,
+        };
+      }
+      return liveCrime ?? {
+        totalCrimesPerMonth: 0,
+        topCategories: [] as Array<{ category: string; count: number; pct: number }>,
+        vsNationalNote: `Police-recorded crime data could not be retrieved for ${areaName} in this report. This is a data-availability issue rather than a signal about crime levels. For current figures, visit data.police.uk and enter this postcode — the tool shows category-level crime counts for the surrounding area by month.`,
+        date: "",
+      };
+    })(),
 
     // placeholders — populated immediately below after object construction
     briefConfidence: {

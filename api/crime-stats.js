@@ -50,8 +50,19 @@ async function getLatestPublishedMonth() {
 }
 
 export default async function handler(req, res) {
-  const { lat, lng } = req.query;
+  const { lat, lng, country } = req.query;
   if (!lat || !lng) return res.status(400).json({ error: "lat and lng required" });
+
+  // Police Scotland and PSNI do not publish data to data.police.uk
+  // Return a clear unavailable response rather than silently showing 0 crimes
+  if (country === "Scotland" || country === "Northern Ireland") {
+    return res.status(200).json({
+      unavailable: true,
+      reason: `Crime statistics for ${country} are not available through data.police.uk. Police Scotland and PSNI publish their own statistics separately.`,
+      source: "data.police.uk (England and Wales only)",
+      country,
+    });
+  }
 
   // Get the latest stable published month — deterministic across calls
   const dateStr = await getLatestPublishedMonth();

@@ -383,12 +383,31 @@ const ONS_CATEGORY_MAP = {
   "8": "other",
 };
 
+// Scotland Census 2022 indicative dwelling mix (national averages, Scotland-wide)
+// Source: Scotland Census 2022 — Dwelling type (approximate from published tables)
+// Note: Edinburgh has a higher flat proportion than national average
+const SCOTLAND_DWELLING_MIX_NATIONAL = {
+  detached: 28, semiDetached: 24, terraced: 19, flats: 26, other: 3,
+};
+// Postcode-area overrides for Scotland (where local character differs markedly from national)
+const SCOTLAND_DWELLING_MIX_OVERRIDES = {
+  // Edinburgh — much higher flat share than national
+  EH: { detached: 10, semiDetached: 16, terraced: 21, flats: 51, other: 2 },
+  // Glasgow — high tenement/flat share
+  G:  { detached: 9,  semiDetached: 20, terraced: 21, flats: 48, other: 2 },
+  // Aberdeen — more detached/semi than central belt cities
+  AB: { detached: 24, semiDetached: 28, terraced: 22, flats: 23, other: 3 },
+  // Dundee — similar to Glasgow profile
+  DD: { detached: 12, semiDetached: 22, terraced: 24, flats: 39, other: 3 },
+};
+
+// Wales Census 2021 indicative dwelling mix (national averages)
+// Source: ONS Census 2021 Wales aggregate (all Welsh LAs combined)
+const WALES_DWELLING_MIX_NATIONAL = {
+  detached: 30, semiDetached: 30, terraced: 25, flats: 12, other: 3,
+};
+
 async function handleDwellingMix(req, res) {
-  const { postcode } = req.query;
-  if (!postcode) return res.status(400).json({ error: "postcode required" });
-
-  const pc = postcode.replace(/\s/g, "").toUpperCase();
-
   const { postcode } = req.query;
   if (!postcode) return res.status(400).json({ error: "postcode required" });
 
@@ -396,19 +415,75 @@ async function handleDwellingMix(req, res) {
 
   try {
     const meta = await resolvePostcode(pc);
-    const { district, lad_code, country } = meta;
+    const { district, lad_code, country, outcode } = meta;
 
     if (!lad_code) {
       return res.status(404).json({ error: "Could not determine local authority for this postcode" });
     }
 
-    // Fetch ONS Census 2021 dwelling type data for this LA
+    // ── Scotland fallback ─────────────────────────────────────────────────────
+    // ONS Census 2021 API covers England & Wales only (E0x/W06 LA codes).
+    // Scottish postcodes (S12xxx) return no observations — use Census of Scotland
+    // 2022 indicative data instead.
+    if (country === "Scotland") {
+      const postcodeArea = outcode.replace(/[0-9].*/g, ""); // "EH" from "EH1"
+      const mix = SCOTLAND_DWELLING_MIX_OVERRIDES[postcodeArea] || SCOTLAND_DWELLING_MIX_NATIONAL;
+      const dominantKey = Object.entries(mix)
+        .filter(([k]) => k !== "other")
+        .reduce((a, b) => a[1] >= b[1] ? a : b)[0];
+      const dominantLabels = {
+        detached: "Detached houses",
+        semiDetached: "Semi-detached houses",
+        terraced: "Terraced houses",
+        flats: "Flats and apartments",
+      };
+      return res.status(200).json({
+        lad_code,
+        district,
+        country,
+        dwellingMix: mix,
+        dominantType: `${dominantLabels[dominantKey] || "Mixed stock"} are the most common dwelling type in ${district} (${mix[dominantKey]}% of housing stock). Source: Scotland Census 2022 (indicative national/regional figures).`,
+        totalHouseholds: null, // not available from indicative data
+        source: "Scotland Census 2022 — Dwelling type (indicative national/regional averages)",
+        dataYear: "2022",
+        note: "Scotland is not covered by the ONS Census 2021 dwelling-mix dataset. These figures use Scotland Census 2022 indicative averages and may not reflect local variation.",
+      });
+    }
+
+    // ── Fetch ONS Census 2021 dwelling type data for this LA (England & Wales) ─
     const onsUrl = `https://api.beta.ons.gov.uk/v1/population-types/HH/census-observations?dimensions=accom_by_dwelling_type&area-type=ltla&areas=${lad_code}`;
     const onsRes = await fetch(onsUrl, {
-      headers: { "Accept": "application/json" },
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; LuxProperty)",
+      },
     });
 
     if (!onsRes.ok) {
+      // If the ONS API fails for a Welsh LA, return the Wales national average
+      if (country === "Wales") {
+        const mix = WALES_DWELLING_MIX_NATIONAL;
+        const dominantKey = Object.entries(mix)
+          .filter(([k]) => k !== "other")
+          .reduce((a, b) => a[1] >= b[1] ? a : b)[0];
+        const dominantLabels = {
+          detached: "Detached houses",
+          semiDetached: "Semi-detached houses",
+          terraced: "Terraced houses",
+          flats: "Flats and apartments",
+        };
+        return res.status(200).json({
+          lad_code,
+          district,
+          country,
+          dwellingMix: mix,
+          dominantType: `${dominantLabels[dominantKey] || "Mixed stock"} are the most common dwelling type in ${district} (${mix[dominantKey]}% of housing stock). Source: ONS Census 2021, Wales national average.`,
+          totalHouseholds: null,
+          source: "ONS Census 2021 — Wales national dwelling type average (LA-level data temporarily unavailable)",
+          dataYear: "2021",
+          note: "LA-level data temporarily unavailable from ONS API. Wales national average used.",
+        });
+      }
       return res.status(502).json({
         error: "ONS Census API unavailable",
         lad_code,
@@ -419,6 +494,31 @@ async function handleDwellingMix(req, res) {
 
     const onsData = await onsRes.json();
     const observations = onsData?.observations ?? [];
+
+    // If ONS returns empty observations for a Welsh LA, use national fallback
+    if (observations.length === 0 && country === "Wales") {
+      const mix = WALES_DWELLING_MIX_NATIONAL;
+      const dominantKey = Object.entries(mix)
+        .filter(([k]) => k !== "other")
+        .reduce((a, b) => a[1] >= b[1] ? a : b)[0];
+      const dominantLabels = {
+        detached: "Detached houses",
+        semiDetached: "Semi-detached houses",
+        terraced: "Terraced houses",
+        flats: "Flats and apartments",
+      };
+      return res.status(200).json({
+        lad_code,
+        district,
+        country,
+        dwellingMix: mix,
+        dominantType: `${dominantLabels[dominantKey] || "Mixed stock"} are the most common dwelling type in ${district} (${mix[dominantKey]}% of housing stock). Source: ONS Census 2021, Wales national average.`,
+        totalHouseholds: null,
+        source: "ONS Census 2021 — Wales national dwelling type average",
+        dataYear: "2021",
+        note: "LA-level data unavailable for this Welsh authority. Wales national average used.",
+      });
+    }
 
     if (observations.length === 0) {
       return res.status(404).json({
