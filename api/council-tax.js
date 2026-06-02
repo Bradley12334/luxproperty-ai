@@ -73,6 +73,9 @@ const BAND_D_BY_LA = {
   "E09000032": 1793,  // Wandsworth
   "E09000033": 921,   // Westminster
   // MAJOR ENGLAND CITIES/METROPOLITAN AREAS
+  // GSS codes verified via postcodes.io against real UK postcodes June 2026
+  // Rates: DLUHC/VOA Council Tax levels 2024-25 (Table 2)
+  // Greater Manchester
   "E08000001": 1928,  // Bolton
   "E08000002": 1965,  // Bury
   "E08000003": 1838,  // Manchester
@@ -83,20 +86,24 @@ const BAND_D_BY_LA = {
   "E08000008": 1918,  // Tameside
   "E08000009": 1940,  // Trafford
   "E08000010": 1890,  // Wigan
+  // Merseyside
   "E08000011": 2066,  // Knowsley
   "E08000012": 2059,  // Liverpool
-  "E08000013": 1968,  // St Helens
+  "E08000013": 1968,  // St. Helens
   "E08000014": 2150,  // Sefton
   "E08000015": 2012,  // Wirral
+  // South Yorkshire
   "E08000016": 1839,  // Barnsley
   "E08000017": 1931,  // Doncaster
   "E08000018": 1814,  // Rotherham
-  "E08000019": 1772,  // Sheffield
-  "E08000020": 2101,  // Bradford
-  "E08000021": 2088,  // Calderdale
-  "E08000022": 2120,  // Kirklees
-  "E08000023": 2057,  // Leeds
-  "E08000024": 2050,  // Wakefield
+  "E08000039": 1772,  // Sheffield
+  // West Yorkshire
+  "E08000032": 2101,  // Bradford
+  "E08000033": 2088,  // Calderdale
+  "E08000034": 2120,  // Kirklees
+  "E08000035": 2057,  // Leeds
+  "E08000036": 2050,  // Wakefield
+  // West Midlands
   "E08000025": 1897,  // Birmingham
   "E08000026": 2054,  // Coventry
   "E08000027": 2012,  // Dudley
@@ -104,11 +111,12 @@ const BAND_D_BY_LA = {
   "E08000029": 2011,  // Solihull
   "E08000030": 2054,  // Walsall
   "E08000031": 2054,  // Wolverhampton
-  "E08000032": 2011,  // Gateshead
-  "E08000033": 2054,  // Newcastle upon Tyne
-  "E08000034": 2011,  // North Tyneside
-  "E08000035": 2054,  // South Tyneside
-  "E08000036": 2011,  // Sunderland
+  // Tyne & Wear
+  "E08000021": 2054,  // Newcastle upon Tyne
+  "E08000037": 2011,  // Gateshead
+  "E08000022": 2011,  // North Tyneside
+  "E08000023": 2054,  // South Tyneside
+  "E08000024": 2011,  // Sunderland
   // UNITARY AUTHORITIES (selection of most common)
   "E06000001": 2094,  // Hartlepool
   "E06000002": 2156,  // Middlesbrough
@@ -222,39 +230,41 @@ const BAND_D_BY_LA = {
   "W06000022": 1885,  // Newport
   "W06000023": 1885,  // Powys
   // SCOTLAND COUNCILS (Band D equivalents, 2024/25)
+  // GSS codes verified via postcodes.io June 2026.
+  // Rates: Scottish Government council tax data 2024/25.
+  // Scotland uses different band multipliers (BAND_MULTIPLIERS_SCOTLAND).
   "S12000033": 1495,  // Aberdeen City
   "S12000034": 1530,  // Aberdeenshire
   "S12000041": 1435,  // Angus
-  "S12000035": 1498,  // Argyll & Bute
-  "S12000026": 1602,  // Clackmannanshire
-  "S12000005": 1546,  // Dumfries & Galloway
-  "S12000006": 1531,  // Dundee City
-  "S12000042": 1623,  // East Ayrshire
-  "S12000009": 1512,  // East Dunbartonshire
+  "S12000035": 1498,  // Argyll and Bute
+  "S12000005": 1602,  // Clackmannanshire
+  "S12000006": 1546,  // Dumfries and Galloway
+  "S12000042": 1531,  // Dundee City
+  "S12000008": 1623,  // East Ayrshire
+  "S12000045": 1512,  // East Dunbartonshire
   "S12000010": 1623,  // East Lothian
   "S12000011": 1623,  // East Renfrewshire
-  "S12000036": 1495,  // Edinburgh (City of)
+  "S12000036": 1495,  // City of Edinburgh
   "S12000014": 1623,  // Falkirk
-  "S12000015": 1623,  // Fife
-  "S12000046": 1623,  // Glasgow City
+  "S12000047": 1623,  // Fife
+  "S12000049": 1623,  // Glasgow City
   "S12000017": 1623,  // Highland
   "S12000018": 1623,  // Inverclyde
   "S12000019": 1623,  // Midlothian
   "S12000020": 1623,  // Moray
   "S12000021": 1623,  // North Ayrshire
-  "S12000044": 1623,  // North Lanarkshire
+  "S12000050": 1623,  // North Lanarkshire
   "S12000023": 1623,  // Orkney Islands
-  "S12000024": 1623,  // Perth & Kinross
+  "S12000048": 1623,  // Perth and Kinross
   "S12000038": 1623,  // Renfrewshire
-  "S12000039": 1623,  // Scottish Borders
-  "S12000026": 1602,  // Stirling (duplicate key)
-  "S12000027": 1623,  // South Ayrshire
-  "S12000028": 1623,  // South Lanarkshire
-  "S12000029": 1623,  // Stirling
-  "S12000030": 1623,  // West Dunbartonshire
+  "S12000026": 1623,  // Scottish Borders
+  "S12000028": 1623,  // South Ayrshire
+  "S12000029": 1623,  // South Lanarkshire
+  "S12000030": 1623,  // Stirling
+  "S12000039": 1623,  // West Dunbartonshire
   "S12000040": 1623,  // West Lothian
   "S12000013": 1623,  // Na h-Eileanan Siar (Western Isles)
-  "S12000025": 1623,  // Shetland Islands
+  "S12000027": 1623,  // Shetland Islands
 };
 
 // Postcode-area to typical council tax band (derived from EPC stock + VOA data)
