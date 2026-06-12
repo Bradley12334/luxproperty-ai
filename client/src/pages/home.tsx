@@ -6,32 +6,26 @@ import { generateBrief } from "@/lib/mockEngine";
 import { getUser } from "@/lib/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import {
   Search,
-  MapPin,
-  TrendingUp,
-  BarChart3,
   ArrowRight,
   Check,
   Shield,
   Database,
-  FileText,
   Lock,
-  Star,
-  Building2,
-  ChevronRight,
-  Users,
-  ExternalLink,
   Train,
-  TreePine,
   GraduationCap,
+  TreePine,
+  AlertTriangle,
+  TrendingUp,
+  FileText,
+  MapPin,
+  BarChart3,
   HardDrive,
   Wifi,
-  AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
 
@@ -43,7 +37,6 @@ export default function Home() {
   const generateBriefMutation = useMutation({
     mutationFn: async (q: string) => {
       const callerPlan = getUser()?.plan;
-      console.log(`[LuxProperty] home.tsx mutationFn | getUser().plan="${callerPlan}" | query="${q}"`);
       return (await generateBrief(q, callerPlan)) as BriefReport;
     },
     onSuccess: (data) => {
@@ -58,132 +51,61 @@ export default function Home() {
     }
   };
 
-  const features = [
-    {
-      icon: MapPin,
-      title: "Neighbourhood Profile",
-      description:
-        "Schools, transport links, crime data, local amenities, flood risk, and 5-year price trends — all in one place.",
-    },
-    {
-      icon: BarChart3,
-      title: "Comparable Sales",
-      description:
-        "Real Land Registry transactions for the street and surrounding area, with a valuation range and negotiation context.",
-    },
-    {
-      icon: TrendingUp,
-      title: "Market Context",
-      description:
-        "Regional rental benchmarks, broadband ratings, planning activity, and key risk flags before you make an offer.",
-    },
-  ];
-
-  const pricingTiers = [
-    {
-      name: "Explorer",
-      price: "Free",
-      period: "",
-      description: "Quick area screen for any UK postcode. Is it worth looking at further? Free, no card required.",
-      features: ["3 briefs per month", "Good fit / Mixed / Limited fit verdict", "Executive summary & market overview", "1-year price trend (Land Registry)", "Neighbourhood profile & named places", "Flood risk & council tax band"],
-      cta: "Start Free",
-      highlighted: false,
-      stripeUrl: null,
-    },
-    {
-      name: "Professional",
-      price: "£4.99",
-      period: "/month",
-      description: "Everything you need before you offer — comparable sales, a pre-offer strategy with fair value and opening ranges, 5-year price trend, crime breakdown, planning flags, and PDF export. Any UK postcode. Unlimited briefs.",
-      features: [
-        "Unlimited briefs",
-        "Everything in Explorer",
-        "5-year price trend — full Land Registry history",
-        "Comparable sales & valuation range",
-        "Pre-offer strategy — fair value range, opening range, seller pressure points",
-        "Pre-offer questions — what to raise before committing",
-        "Planning activity & development risk flags",
-        "Crime breakdown by category (police.uk)",
-        "Broadband speed & fibre availability (Ofcom)",
-        "Rental market context & demand signal",
-        "Air quality index (DEFRA)",
-        "Export to PDF & save briefs",
-      ],
-      cta: "Start Professional",
-      highlighted: true,
-      stripeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00",
-    },
-    {
-      name: "Investor",
-      price: "£39.99",
-      period: "/month",
-      description: "Comparing multiple opportunities at once? Get 10-year trends, rental demand scores, a sold prices map, and a portfolio dashboard to save and compare briefs across areas.",
-      features: [
-        "Everything in Professional",
-        "10-year price trend — cross-area comparison",
-        "Rental demand score — letting potential rated across areas",
-        "Sold prices map & street price ranking",
-        "Development tracker — pipeline & change signals",
-        "Portfolio dashboard — save, compare & revisit briefs",
-        "Custom report branding (add your name & firm)",
-      ],
-      cta: "Start Investor",
-      highlighted: false,
-      stripeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
-    },
-  ];
-
-  const trustBadges = [
-    { icon: Database, text: "HM Land Registry Data" },
-    { icon: Shield, text: "Verified Market Prices" },
-    { icon: FileText, text: "Instant PDF Reports" },
-    { icon: Building2, text: "All UK Postcodes" },
-  ];
-
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header />
 
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden py-20 sm:py-28 lg:py-36">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="max-w-2xl">
-              {/* Trust pill */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary mb-6">
-                <Database className="h-3 w-3" />
-                Powered by HM Land Registry · Official UK property data
-              </div>
 
+        {/* ─── HERO ──────────────────────────────────────────────────────── */}
+        <section className="relative bg-[#1F1F1F] overflow-hidden">
+          {/* Subtle architectural grid overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: `linear-gradient(rgba(200,169,107,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(200,169,107,0.04) 1px, transparent 1px)`,
+              backgroundSize: "64px 64px",
+            }}
+            aria-hidden="true"
+          />
+
+          <div className="relative mx-auto max-w-5xl px-4 sm:px-6 pt-20 pb-24 sm:pt-28 sm:pb-32">
+            <div className="max-w-[640px]">
+
+              {/* Eyebrow */}
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-7">
+                UK Property Intelligence
+              </p>
+
+              {/* Headline */}
               <h1
-                className="font-serif text-4xl sm:text-5xl lg:text-[3.25rem] leading-[1.1] tracking-tight text-foreground"
+                className="font-serif text-[2.6rem] sm:text-[3.4rem] leading-[1.08] tracking-tight text-[#F5F1E8]"
                 data-testid="text-hero-heading"
               >
-                Know the property before{" "}
-                <span className="text-primary italic">you make an offer.</span>
+                Know where to look.
+                <br />
+                <span className="text-[#C8A96B]">Before anyone else does.</span>
               </h1>
-              <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg">
-                Turn any UK postcode or address into a clear, client-ready brief
-                in under a minute — built on official Land Registry data, not estimates.
-              </p>
-              <p className="mt-3 text-sm text-muted-foreground/70">
-                For serious buyers, brokers, and advisers.
+
+              {/* Sub */}
+              <p className="mt-6 text-[15px] text-[#F5F1E8]/60 leading-relaxed max-w-[480px]">
+                Enter any UK postcode. Get a full intelligence brief — price history, comparable sales, risk flags, neighbourhood profile — built on HM Land Registry data, not estimates.
               </p>
 
-              {/* Search Form */}
+              {/* Search */}
               <form
                 onSubmit={handleSubmit}
-                className="mt-8 flex flex-col sm:flex-row gap-3"
+                className="mt-9 flex flex-col sm:flex-row gap-3"
                 data-testid="form-search"
               >
                 <div className="relative flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#F5F1E8]/30" />
                   <Input
                     type="text"
-                    placeholder="Try SW3 1AA, RG1 2AB, or any UK address…"
+                    placeholder="Postcode or address — try SW3 1AA, LS6 2EX…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="pl-10 h-12 text-base bg-card border-border/80"
+                    className="pl-11 h-12 text-[15px] bg-white/5 border-white/10 text-[#F5F1E8] placeholder:text-[#F5F1E8]/30 focus:border-[#C8A96B]/50 focus:ring-[#C8A96B]/20"
                     data-testid="input-search"
                   />
                 </div>
@@ -191,21 +113,21 @@ export default function Home() {
                   type="submit"
                   size="lg"
                   disabled={!query.trim() || generateBriefMutation.isPending}
-                  className="h-12 px-6 text-sm font-semibold tracking-wide"
+                  className="h-12 px-7 text-[13px] font-semibold tracking-wide bg-[#C8A96B] hover:bg-[#b8985e] text-[#1F1F1F] border-0"
                   data-testid="button-generate"
                 >
                   {generateBriefMutation.isPending ? (
                     <span className="flex items-center gap-2">
                       <span className="flex gap-1">
-                        <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                        <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                        <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:150ms]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse [animation-delay:300ms]" />
                       </span>
                       Generating
                     </span>
                   ) : (
                     <>
-                      Generate Brief
+                      Run Brief
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -213,165 +135,127 @@ export default function Home() {
               </form>
 
               {generateBriefMutation.isError && (
-                <p className="mt-3 text-sm text-destructive" data-testid="text-error">
+                <p className="mt-3 text-sm text-red-400" data-testid="text-error">
                   Something went wrong. Please try again.
                 </p>
               )}
 
-              {/* Trust badges row */}
-              <div className="mt-8 flex flex-wrap gap-3">
-                {trustBadges.map((badge) => (
-                  <div
-                    key={badge.text}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                  >
-                    <badge.icon className="h-3.5 w-3.5 text-primary/70" />
-                    <span>{badge.text}</span>
-                  </div>
-                ))}
-              </div>
+              <p className="mt-4 text-[11px] text-[#F5F1E8]/30 tracking-wide">
+                Free to try · No card required · England &amp; Wales
+              </p>
             </div>
           </div>
         </section>
 
-        {/* Social Proof / Stats Strip */}
-        <section className="border-y border-border/40 bg-muted/30 py-6">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+        {/* ─── STATS STRIP ───────────────────────────────────────────────── */}
+        <section className="border-b border-border/40 bg-[#F5F1E8]">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 py-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
               {[
                 { value: "18M+", label: "Land Registry transactions" },
                 { value: "100%", label: "England & Wales coverage" },
-                { value: "5 years", label: "Historical price data" },
-                { value: "60s", label: "Average brief time" },
+                { value: "10 years", label: "Price history (Investor)" },
+                { value: "60s", label: "Brief generation time" },
               ].map((stat) => (
                 <div key={stat.label}>
-                  <p className="font-serif text-xl sm:text-2xl text-foreground">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                  <p className="font-serif text-xl text-[#1F1F1F]">{stat.value}</p>
+                  <p className="text-[11px] text-[#1F1F1F]/50 mt-0.5">{stat.label}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* How It Works Section */}
-        <section className="py-14 sm:py-16 border-b border-border/40">
+        {/* ─── BRIEF PREVIEW ─────────────────────────────────────────────── */}
+        <section className="py-20 sm:py-24 border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              How it works
-            </p>
-            <h2 className="font-serif text-2xl sm:text-[1.65rem] tracking-tight mb-10">
-              A clear brief in under a minute
-            </h2>
-            <div className="grid gap-0 sm:grid-cols-3 relative">
-              {/* connector line, desktop only */}
-              <div className="hidden sm:block absolute top-5 left-[calc(16.66%+1rem)] right-[calc(16.66%+1rem)] h-px bg-border/50" aria-hidden="true" />
-              {[
-                {
-                  step: "01",
-                  heading: "Enter a postcode or address",
-                  body: "Type any UK postcode or full address into the search bar. Chelsea, Reading, Manchester — any property in England or Wales.",
-                },
-                {
-                  step: "02",
-                  heading: "We pull trusted data",
-                  body: "LuxProperty.ai fetches live data from HM Land Registry, the EPC Register, Environment Agency, and official UK sources.",
-                },
-                {
-                  step: "03",
-                  heading: "You get a clear brief",
-                  body: "A structured report: price trends, comparable sales, a pre-offer strategy with fair value and opening ranges, neighbourhood profile, and risk flags — ready to share.",
-                },
-              ].map((item, i) => (
-                <div key={item.step} className={`flex flex-col gap-3 px-0 sm:px-6 ${i === 0 ? "sm:pl-0" : ""} ${i === 2 ? "sm:pr-0" : ""} ${i > 0 ? "mt-8 sm:mt-0 pt-8 sm:pt-0 border-t sm:border-t-0 border-border/40" : ""}`}>
-                  <div className="relative z-10 w-10 h-10 rounded-full border border-border/60 bg-card flex items-center justify-center shrink-0">
-                    <span className="font-serif text-sm text-primary">{item.step}</span>
-                  </div>
-                  <h3 className="text-sm font-semibold leading-snug">{item.heading}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+            <div className="grid gap-14 lg:grid-cols-[1fr_1.35fr] lg:gap-20 items-start">
 
-        {/* Brief Preview Section — moved up */}
-        <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-16 items-start">
-
-              {/* Left col — context copy */}
+              {/* Left */}
               <div className="lg:sticky lg:top-24">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-                  Sample brief
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-4">
+                  Sample output
                 </p>
-                <h2 className="font-serif text-2xl sm:text-[1.65rem] tracking-tight mb-4">
-                  This is what you'll receive
+                <h2 className="font-serif text-[1.7rem] sm:text-[2rem] tracking-tight leading-[1.15] text-foreground mb-4">
+                  A clear picture of any area, instantly.
                 </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                  Every brief is structured, data-backed, and client-ready. Comparable sales,
-                  5-year price trend, neighbourhood profile, risk flags, and a clear
-                  negotiation summary — all in one place.
+                <p className="text-sm text-muted-foreground leading-relaxed mb-7">
+                  Every brief is built from official sources — not estimates, not averages, not AI-generated numbers. Price history from Land Registry. Crime from data.police.uk. Schools from Ofsted. Flood risk from the Environment Agency.
                 </p>
-                <div className="space-y-2.5 mb-8">
+                <ul className="space-y-2.5 mb-8">
                   {[
-                    "Real Land Registry transactions",
-                    "Neighbourhood character & lifestyle data",
-                    "Flood, planning & EPC risk flags",
-                    "Pre-offer strategy & opening range",
+                    "Real comparable sales on the same street",
+                    "5 or 10-year price trend by postcode",
+                    "Flood risk, planning flags, EPC data",
+                    "Pre-offer strategy with fair value range",
+                    "Neighbourhood profile — schools, transport, crime",
                     "Export to PDF or share as a link",
                   ].map((item) => (
-                    <div key={item} className="flex items-center gap-2.5 text-sm">
-                      <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <li key={item} className="flex items-center gap-2.5 text-[13px]">
+                      <Check className="h-3.5 w-3.5 text-[#C8A96B] shrink-0" />
                       <span className="text-muted-foreground">{item}</span>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
                 <Button
                   onClick={() => {
                     const el = document.querySelector("[data-testid='input-search']") as HTMLInputElement | null;
                     el?.focus();
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className="text-sm font-semibold"
+                  className="bg-[#1F1F1F] hover:bg-[#1F1F1F]/80 text-[#F5F1E8] text-[13px] font-semibold"
                   data-testid="button-try-it"
                 >
                   Generate your free brief
                   <ArrowRight className="ml-2 h-3.5 w-3.5" />
                 </Button>
-                <p className="mt-2.5 text-xs text-muted-foreground">No sign-up required</p>
+                <p className="mt-2.5 text-[11px] text-muted-foreground/60">No sign-up required</p>
               </div>
 
-              {/* Right col — rich brief mock */}
-              <div className="relative">
-                <Card className="border-border/60 shadow-md overflow-hidden">
+              {/* Right — mock brief card */}
+              <div>
+                <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-md">
 
-                  {/* Report header bar */}
-                  <div className="px-5 py-4 border-b border-border/40 flex items-center justify-between gap-3">
+                  {/* Header bar */}
+                  <div className="px-5 py-4 border-b border-border/40 bg-[#1F1F1F] flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Area Property Report</p>
-                      <h3 className="font-serif text-base tracking-tight mt-0.5">Chelsea, SW3 1AA</h3>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#F5F1E8]/40">Area Intelligence Brief</p>
+                      <p className="font-serif text-[#F5F1E8] text-base mt-0.5 tracking-tight">Chelsea, SW3 1AA</p>
                     </div>
-                    <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-0 text-[10px] font-semibold shrink-0">
-                      GOOD MATCH
-                    </Badge>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      Good Match
+                    </span>
                   </div>
 
                   <div className="p-5 space-y-5">
 
-                    {/* At a Glance panel */}
+                    {/* KPIs */}
+                    <div className="grid grid-cols-4 gap-3 pb-4 border-b border-border/40">
+                      {[
+                        { label: "Median", value: "£1.38M" },
+                        { label: "5yr Growth", value: "+24.7%" },
+                        { label: "Avg DOM", value: "43 days" },
+                        { label: "Supply", value: "Tight" },
+                      ].map((kpi) => (
+                        <div key={kpi.label}>
+                          <p className="text-[10px] text-muted-foreground mb-0.5">{kpi.label}</p>
+                          <p className="font-serif text-sm text-foreground">{kpi.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Glance grid */}
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-2.5">At a Glance</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C8A96B] mb-2.5">At a Glance</p>
                       <div className="grid grid-cols-2 gap-2">
                         {[
-                          { icon: Train, label: "Nearest tube", value: "South Kensington · 4 min walk", colour: "bg-[#114B8B]" },
-                          { icon: GraduationCap, label: "Schools nearby", value: "4 Ofsted Outstanding within 0.5mi" },
-                          { icon: TreePine, label: "Green space", value: "Ranelagh Gardens · 3 min walk" },
-                          { icon: Shield, label: "Safety rating", value: "Low crime · Royal Borough of K&C" },
+                          { icon: Train, label: "Transport", value: "South Kensington · 4 min" },
+                          { icon: GraduationCap, label: "Schools", value: "4 Outstanding within 0.5mi" },
+                          { icon: TreePine, label: "Green space", value: "Ranelagh Gardens · 3 min" },
+                          { icon: Shield, label: "Crime", value: "Low · Royal Borough K&C" },
                         ].map((item) => (
                           <div key={item.label} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/40">
-                            <item.icon className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                            <item.icon className="h-3.5 w-3.5 text-[#C8A96B] mt-0.5 shrink-0" />
                             <div className="min-w-0">
                               <p className="text-[10px] text-muted-foreground">{item.label}</p>
                               <p className="text-xs font-medium leading-snug mt-0.5 truncate">{item.value}</p>
@@ -381,36 +265,21 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* KPI row */}
-                    <div className="grid grid-cols-4 gap-3 pb-4 border-b border-border/40">
-                      {[
-                        { label: "Median", value: "£1.38M" },
-                        { label: "5yr Change", value: "+24.7%" },
-                        { label: "On Market", value: "43 days" },
-                        { label: "Supply", value: "Low" },
-                      ].map((kpi) => (
-                        <div key={kpi.label}>
-                          <p className="text-[10px] text-muted-foreground mb-0.5">{kpi.label}</p>
-                          <p className="font-serif text-sm text-foreground">{kpi.value}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* 5-year trend */}
+                    {/* Price trend */}
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-2.5">5-Year Price Trend</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C8A96B] mb-2.5">5-Year Price Trend</p>
                       <div className="space-y-1.5">
                         {[
-                          { year: "2020", price: "£1,105,000", pct: "—", w: "64%" },
-                          { year: "2021", price: "£1,168,000", pct: "+5.7%", w: "68%" },
-                          { year: "2022", price: "£1,241,000", pct: "+6.3%", w: "72%" },
-                          { year: "2023", price: "£1,310,000", pct: "+5.6%", w: "76%" },
-                          { year: "2024", price: "£1,379,000", pct: "+5.3%", w: "80%" },
+                          { year: "2021", price: "£1,168,000", pct: "—", w: "64%" },
+                          { year: "2022", price: "£1,241,000", pct: "+6.3%", w: "69%" },
+                          { year: "2023", price: "£1,310,000", pct: "+5.6%", w: "74%" },
+                          { year: "2024", price: "£1,379,000", pct: "+5.3%", w: "79%" },
+                          { year: "2025", price: "£1,451,000", pct: "+5.2%", w: "84%" },
                         ].map((row) => (
                           <div key={row.year} className="flex items-center gap-2 text-xs">
                             <span className="text-muted-foreground w-8 shrink-0">{row.year}</span>
                             <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                              <div className="h-full rounded-full bg-primary/40" style={{ width: row.w }} />
+                              <div className="h-full rounded-full bg-[#C8A96B]/50" style={{ width: row.w }} />
                             </div>
                             <span className="font-serif text-foreground w-20 text-right shrink-0">{row.price}</span>
                             <span className={`w-10 text-right shrink-0 ${row.pct === "—" ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400"}`}>{row.pct}</span>
@@ -419,10 +288,10 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Comparables stub — blurred bottom */}
+                    {/* Comparables — locked */}
                     <div className="relative">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-2.5">Comparable Sales</p>
-                      <div className="space-y-2 blur-[2px] opacity-60 select-none pointer-events-none">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C8A96B] mb-2.5">Comparable Sales</p>
+                      <div className="space-y-2 blur-[2.5px] opacity-50 select-none pointer-events-none">
                         {[
                           { addr: "14 Onslow Square", beds: "4 bed", price: "£1.42M", date: "Jan 2025" },
                           { addr: "7 Lennox Gardens", beds: "3 bed", price: "£1.19M", date: "Dec 2024" },
@@ -438,286 +307,153 @@ export default function Home() {
                       </div>
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="flex items-center gap-1.5 bg-background/90 border border-border px-3 py-1.5 rounded-full shadow-sm">
-                          <Lock className="h-3 w-3 text-primary" />
-                          <span className="text-[10px] font-medium">Full comparables in your brief</span>
+                          <Lock className="h-3 w-3 text-[#C8A96B]" />
+                          <span className="text-[10px] font-medium">Available in your full brief</span>
                         </div>
                       </div>
                     </div>
-
                   </div>
-                </Card>
+                </div>
 
-                {/* Data source footer */}
-                <p className="mt-3 text-[10px] text-muted-foreground flex items-center gap-1.5">
-                  <Database className="h-3 w-3 text-primary/60" />
-                  Data from HM Land Registry · EPC Register · data.police.uk · OSM
+                <p className="mt-3 text-[10px] text-muted-foreground/50 flex items-center gap-1.5">
+                  <Database className="h-3 w-3" />
+                  HM Land Registry · EPC Register · data.police.uk · Ofsted · Environment Agency
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* For Professionals Section */}
-        <section className="py-16 sm:py-20 border-b border-border/40">
+        {/* ─── THREE VALUE PILLARS ───────────────────────────────────────── */}
+        <section className="py-20 sm:py-24 bg-[#F5F1E8] border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-12 lg:grid-cols-[1fr_1.4fr] lg:gap-16 items-start">
-
-              {/* Left — headline + intro */}
-              <div className="lg:sticky lg:top-24">
-                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary mb-5">
-                  <Users className="h-3 w-3" />
-                  For professionals
-                </div>
-                <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-4">
-                  The brief you pull up in front of a client
-                </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                  Buying agents, mortgage advisers, and wealth managers use LuxProperty.ai
-                  to run live due-diligence in client meetings — then export or share the
-                  buyer brief in one click.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5 text-primary/70" />
-                    <span>Export to PDF</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <ExternalLink className="h-3.5 w-3.5 text-primary/70" />
-                    <span>Share as a link</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Database className="h-3.5 w-3.5 text-primary/70" />
-                    <span>Official data sources</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right — use-case scenarios */}
-              <div className="flex flex-col divide-y divide-border/40">
-                {[
-                  {
-                    context: "First call with a new buyer",
-                    heading: "Establish the market straight away",
-                    body: "Pull up a brief for the buyer's target area while you're still on the call. Show them real price trends, typical comparable values, and what supply looks like — before they've even seen a property.",
-                    step: "01",
-                  },
-                  {
-                    context: "Pre-viewing research",
-                    heading: "Arrive knowing the numbers",
-                    body: "Run a brief on the specific postcode the night before a viewing. Check comparable sales on the same street, flag any planning activity nearby, and have the negotiation context ready before you walk through the door.",
-                    step: "02",
-                  },
-                  {
-                    context: "Comparing two shortlisted areas",
-                    heading: "Give clients a clear, side-by-side picture",
-                    body: "Generate briefs for both postcodes, export to PDF, and share with your client before the next meeting. Price trajectory, neighbourhood profile, and risk flags — all in the same format, ready to compare.",
-                    step: "03",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.step}
-                    className="py-6 first:pt-0 last:pb-0"
-                    data-testid={`card-usecase-${item.step}`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <span className="font-serif text-2xl text-primary/20 leading-none tabular-nums shrink-0 mt-0.5 select-none">
-                        {item.step}
-                      </span>
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-1.5">
-                          {item.context}
-                        </p>
-                        <h3 className="text-sm font-semibold text-foreground mb-2">
-                          {item.heading}
-                        </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {item.body}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section className="py-16 sm:py-20 border-b border-border/40">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              What's inside every brief
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-4">
+              What it's for
             </p>
-            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-12">
-              The detail buyers and advisers actually need
+            <h2 className="font-serif text-[1.7rem] sm:text-[2rem] tracking-tight text-[#1F1F1F] leading-[1.15] mb-14 max-w-xl">
+              Spot opportunity and risk in a location — before you commit.
             </h2>
 
-            <div className="grid gap-6 sm:grid-cols-3">
-              {features.map((feature) => (
+            <div className="grid gap-0 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#1F1F1F]/10">
+              {[
+                {
+                  number: "01",
+                  heading: "Area Discovery",
+                  body: "Find postcodes that match your criteria before you waste time on viewings. Compare price trajectories, supply levels, and neighbourhood signals across areas side by side.",
+                },
+                {
+                  number: "02",
+                  heading: "Fast Due Diligence",
+                  body: "Run a full brief on any postcode in under a minute. Comparable sales, flood risk, planning activity, EPC data, Ofsted ratings, crime breakdown — all in one place.",
+                },
+                {
+                  number: "03",
+                  heading: "Offer Confidence",
+                  body: "Arrive at every negotiation knowing the numbers. Pre-offer strategy, fair value range, opening range, and seller pressure points — structured and ready to act on.",
+                },
+              ].map((item, i) => (
                 <div
-                  key={feature.title}
-                  className="group"
-                  data-testid={`card-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}
+                  key={item.number}
+                  className={`flex flex-col gap-4 py-8 sm:py-0 ${i === 0 ? "sm:pr-10" : i === 1 ? "sm:px-10" : "sm:pl-10"}`}
                 >
-                  <feature.icon className="h-5 w-5 text-primary mb-4" />
-                  <h3 className="text-sm font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {feature.description}
-                  </p>
+                  <span className="font-serif text-[2.5rem] text-[#1F1F1F]/10 leading-none select-none">{item.number}</span>
+                  <h3 className="text-[13px] font-semibold text-[#1F1F1F] tracking-tight">{item.heading}</h3>
+                  <p className="text-[13px] text-[#1F1F1F]/55 leading-relaxed">{item.body}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Who It's For Section */}
-        <section className="py-16 sm:py-20 border-b border-border/40">
+        {/* ─── WHO IT'S FOR ──────────────────────────────────────────────── */}
+        <section className="py-20 sm:py-24 border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              Who it's for
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-4">
+              Who uses it
             </p>
-            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-4">
-              Built for buyers and the professionals who advise them
+            <h2 className="font-serif text-[1.7rem] sm:text-[2rem] tracking-tight leading-[1.15] mb-12 max-w-lg">
+              Built for people making serious property decisions.
             </h2>
-            <p className="text-sm text-muted-foreground mb-10 max-w-lg">
-              Whether you're viewing your first home or advising a client on a complex purchase,
-              LuxProperty.ai gives you the data to act with confidence.
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+            <div className="grid gap-px bg-border/30 sm:grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden border border-border/30">
               {[
                 {
-                  audience: "Homebuyers",
-                  description: "Understand any property and its area before you commit. Check prices, risk flags, and comparable sales — before instructing a solicitor.",
-                  icon: "\uD83C\uDFE1",
+                  audience: "Investors",
+                  description: "Identify areas with momentum before prices move. Compare 10-year trends, rental demand scores, and supply signals across multiple postcodes at once.",
+                },
+                {
+                  audience: "Deal Sourcers",
+                  description: "Build your area thesis with real data. Spot undervalued pockets, track planning activity, and present clean evidence to investors and clients.",
+                },
+                {
+                  audience: "Developers",
+                  description: "Check planning context, comparable sales, and EPC profile before committing to a site. Understand what's been built, sold, and approved nearby.",
+                },
+                {
+                  audience: "Estate Agents",
+                  description: "Generate a structured brief for every listing or valuation appointment. Share with clients as a PDF in one click, branded with your firm's details.",
                 },
                 {
                   audience: "Buying Agents",
-                  description: "Generate a clear PDF brief for every property you shortlist. Present clients with structured due-diligence in minutes, not hours.",
-                  icon: "\uD83E\uDD1D",
+                  description: "Run due-diligence in real time. Pull up a postcode brief in front of a client, compare shortlisted areas side by side, and export the summary.",
                 },
                 {
-                  audience: "Mortgage Advisers",
-                  description: "Set accurate expectations before discussing loan amounts. Share a comparable sales snapshot and valuation range with every client.",
-                  icon: "\uD83D\uDCCB",
-                },
-                {
-                  audience: "Brokers",
-                  description: "Accelerate your pre-application process. Pull market context and planning history for any UK postcode in seconds.",
-                  icon: "\uD83D\uDCCA",
-                },
-                {
-                  audience: "Wealth Managers",
-                  description: "Evaluate multiple opportunities at once. Save and compare briefs across areas, track rental demand and pricing trends, and share clean PDF reports with clients.",
-                  icon: "\uD83D\uDCBC",
-                },
-                {
-                  audience: "First-Time Buyers",
-                  description: "Navigate an unfamiliar market with confidence. Get the same depth of information as experienced buyers, without needing an agent.",
-                  icon: "\uD83D\uDD11",
+                  audience: "Serious Buyers",
+                  description: "Understand any area as well as an experienced investor would. Check comparable sales, crime, schools, transport, and risk flags before you offer.",
                 },
               ].map((item) => (
                 <div
                   key={item.audience}
-                  className="flex flex-col gap-2.5 p-5 rounded-lg border border-border/50 bg-card hover:border-primary/30 transition-colors"
+                  className="flex flex-col gap-3 p-6 bg-card"
                   data-testid={`card-audience-${item.audience.toLowerCase().replace(/[^a-z]/g, "-")}`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-lg" role="img" aria-label={item.audience}>{item.icon}</span>
-                    <h3 className="text-sm font-semibold">{item.audience}</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                  <h3 className="text-[13px] font-semibold text-foreground">{item.audience}</h3>
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">{item.description}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Built on Trusted Data Section */}
-        <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
+        {/* ─── DATA SOURCES ──────────────────────────────────────────────── */}
+        <section className="py-20 sm:py-24 bg-[#1F1F1F] border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-12 lg:grid-cols-[1fr_1.5fr] lg:gap-16 items-start">
+            <div className="grid gap-14 lg:grid-cols-[1fr_1.6fr] lg:gap-20 items-start">
 
-              {/* Left — framing copy */}
               <div className="lg:sticky lg:top-24">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-4">
                   Data sources
                 </p>
-                <h2 className="font-serif text-2xl sm:text-[1.65rem] tracking-tight mb-4">
-                  Built on trusted data, not estimates
+                <h2 className="font-serif text-[1.7rem] sm:text-[2rem] tracking-tight text-[#F5F1E8] leading-[1.15] mb-5">
+                  Official sources only.
+                  <br />
+                  No estimates.
                 </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-                  Every section of a LuxProperty brief is drawn from a named, official source.
-                  No AI estimates. No made-up averages. The data behind your brief is the same
-                  data used by solicitors, surveyors, and planning authorities.
+                <p className="text-[13px] text-[#F5F1E8]/50 leading-relaxed mb-6">
+                  Every number in a LuxProperty brief is sourced from a named official dataset — the same data used by solicitors, surveyors, and planning authorities.
                 </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border/50 rounded-lg px-3.5 py-2.5 bg-card inline-flex w-fit">
-                  <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span>Registered UK company · LuxProperty AI Ltd · No. 17158079</span>
+                <div className="inline-flex items-center gap-2 text-[11px] text-[#F5F1E8]/40 border border-[#F5F1E8]/10 rounded-lg px-3.5 py-2.5">
+                  <Shield className="h-3 w-3 text-[#C8A96B] shrink-0" />
+                  LuxProperty AI Ltd · Co. No. 17158079
                 </div>
               </div>
 
-              {/* Right — source list */}
-              <div className="divide-y divide-border/40">
+              <div className="divide-y divide-[#F5F1E8]/8">
                 {[
-                  {
-                    icon: Database,
-                    source: "HM Land Registry",
-                    covers: "Price trends, comparable sales, 5-year history",
-                    note: "Actual registered transactions across England & Wales",
-                  },
-                  {
-                    icon: HardDrive,
-                    source: "EPC Register",
-                    covers: "Energy efficiency ratings, property type, build year",
-                    note: "MHCLG domestic energy performance data",
-                  },
-                  {
-                    icon: AlertTriangle,
-                    source: "Environment Agency",
-                    covers: "Flood risk zones and surface water risk",
-                    note: "Official flood mapping data for England",
-                  },
-                  {
-                    icon: Shield,
-                    source: "data.police.uk",
-                    covers: "Crime statistics and category breakdown",
-                    note: "Published monthly by UK police forces",
-                  },
-                  {
-                    icon: GraduationCap,
-                    source: "Ofsted",
-                    covers: "School locations and inspection ratings",
-                    note: "Via OpenStreetMap school data and Ofsted results",
-                  },
-                  {
-                    icon: Train,
-                    source: "Transport open data",
-                    covers: "Nearest stations, TfL lines, walk times",
-                    note: "OpenStreetMap transport nodes and TfL Journey Planner",
-                  },
-                  {
-                    icon: Wifi,
-                    source: "Ofcom Connected Nations",
-                    covers: "Broadband availability and average speeds",
-                    note: "2024 Connected Nations dataset by local authority",
-                  },
-                  {
-                    icon: TrendingUp,
-                    source: "ONS / VOA Rental Data",
-                    covers: "Rental market benchmarks and demand indicators",
-                    note: "ONS IPHRP and Valuation Office Agency 2024 data",
-                  },
+                  { icon: Database, source: "HM Land Registry", covers: "Price history, comparable sales, postcode-level trends" },
+                  { icon: HardDrive, source: "EPC Register", covers: "Energy ratings, property type, construction year" },
+                  { icon: AlertTriangle, source: "Environment Agency", covers: "Flood risk zones and surface water mapping" },
+                  { icon: Shield, source: "data.police.uk", covers: "Crime statistics and category breakdown" },
+                  { icon: GraduationCap, source: "Ofsted", covers: "School ratings and location data" },
+                  { icon: Train, source: "OpenStreetMap / TfL", covers: "Transport nodes, stations, walk times" },
+                  { icon: Wifi, source: "Ofcom Connected Nations", covers: "Broadband availability and speeds" },
+                  { icon: TrendingUp, source: "ONS / VOA", covers: "Rental benchmarks and demand indicators" },
                 ].map((item) => (
-                  <div key={item.source} className="flex items-start gap-4 py-4 first:pt-0 last:pb-0">
-                    <div className="w-7 h-7 rounded-md bg-primary/8 border border-border/50 flex items-center justify-center shrink-0 mt-0.5">
-                      <item.icon className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mb-0.5">
-                        <span className="text-sm font-semibold">{item.source}</span>
-                        <span className="text-xs text-muted-foreground">· {item.covers}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground/70">{item.note}</p>
+                  <div key={item.source} className="flex items-start gap-4 py-3.5 first:pt-0 last:pb-0">
+                    <item.icon className="h-4 w-4 text-[#C8A96B]/70 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-[13px] font-semibold text-[#F5F1E8]">{item.source}</span>
+                      <span className="text-[13px] text-[#F5F1E8]/35 ml-2">· {item.covers}</span>
                     </div>
                   </div>
                 ))}
@@ -726,62 +462,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Founder + Early Access Section */}
-        <section className="py-14 sm:py-16 border-b border-border/40">
+        {/* ─── EXPLORE MARKETS ───────────────────────────────────────────── */}
+        <section className="py-20 sm:py-24 border-b border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1fr_1px_1fr] items-stretch">
-
-              {/* Founder snippet */}
-              <div className="flex flex-col gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                  Who built this
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  LuxProperty.ai was built by a quantity surveying student who couldn't find a
-                  clean, data-backed way to research a property before making an offer.
-                  The brief is the tool I wanted to have — built on real data, structured for
-                  buyers and the professionals who advise them.
-                </p>
-                <p className="text-xs text-muted-foreground/70">
-                  QS student, University of Reading · LuxProperty AI Ltd
-                </p>
-              </div>
-
-              {/* Divider — visible on lg only */}
-              <div className="hidden lg:block w-px bg-border/40 self-stretch" aria-hidden="true" />
-
-              {/* Early access note */}
-              <div className="flex flex-col gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                  Early access
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  LuxProperty.ai is in early access. The core brief is live and working across
-                  England and Wales. New data sources, features, and export options are being
-                  added regularly.
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  If you run into something that doesn't look right, or have a feature you'd
-                  find genuinely useful, the contact details are on the About page.
-                </p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-muted-foreground">Live &amp; actively improving</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </section>
-
-        {/* Explore Markets */}
-        <section className="py-16 sm:py-20 border-b border-border/40 bg-muted/20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              Explore UK Markets
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-4">
+              Explore UK markets
             </p>
-            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-8">
-              Deep-dive guides for top UK postcodes
+            <h2 className="font-serif text-[1.7rem] sm:text-[2rem] tracking-tight leading-[1.15] mb-10">
+              Deep-dive guides for key UK areas
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {[
@@ -801,10 +489,10 @@ export default function Home() {
                 <a
                   key={area.code}
                   href={`/#/area/${area.code}`}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-md border border-border/40 bg-card hover:border-primary/40 hover:bg-primary/5 transition-colors text-sm"
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-border/40 bg-card hover:border-[#C8A96B]/30 hover:bg-[#C8A96B]/5 transition-colors text-[13px]"
                 >
-                  <MapPin className="h-3 w-3 text-primary shrink-0" />
-                  <span className="font-medium">{area.code}</span>
+                  <MapPin className="h-3 w-3 text-[#C8A96B] shrink-0" />
+                  <span className="font-semibold">{area.code}</span>
                   <span className="text-muted-foreground text-xs">{area.label}</span>
                 </a>
               ))}
@@ -812,52 +500,117 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Pricing Section */}
-        <section className="py-16 sm:py-20" id="pricing">
+        {/* ─── PRICING ───────────────────────────────────────────────────── */}
+        <section className="py-20 sm:py-24 bg-[#F5F1E8]" id="pricing">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-4">
               Pricing
             </p>
-            <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-4">
-              Professional is the plan most buyers need
+            <h2 className="font-serif text-[1.7rem] sm:text-[2rem] tracking-tight text-[#1F1F1F] leading-[1.15] mb-3">
+              Professional is what most buyers need.
             </h2>
-            <p className="text-muted-foreground text-sm mb-12 max-w-lg">
-              Explorer is free to try. Professional is the main paid plan — everything you need before making an offer, for any UK postcode. Investor adds comparison and portfolio tools for heavier use.
+            <p className="text-[13px] text-[#1F1F1F]/50 mb-12 max-w-md">
+              Start free. Upgrade when you need comparable sales, pre-offer strategy, and PDF export.
             </p>
 
-            <div className="grid gap-6 sm:grid-cols-3">
-              {pricingTiers.map((tier) => (
-                <Card
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                {
+                  name: "Explorer",
+                  price: "Free",
+                  period: "",
+                  highlight: false,
+                  description: "3 briefs per month. Area profile, 1-year price trend, neighbourhood overview.",
+                  features: [
+                    "3 briefs per month",
+                    "1-year price trend",
+                    "Neighbourhood profile",
+                    "Flood risk & council tax",
+                    "Good fit / Mixed / Limited verdict",
+                  ],
+                  cta: "Start Free",
+                  stripeUrl: null,
+                },
+                {
+                  name: "Professional",
+                  price: "£4.99",
+                  period: "/month",
+                  highlight: true,
+                  description: "Unlimited briefs. Comparable sales, 5-year trend, pre-offer strategy, PDF export.",
+                  features: [
+                    "Unlimited briefs",
+                    "5-year price trend",
+                    "Comparable sales & valuation range",
+                    "Pre-offer strategy & opening range",
+                    "Planning activity & crime breakdown",
+                    "Air quality, broadband, rental data",
+                    "Export to PDF",
+                  ],
+                  cta: "Start Professional",
+                  stripeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00",
+                },
+                {
+                  name: "Investor",
+                  price: "£39.99",
+                  period: "/month",
+                  highlight: false,
+                  description: "10-year trends, rental demand scores, sold prices map, and portfolio dashboard.",
+                  features: [
+                    "Everything in Professional",
+                    "10-year price trend",
+                    "Rental demand score",
+                    "Sold prices map",
+                    "Portfolio dashboard",
+                    "Custom report branding",
+                  ],
+                  cta: "Start Investor",
+                  stripeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
+                },
+              ].map((tier) => (
+                <div
                   key={tier.name}
-                  className={`p-6 flex flex-col ${
-                    tier.highlighted ? "ring-1 ring-primary/30 bg-card" : ""
+                  className={`relative flex flex-col p-6 rounded-xl border ${
+                    tier.highlight
+                      ? "border-[#1F1F1F]/20 bg-[#1F1F1F]"
+                      : "border-[#1F1F1F]/10 bg-white/60"
                   }`}
                   data-testid={`card-pricing-${tier.name.toLowerCase()}`}
                 >
-                  {tier.highlighted && (
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary mb-3">
-                      Recommended
+                  {tier.highlight && (
+                    <span className="absolute -top-px left-6 text-[10px] font-semibold uppercase tracking-[0.18em] bg-[#C8A96B] text-[#1F1F1F] px-2.5 py-0.5 rounded-b-md">
+                      Most Popular
                     </span>
                   )}
-                  <h3 className="text-sm font-semibold">{tier.name}</h3>
-                  <div className="mt-3 mb-1">
-                    <span className="font-serif text-3xl tracking-tight">{tier.price}</span>
+                  <h3 className={`text-[13px] font-semibold mb-3 ${tier.highlight ? "text-[#F5F1E8]" : "text-[#1F1F1F]"}`}>
+                    {tier.name}
+                  </h3>
+                  <div className="mb-1">
+                    <span className={`font-serif text-3xl tracking-tight ${tier.highlight ? "text-[#F5F1E8]" : "text-[#1F1F1F]"}`}>
+                      {tier.price}
+                    </span>
                     {tier.period && (
-                      <span className="text-sm text-muted-foreground">{tier.period}</span>
+                      <span className={`text-sm ml-0.5 ${tier.highlight ? "text-[#F5F1E8]/50" : "text-[#1F1F1F]/50"}`}>
+                        {tier.period}
+                      </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mb-5">{tier.description}</p>
+                  <p className={`text-[12px] mb-5 leading-relaxed ${tier.highlight ? "text-[#F5F1E8]/50" : "text-[#1F1F1F]/50"}`}>
+                    {tier.description}
+                  </p>
                   <ul className="space-y-2 mb-6 flex-1">
                     {tier.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                        <span>{f}</span>
+                      <li key={f} className="flex items-start gap-2 text-[13px]">
+                        <Check className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${tier.highlight ? "text-[#C8A96B]" : "text-[#C8A96B]"}`} />
+                        <span className={tier.highlight ? "text-[#F5F1E8]/70" : "text-[#1F1F1F]/65"}>{f}</span>
                       </li>
                     ))}
                   </ul>
-                  <Button
-                    variant={tier.highlighted ? "default" : "outline"}
-                    className="w-full text-sm"
+                  <button
+                    className={`w-full text-[13px] font-semibold py-2.5 rounded-lg transition-colors ${
+                      tier.highlight
+                        ? "bg-[#C8A96B] hover:bg-[#b8985e] text-[#1F1F1F]"
+                        : "bg-[#1F1F1F]/8 hover:bg-[#1F1F1F]/12 text-[#1F1F1F] border border-[#1F1F1F]/10"
+                    }`}
                     data-testid={`button-pricing-${tier.name.toLowerCase()}`}
                     onClick={() => {
                       if (tier.stripeUrl) {
@@ -870,18 +623,47 @@ export default function Home() {
                     }}
                   >
                     {tier.cta}
-                  </Button>
-                </Card>
+                  </button>
+                </div>
               ))}
             </div>
 
-            {/* Trust line under pricing */}
-            <p className="mt-8 text-center text-xs text-muted-foreground">
-              No credit card required to start ·{" "}
-              <ChevronRight className="inline h-3 w-3" /> Cancel anytime
+            <p className="mt-7 text-center text-[11px] text-[#1F1F1F]/40">
+              No credit card required to start · Cancel anytime
             </p>
           </div>
         </section>
+
+        {/* ─── BOTTOM CTA ────────────────────────────────────────────────── */}
+        <section className="py-20 sm:py-24 bg-[#1F1F1F]">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C8A96B] mb-5">
+              Start now
+            </p>
+            <h2 className="font-serif text-[2rem] sm:text-[2.5rem] tracking-tight text-[#F5F1E8] leading-[1.12] mb-5 max-w-xl mx-auto">
+              Run your first brief in under a minute.
+            </h2>
+            <p className="text-[14px] text-[#F5F1E8]/45 mb-9 max-w-sm mx-auto">
+              Free to try. Any UK postcode. No account required.
+            </p>
+            <button
+              onClick={() => {
+                const el = document.querySelector("[data-testid='input-search']") as HTMLInputElement | null;
+                el?.focus();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="inline-flex items-center gap-2 bg-[#C8A96B] hover:bg-[#b8985e] text-[#1F1F1F] text-[13px] font-semibold px-7 py-3 rounded-lg transition-colors"
+              data-testid="button-bottom-cta"
+            >
+              Generate a Free Brief
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <p className="mt-4 text-[11px] text-[#F5F1E8]/25">
+              England &amp; Wales · Built on official data · LuxProperty AI Ltd
+            </p>
+          </div>
+        </section>
+
       </main>
 
       <Footer />
