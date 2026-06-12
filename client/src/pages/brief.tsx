@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "wouter";
 import { addToPortfolio, isInPortfolio } from "@/lib/portfolioStore";
 import { useToast } from "@/hooks/use-toast";
@@ -2216,17 +2218,19 @@ function deriveStrengthsAndConsiderations(ai: BriefReport["areaIntelligence"]): 
   };
 }
 
-function StrengthsAndConsiderations({ ai }: { ai: BriefReport["areaIntelligence"] }) {
+function StrengthsAndConsiderations({ ai, standalone = true }: { ai: BriefReport["areaIntelligence"]; standalone?: boolean }) {
   const { strengths, considerations } = deriveStrengthsAndConsiderations(ai);
 
   if (strengths.length === 0 && considerations.length === 0) return null;
 
-  return (
-    <Card className="p-5 sm:p-6" data-testid="section-strengths-considerations">
-      <div className="flex items-center gap-2 mb-5">
-        <BadgeCheck className="h-4 w-4 text-primary" />
-        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-primary">Strengths &amp; Considerations</h3>
-      </div>
+  const inner = (
+    <>
+      {standalone && (
+        <div className="flex items-center gap-2 mb-5">
+          <BadgeCheck className="h-4 w-4 text-primary" />
+          <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-primary">Strengths &amp; Considerations</h3>
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-6">
         {/* Strengths */}
@@ -2269,7 +2273,13 @@ function StrengthsAndConsiderations({ ai }: { ai: BriefReport["areaIntelligence"
       <p className="text-[10px] text-muted-foreground/70 mt-5 pt-4 border-t border-border/40">
         Synthesised from Land Registry, Environment Agency, Ofsted, and ONS data in this report. Not a substitute for a professional survey.
       </p>
-    </Card>
+    </>
+  );
+
+  return standalone ? (
+    <Card className="p-5 sm:p-6" data-testid="section-strengths-considerations">{inner}</Card>
+  ) : (
+    <div data-testid="section-strengths-considerations">{inner}</div>
   );
 }
 
@@ -2896,1908 +2906,1494 @@ export default function BriefPage() {
             </p>
           </div>
 
-          <div className="space-y-6">
-            {/* Shortlist Verdict — the very first thing a paid user sees.
-                 A single decisive label: "Strong shortlist" / "Shortlist with caveats" /
-                 "Proceed carefully" / "Probably not worth pursuing".
-                 Answers "should I keep going?" before anything else. */}
-            {isPaid && ai.shortlistVerdict && (
-              <ShortlistVerdictBlock sv={ai.shortlistVerdict} />
-            )}
+          <div className="space-y-0">
 
-            {/* —— What Would Worry Me — top-of-brief risk box, Professional+.
-                 Surfaces the most decision-relevant concerns BEFORE any positive framing.
-                 Signature differentiator: tells buyers the bad news fast. */}
-            {isPaid && ai.worryBox && (
-              <WhatWouldWorryMe worryBox={ai.worryBox} />
-            )}
+            {/* ═══════════════════════════════════════════════════════════════
+                LAYER 1 — DECISION SUMMARY
+                Always visible. No click required.
+                Answers: "Should I keep looking at this?" in under 30 seconds.
+            ═══════════════════════════════════════════════════════════════ */}
+            <div className="space-y-4 mb-6">
 
-            {/* Buyer Verdict — structured "Would I buy here?" decision layer, Professional+ */}
-            {isPaid && (
-              <BuyerVerdictBlock ai={ai} />
-            )}
-
-            {/* Red Flag Summary — Professional+. Detailed risk breakdown, shown after worry box */}
-            {isPaid && (
-              <RedFlagSummaryBlock flags={ai.redFlags ?? []} />
-            )}
-
-            {/* Explorer Verdict — shown to all users, top-level area screening judgement */}
-            <ExplorerVerdictBlock explorerVerdict={ai.explorerVerdict} />
-
-            {/* Lifestyle Fit + Strengths & Considerations — paid only (Explorer stays lean) */}
-            {isPaid && (
-              <>
-                <LifestyleFitBlock ai={ai} />
-                <StrengthsAndConsiderations ai={ai} />
-                {/* What People Miss — editorial insight layer, Professional+.
-                     Surfaces non-obvious trade-offs by combining multiple signals.
-                     Placed after lifestyle/strengths as contextual depth layer. */}
-                {(ai.missedInsights?.length ?? 0) > 0 && (
-                  <WhatPeopleMiss missedInsights={ai.missedInsights} areaName={ai.area} />
-                )}
-                {/* Development Alerts — high-signal nearby changes, Professional+.
-                     Compact alert layer above Executive Summary. Full tracker is below. */}
-                <DevelopmentAlerts
-                  nearbyDevelopments={ai.nearbyDevelopments}
-                  planningActivity={ai.planningActivity}
-                  areaName={ai.area}
-                />
-              </>
-            )}
-
-            {/* Executive Summary */}
-            <Card className="p-5 sm:p-6" data-testid="section-executive-summary">
-              <SectionHeading>Executive Summary</SectionHeading>
-              <p className="text-sm leading-relaxed text-foreground/90">
-                {ai.executiveSummary}
-              </p>
-              {(ai.marketOverview.averagePrice === "Insufficient data" || ai.marketOverview.averagePrice === "Scotland/NI — see note") && (
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-4 leading-relaxed border-l-2 border-amber-400/40 pl-3 bg-amber-50/50 dark:bg-amber-950/20 py-2 rounded-r-sm">
-                  Data note: Land Registry transaction volume for this postcode is below the threshold for full statistical analysis. Figures are directional — supplement with Rightmove and Zoopla sold prices and local agent intelligence before offering.
-                </p>
+              {/* Shortlist Verdict — top signal, Professional+ */}
+              {isPaid && ai.shortlistVerdict && (
+                <ShortlistVerdictBlock sv={ai.shortlistVerdict} />
               )}
-            </Card>
 
-            {/* Market Overview KPIs */}
-            <Card className="p-5 sm:p-6" data-testid="section-market-overview">
-              <SectionHeading>Market Overview</SectionHeading>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+              {/* What Would Worry Me — risk-first framing, Professional+ */}
+              {isPaid && ai.worryBox && (
+                <WhatWouldWorryMe worryBox={ai.worryBox} />
+              )}
+
+              {/* Buyer Verdict — structured would-I-buy decision, Professional+ */}
+              {isPaid && (
+                <BuyerVerdictBlock ai={ai} />
+              )}
+
+              {/* Red Flag Summary — Professional+ */}
+              {isPaid && (
+                <RedFlagSummaryBlock flags={ai.redFlags ?? []} />
+              )}
+
+              {/* Explorer Verdict — shown to all users */}
+              <ExplorerVerdictBlock explorerVerdict={ai.explorerVerdict} />
+
+              {/* ── Headline KPI strip ── always visible */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-xl border border-border/40 bg-card p-4 sm:p-5">
                 <KpiValue label="Average Price" value={ai.marketOverview.averagePrice} />
                 <KpiValue label="Price Change YoY" value={ai.marketOverview.priceChangeYoY} />
-                {/* Time on Market — benchmarked, not a live data point */}
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Time on Market <EstimateTag /></p>
-                  <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-time-on-market">
-                    {ai.marketOverview.avgDaysOnMarket}
-                  </p>
+                  <p className="font-serif text-2xl tracking-tight text-foreground">{ai.marketOverview.avgDaysOnMarket}</p>
                 </div>
-                {/* Supply Level — derived from transaction volume */}
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Supply Level <EstimateTag /></p>
-                  <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-supply-level">
-                    {ai.marketOverview.supplyLevel}
-                  </p>
+                  <p className="font-serif text-2xl tracking-tight text-foreground">{ai.marketOverview.supplyLevel}</p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
-                Average price and year-on-year change are postcode-level figures from HM Land Registry (latest available). Time on market and supply level are benchmarked from area tier — not live listing data.
-              </p>
-              {ai.briefConfidence && (
-                <div className="mt-3 pt-3 border-t border-border/30">
-                  <ConfidencePill
-                    level={ai.briefConfidence.marketTrend}
-                    note={ai.briefConfidence.marketTrendNote}
-                  />
-                </div>
-              )}
-            </Card>
 
-            {/* Map — shown when coords available */}
-            {(report.lat && report.lng) && (
-              <Card className="p-5 sm:p-6" data-testid="section-map">
-                <SectionHeading>Location Map</SectionHeading>
-                <PostcodeMap
-                  postcode={ai.location}
-                  lat={report.lat}
-                  lng={report.lng}
-                  areaName={ai.area}
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">OpenStreetMap</a> contributors
-                </p>
-              </Card>
-            )}
-
-            {/* —— Negotiation Leverage — Professional+.
-                 Flagship feature: synthesises valuation, comps, demand, and risk signals
-                 into practical buyer negotiation strategy. */}
-            {isPaid && ai.negotiationLeverage && (
-              <NegotiationLeverage leverage={ai.negotiationLeverage} />
-            )}
-
-            {/* Price Trend — Explorer shows last 1 year; Professional shows full 5-year */}
-            <Card className="p-5 sm:p-6" data-testid="section-price-trend">
-              <SectionHeading>{isPaid ? "5-Year Price Trend" : "1-Year Price Trend"}</SectionHeading>
-              {!isPaid && (
-                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                  Most recent Land Registry price data for this postcode. Professional unlocks the full 5-year history.
-                </p>
-              )}
-              <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
-                <table className="w-full text-sm" data-testid="table-price-trend">
-                  <thead>
-                    <tr className="border-b border-border/60">
-                      <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Year</th>
-                      <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Average Price</th>
-                      <th className="text-right font-medium text-muted-foreground py-2.5">Change</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(isPaid ? ai.priceTrend : ai.priceTrend.slice(-1)).map((row) => (
-                      <tr key={row.year} className="border-b border-border/30 last:border-0">
-                        <td className="py-2.5 pr-4 tabular-nums">{row.year}</td>
-                        <td className="py-2.5 pr-4 font-serif text-lg">{row.averagePrice}</td>
-                        <td className={`py-2.5 text-right tabular-nums ${
-                          row.change.startsWith("+") ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                        }`}>
-                          {row.change}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {!isPaid && (
-                <Link href="/pricing">
-                  <p className="text-xs text-primary underline underline-offset-2 mt-3">
-                    Unlock 5-year history with Professional →
-                  </p>
-                </Link>
-              )}
-            </Card>
-
-            {/* Neighbourhood Profile — Explorer: ratings + 3 key facts; Professional: full detail */}
-            <CollapsibleSection title="Neighbourhood Profile" testId="section-neighbourhood">
-              {/* Ratings strip — shown to all */}
-              <div className="space-y-3 mb-6 pb-6 border-b border-border/40">
-                {[
-                  { icon: GraduationCap, label: "Schools", value: ai.neighbourhoodProfile.schoolsRating },
-                  { icon: Train, label: "Transport", value: ai.neighbourhoodProfile.transportRating },
-                  { icon: Shield, label: "Safety", value: ai.neighbourhoodProfile.safetyRating },
-                  { icon: Footprints, label: "Walkability", value: ai.neighbourhoodProfile.walkability },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <item.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm text-muted-foreground w-24 shrink-0">{item.label}</span>
-                    <div className="flex-1">
-                      <RatingBar value={item.value} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Walk Score — shown to all */}
-              {(ai.nearbyStations?.length > 0 || ai.nearbySchools?.length > 0 || ai.nearbyAmenities) && (
-                <div className="mb-6 pb-6 border-b border-border/40">
-                  <WalkScore
-                    stations={ai.nearbyStations ?? []}
-                    schools={ai.nearbySchools ?? []}
-                    amenities={ai.nearbyAmenities}
-                    areaWalkability={ai.neighbourhoodProfile?.walkability}
-                  />
-                </div>
-              )}
-
-              {isPaid ? (
-                /* Professional+: full 9-subsection neighbourhood deep-dive */
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {/* Area character synthesis — derived summary for non-enriched areas or as a quick header read */}
-                  {(() => {
-                    const tier = ai.tier ?? "";
-                    const safety = ai.neighbourhoodProfile?.safetyRating ?? 50;
-                    const schools = ai.neighbourhoodProfile?.schoolsRating ?? 5;
-                    const transport = ai.neighbourhoodProfile?.transportRating ?? 5;
-                    const cafes = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
-                    const coverageThin = ai.neighbourhoodProfile?.coverageThin;
-
-                    // Only show the synthesis block if data looks curated enough to derive character
-                    // (coverageThin = true means the engine has limited enrichment, synthesis is most useful there)
-                    // Also show even for enriched areas to give a quick 2-line character header
-
-                    // Derive character signals
-                    const isAffluent = tier.toLowerCase().includes("prime") || tier.toLowerCase().includes("prestige") || tier.toLowerCase().includes("luxury");
-                    const isFamily = schools >= 7 && safety >= 65;
-                    const isTransitRich2 = transport >= 7;
-                    const isSafe = safety >= 70;
-                    const isVibrant = cafes >= 3;
-                    const isQuiet = cafes <= 1 && !isTransitRich2;
-
-                    // Character archetype
-                    let archetype: string;
-                    let archetypeDetail: string;
-
-                    if (isAffluent && isFamily && isSafe) {
-                      archetype = "Affluent family area";
-                      archetypeDetail = "High safety ratings and strong school provision signal this as a settled, family-oriented neighbourhood. Typical buyer: professional household prioritising schools and stability.";
-                    } else if (isAffluent && isTransitRich2) {
-                      archetype = "Affluent, well-connected";
-                      archetypeDetail = "Prime location with strong transit access. Attracts commuter professionals and second-home buyers. Expect above-average prices and limited supply.";
-                    } else if (isFamily && isQuiet) {
-                      archetype = "Quiet, family-oriented";
-                      archetypeDetail = "Low footfall, limited evening scene, but solid for families who value calm streets and school access over buzz. Not a destination for younger buyers seeking a lively high street.";
-                    } else if (isVibrant && isTransitRich2 && !isFamily) {
-                      archetype = "Urban, mixed-use";
-                      archetypeDetail = "Active street-level scene with good transit links. Suits younger professionals and downsizers. Family-focused buyers should weight the school picture carefully.";
-                    } else if (isTransitRich2 && !isFamily && !isAffluent) {
-                      archetype = "Transient, commuter-facing";
-                      archetypeDetail = "Strong transport access drives demand here more than neighbourhood character. Expect high rental demand alongside an owner-occupier base. Less settled community feel than outer areas.";
-                    } else if (isQuiet && !isSafe && !isFamily) {
-                      archetype = "Mixed character";
-                      archetypeDetail = "The signals here are mixed — limited amenity base, moderate safety rating, and no dominant buyer archetype. Suitable buyers should visit in the evening as well as during the day.";
-                    } else {
-                      archetype = "Suburban residential";
-                      archetypeDetail = "A broadly residential area with moderate scores across safety, schools, and transport. Buyers looking for character or buzz may need to look beyond this postcode; buyers prioritising value and stability may find it suitable.";
-                    }
-
-                    return (
-                      <div className="sm:col-span-2 rounded-lg border border-border/50 bg-muted/20 p-4 flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Area character read</span>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{archetype}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{archetypeDetail}</p>
-                        {coverageThin && (
-                          <p className="text-[10px] text-muted-foreground/50 italic">Derived from data signals — limited curated enrichment available for this postcode.</p>
-                        )}
-                      </div>
-                    );
-                  })()}
+              {/* ── Neighbourhood ratings strip ── always visible */}
+              <div className="rounded-xl border border-border/40 bg-card p-4 sm:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-3">Area Ratings</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
                   {[
-                    { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
-                    { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities },
-                    { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport },
-                    { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace },
-                    { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
-                    { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics },
-                    { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife },
-                    { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment },
+                    { icon: GraduationCap, label: "Schools", value: ai.neighbourhoodProfile.schoolsRating },
+                    { icon: Train, label: "Transport", value: ai.neighbourhoodProfile.transportRating },
+                    { icon: Shield, label: "Safety", value: ai.neighbourhoodProfile.safetyRating },
+                    { icon: Footprints, label: "Walkability", value: ai.neighbourhoodProfile.walkability },
                   ].map((item) => (
-                    <div key={item.label} className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <item.icon className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                    <div key={item.label} className="flex items-center gap-2">
+                      <item.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-xs text-muted-foreground w-20 shrink-0">{item.label}</span>
+                      <div className="flex-1">
+                        <RatingBar value={item.value} />
                       </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
                     </div>
                   ))}
-                  {/* What Residents Say — structured bullet component */}
-                  <div className="sm:col-span-2 flex flex-col gap-3">
-                    <ResidentSentimentBlock ai={ai} />
-                    {ai.briefConfidence && (
-                      <ConfidencePill
-                        level={ai.briefConfidence.localSentiment}
-                        note={ai.briefConfidence.localSentimentNote}
-                        className="mt-1"
-                      />
-                    )}
-                  </div>
                 </div>
-              ) : (
-                /* Explorer: 3 key facts — character, transport, schools */
-                <div className="flex flex-col gap-5">
-                  {[
-                    { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
-                    { icon: Train, label: "Transport", text: ai.neighbourhoodProfile.transport },
-                    { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
-                  ].map((item) => (
-                    <div key={item.label} className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <item.icon className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
-                    </div>
-                  ))}
-                  {/* Sentiment teaser — Explorer gets 1 positive + 1 caution as a preview */}
-                  <div className="border-t border-border/40 pt-4">
-                    <ResidentSentimentTeaser ai={ai} />
-                  </div>
-                  <p className="text-xs text-muted-foreground/60 border-t border-border/40 pt-3">
-                    Full neighbourhood detail — shops & amenities, green space, demographics, and evening scene — available in Professional.
-                    <Link href="/pricing"> <span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+              </div>
+
+            </div>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                LAYERS 2 + 3 — TABBED DEEP DIVE
+                4 tabs: Overview · Market · Neighbourhood · Details
+                Accordions within tabs for secondary detail.
+            ═══════════════════════════════════════════════════════════════ */}
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="w-full grid grid-cols-4 mb-6 h-auto rounded-lg bg-muted/60 p-1">
+                <TabsTrigger value="overview" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Overview</TabsTrigger>
+                <TabsTrigger value="market" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Market</TabsTrigger>
+                <TabsTrigger value="neighbourhood" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Nearby</TabsTrigger>
+                <TabsTrigger value="details" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Details</TabsTrigger>
+              </TabsList>
+
+              {/* ─────────────────────────────────────────────────────────────
+                  TAB 1 — OVERVIEW
+                  What it covers:
+                  - Executive Summary (always open)
+                  - Lifestyle Fit + Strengths & Considerations (paid)
+                  - What People Miss (paid)
+                  - Development Alerts (paid)
+                  - Map
+                  - Flood, Climate & Resilience
+                  - Council Tax
+                  - Infrastructure Alerts
+                  - Mortgage Calculator
+              ───────────────────────────────────────────────────────────── */}
+              <TabsContent value="overview" className="space-y-4 mt-0">
+
+                {/* Executive Summary */}
+                <Card className="p-5 sm:p-6" data-testid="section-executive-summary">
+                  <SectionHeading>Executive Summary</SectionHeading>
+                  <p className="text-sm leading-relaxed text-foreground/90">
+                    {ai.executiveSummary}
                   </p>
-                </div>
-              )}
-            </CollapsibleSection>
+                  {(ai.marketOverview.averagePrice === "Insufficient data" || ai.marketOverview.averagePrice === "Scotland/NI — see note") && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-4 leading-relaxed border-l-2 border-amber-400/40 pl-3 bg-amber-50/50 dark:bg-amber-950/20 py-2 rounded-r-sm">
+                      Data note: Land Registry transaction volume for this postcode is below the threshold for full statistical analysis. Figures are directional — supplement with Rightmove and Zoopla sold prices and local agent intelligence before offering.
+                    </p>
+                  )}
+                </Card>
 
-            {/* ── FREE TIER SECTIONS ──────────────────────────────────────── */}
+                {/* Lifestyle Fit — paid */}
+                {isPaid && (
+                  <LifestyleFitBlock ai={ai} />
+                )}
 
-            {/* ── Flood, Climate & Resilience ──────────────────────────────── */}
-            <CollapsibleSection title="Flood, Climate & Resilience" testId="section-flood">
-              <ClimateResilienceCard
-                riskBadge={ai.floodRisk.riskBadge}
-                zone={ai.floodRisk.zone}
-                surfaceWater={ai.floodRisk.surfaceWater}
-                detail={ai.floodRisk.detail}
-                resilienceLabel={ai.floodRisk.resilienceLabel}
-                climateSignals={ai.floodRisk.climateSignals}
-                nextSteps={ai.floodRisk.nextSteps}
-              />
-            </CollapsibleSection>
-
-            {/* Council Tax */}
-            <CollapsibleSection title="Council Tax" testId="section-council-tax">
-              <div className="flex flex-col gap-4">
-                {/* KPI row */}
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
-                      {ai.councilTax.confidence === "Guidance"
-                        ? "Most Common Band"
-                        : "Estimated Band"}
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-bold text-foreground">{ai.councilTax.mostCommonBand}</span>
-                      {ai.councilTax.confidence !== "Guidance" && (
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                          Estimate
-                        </span>
+                {/* Strengths & Considerations + What People Miss + Development Alerts — paid */}
+                {isPaid && (
+                  <Card className="overflow-hidden" data-testid="section-strengths-summary">
+                    <Accordion type="multiple" defaultValue={["strengths"]} className="w-full">
+                      <AccordionItem value="strengths" className="border-0">
+                        <AccordionTrigger className="px-5 sm:px-6 py-4 text-xs font-semibold uppercase tracking-[0.15em] text-primary hover:no-underline hover:bg-muted/30">
+                          Strengths &amp; Considerations
+                        </AccordionTrigger>
+                        <AccordionContent className="px-5 sm:px-6 pb-5">
+                          <StrengthsAndConsiderations ai={ai} />
+                        </AccordionContent>
+                      </AccordionItem>
+                      {(ai.missedInsights?.length ?? 0) > 0 && (
+                        <AccordionItem value="missed" className="border-t border-border/30">
+                          <AccordionTrigger className="px-5 sm:px-6 py-4 text-xs font-semibold uppercase tracking-[0.15em] text-primary hover:no-underline hover:bg-muted/30">
+                            What People Miss
+                          </AccordionTrigger>
+                          <AccordionContent className="px-5 sm:px-6 pb-5">
+                            <WhatPeopleMiss missedInsights={ai.missedInsights} areaName={ai.area} />
+                          </AccordionContent>
+                        </AccordionItem>
                       )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
-                      Annual Cost <EstimateTag />
-                    </span>
-                    <span className="text-lg font-bold text-foreground">{ai.councilTax.annualCost}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Local Authority</span>
-                    <span className="text-sm font-medium text-foreground">{ai.councilTax.borough}</span>
-                  </div>
-                </div>
+                      <AccordionItem value="developments" className="border-t border-border/30">
+                        <AccordionTrigger className="px-5 sm:px-6 py-4 text-xs font-semibold uppercase tracking-[0.15em] text-primary hover:no-underline hover:bg-muted/30">
+                          Development Alerts
+                        </AccordionTrigger>
+                        <AccordionContent className="px-5 sm:px-6 pb-5">
+                          <DevelopmentAlerts
+                            nearbyDevelopments={ai.nearbyDevelopments}
+                            planningActivity={ai.planningActivity}
+                            areaName={ai.area}
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </Card>
+                )}
 
-                {/* Note */}
-                <p className="text-sm text-muted-foreground leading-relaxed">{ai.councilTax.note}</p>
+                {/* Map */}
+                {(report.lat && report.lng) && (
+                  <Card className="overflow-hidden" data-testid="section-map">
+                    <Accordion type="single" defaultValue="map" collapsible className="w-full">
+                      <AccordionItem value="map" className="border-0">
+                        <AccordionTrigger className="px-5 sm:px-6 py-4 text-xs font-semibold uppercase tracking-[0.15em] text-primary hover:no-underline hover:bg-muted/30">
+                          Location Map
+                        </AccordionTrigger>
+                        <AccordionContent className="px-5 sm:px-6 pb-5">
+                          <PostcodeMap
+                            postcode={ai.location}
+                            lat={report.lat}
+                            lng={report.lng}
+                            areaName={ai.area}
+                          />
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">OpenStreetMap</a> contributors
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </Card>
+                )}
 
-                {/* Why it matters */}
-                <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
-                  Council tax is a fixed annual cost that doesn't scale with property price — a Band F property costs £500–£1,000+ more per year than a Band C equivalent. Factor the band into your running cost estimate alongside service charges and ground rent where applicable.
-                </p>
+                {/* Flood, Climate & Resilience */}
+                <CollapsibleSection title="Flood, Climate & Resilience" testId="section-flood" defaultOpen={false}>
+                  <ClimateResilienceCard
+                    riskBadge={ai.floodRisk.riskBadge}
+                    zone={ai.floodRisk.zone}
+                    surfaceWater={ai.floodRisk.surfaceWater}
+                    detail={ai.floodRisk.detail}
+                    resilienceLabel={ai.floodRisk.resilienceLabel}
+                    climateSignals={ai.floodRisk.climateSignals}
+                    nextSteps={ai.floodRisk.nextSteps}
+                  />
+                </CollapsibleSection>
 
-                {/* CTA — uses authority-specific checker URL */}
-                <a
-                  href={ai.councilTax.checkerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary underline underline-offset-2 self-start"
-                >
-                  {ai.councilTax.confidence === "Guidance"
-                    ? "Confirm exact band for this address →"
-                    : "Check exact band for any specific address →"}
-                </a>
-              </div>
-            </CollapsibleSection>
-
-            {/* Property Type Split — Professional+ only */}
-            {isPaid && <CollapsibleSection title="Property Type Split" testId="section-property-types">
-              <div className="flex flex-col gap-4">
-                <p className={`text-sm ${ai.propertyTypeSplit.dominantType.includes("Indicative") || ai.propertyTypeSplit.dominantType.includes("indicative") || ai.propertyTypeSplit.dominantType.includes("limited") ? "text-muted-foreground italic text-xs" : "text-muted-foreground"}`}>{ai.propertyTypeSplit.dominantType}</p>
-                <div className="flex flex-col gap-2.5">
-                  {[
-                    { label: "Flats / Apartments", value: ai.propertyTypeSplit.flats, color: "bg-[#B8860B]" },
-                    { label: "Terraced Houses", value: ai.propertyTypeSplit.terraced, color: "bg-[#8B6914]" },
-                    { label: "Semi-Detached", value: ai.propertyTypeSplit.semiDetached, color: "bg-[#6B5010]" },
-                    { label: "Detached Houses", value: ai.propertyTypeSplit.detached, color: "bg-[#4A380B]" },
-                    { label: "Other", value: ai.propertyTypeSplit.other, color: "bg-muted-foreground/30" },
-                  ].filter(i => i.value > 0).map(item => (
-                    <div key={item.label} className="flex flex-col gap-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">{item.label}</span>
-                        <span className="text-xs font-semibold text-foreground">{item.value}%</span>
+                {/* Council Tax */}
+                <CollapsibleSection title="Council Tax" testId="section-council-tax" defaultOpen={false}>
+                  <div className="flex flex-col gap-4">
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                          {ai.councilTax.confidence === "Guidance" ? "Most Common Band" : "Estimated Band"}
+                        </span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg font-bold text-foreground">{ai.councilTax.mostCommonBand}</span>
+                          {ai.councilTax.confidence !== "Guidance" && (
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              Estimate
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${item.color} transition-all duration-700`}
-                          style={{ width: `${item.value}%` }}
-                        />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Annual Cost <EstimateTag /></span>
+                        <span className="text-lg font-bold text-foreground">{ai.councilTax.annualCost}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Local Authority</span>
+                        <span className="text-sm font-medium text-foreground">{ai.councilTax.borough}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </CollapsibleSection>}
+                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.councilTax.note}</p>
+                    <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                      Council tax is a fixed annual cost that doesn't scale with property price — a Band F property costs £500–£1,000+ more per year than a Band C equivalent.
+                    </p>
+                    <a href={ai.councilTax.checkerUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start">
+                      {ai.councilTax.confidence === "Guidance" ? "Confirm exact band for this address →" : "Check exact band for any specific address →"}
+                    </a>
+                  </div>
+                </CollapsibleSection>
 
-            {/* Commute — Explorer: simple note; Professional+: full calculator */}
-            {isPaid ? (
-              /* Professional+: full commute calculator */
-              <CollapsibleSection title="Commute Calculator" testId="section-commute">
-                <div className="flex flex-col gap-3">
-                  <p className="text-xs text-muted-foreground">Journey times from the postcode centre to key destinations.</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                {/* Infrastructure Alerts */}
+                {(() => {
+                  const flags = getInfrastructureFlags(ai.location);
+                  if (flags.length === 0) return null;
+                  return (
+                    <CollapsibleSection title="Infrastructure Alerts" testId="section-infrastructure" defaultOpen={false}>
+                      <div className="space-y-3">
+                        {flags.map((flag, i) => (
+                          <div key={i} className={`p-4 rounded-lg border ${
+                            flag.impact === "Positive" ? "border-green-500/30 bg-green-500/5" :
+                            flag.impact === "Disruptive" ? "border-amber-500/30 bg-amber-500/5" :
+                            "border-blue-500/30 bg-blue-500/5"
+                          }`}>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className="text-sm font-bold text-foreground">{flag.name}</span>
+                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                flag.impact === "Positive" ? "bg-green-500/15 text-green-700 dark:text-green-400" :
+                                flag.impact === "Disruptive" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
+                                "bg-blue-500/15 text-blue-700 dark:text-blue-400"
+                              }`}>{flag.impact}</span>
+                              <span className="text-[10px] text-muted-foreground">{flag.type}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{flag.detail}</p>
+                            <p className="text-xs font-medium text-foreground/70 mt-1.5">Status: {flag.phaseOrStatus}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleSection>
+                  );
+                })()}
+
+                {/* Mortgage Calculator */}
+                <CollapsibleSection title="Mortgage Calculator" testId="section-mortgage" defaultOpen={false}>
+                  <MortgageCalculator averagePrice={ai.marketOverview.averagePrice} />
+                </CollapsibleSection>
+
+              </TabsContent>
+
+              {/* ─────────────────────────────────────────────────────────────
+                  TAB 2 — MARKET
+                  What it covers:
+                  - 5-year price trend
+                  - Negotiation leverage (paid)
+                  - Property Valuation + Comparables + Offer Strategy (property reports)
+                  - Property Type Split (paid)
+                  - Rental Market Snapshot (paid)
+                  - Market Outlook + Verdict (gated)
+              ───────────────────────────────────────────────────────────── */}
+              <TabsContent value="market" className="space-y-4 mt-0">
+
+                {/* Price Trend */}
+                <Card className="p-5 sm:p-6" data-testid="section-price-trend">
+                  <SectionHeading>{isPaid ? "5-Year Price Trend" : "1-Year Price Trend"}</SectionHeading>
+                  {!isPaid && (
+                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                      Most recent Land Registry price data for this postcode. Professional unlocks the full 5-year history.
+                    </p>
+                  )}
+                  <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
+                    <table className="w-full text-sm" data-testid="table-price-trend">
                       <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Destination</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Time</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Mode</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2">Via / Notes</th>
+                        <tr className="border-b border-border/60">
+                          <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Year</th>
+                          <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Average Price</th>
+                          <th className="text-right font-medium text-muted-foreground py-2.5">Change</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {ai.commuteTable.map((row, i) => (
-                          <tr key={i} className="border-b border-border/40 last:border-0">
-                            <td className="py-2.5 pr-4 font-medium">{row.destination}</td>
-                            <td className="py-2.5 pr-4">{row.time}</td>
-                            <td className="py-2.5 pr-4 text-muted-foreground">{row.mode}</td>
-                            <td className="py-2.5 text-muted-foreground text-xs">{row.via}</td>
+                        {(isPaid ? ai.priceTrend : ai.priceTrend.slice(-1)).map((row) => (
+                          <tr key={row.year} className="border-b border-border/30 last:border-0">
+                            <td className="py-2.5 pr-4 tabular-nums">{row.year}</td>
+                            <td className="py-2.5 pr-4 font-serif text-lg">{row.averagePrice}</td>
+                            <td className={`py-2.5 text-right tabular-nums ${
+                              row.change.startsWith("+") ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                            }`}>
+                              {row.change}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3 mt-2">
-                    Commute times are indicative journey planning estimates. For a specific address, verify via Google Maps or National Rail using the actual departure point.
+                  {!isPaid && (
+                    <Link href="/pricing">
+                      <p className="text-xs text-primary underline underline-offset-2 mt-3">Unlock 5-year history with Professional →</p>
+                    </Link>
+                  )}
+                  <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
+                    Average price and year-on-year change are postcode-level figures from HM Land Registry (latest available). Time on market and supply level are benchmarked from area tier.
                   </p>
-                </div>
-              </CollapsibleSection>
-            ) : (
-              /* Explorer: simple commute note */
-              <CollapsibleSection title="Commute" testId="section-commute">
-                <div className="flex flex-col gap-3">
-                  {ai.commuteTable.length > 0 && ai.commuteTable[0].destination !== "Town / City Centre" ? (
-                    <div className="flex items-start gap-3">
-                      <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm text-foreground font-medium">{ai.commuteTable[0].destination}</p>
-                        <p className="text-sm text-muted-foreground">{ai.commuteTable[0].time} by {ai.commuteTable[0].mode}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      <p className="text-sm text-muted-foreground">
-                        Journey times depend on your exact address. Check the Nearby Stations section for the closest rail connections, then verify door-to-door via Google Maps.
-                      </p>
+                  {ai.briefConfidence && (
+                    <div className="mt-3 pt-3 border-t border-border/30">
+                      <ConfidencePill level={ai.briefConfidence.marketTrend} note={ai.briefConfidence.marketTrendNote} />
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground/60">
-                    Full commute calculator with times to multiple destinations available in Professional.{" "}
-                    <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
-                  </p>
-                </div>
-              </CollapsibleSection>
-            )}
+                </Card>
 
+                {/* Negotiation Leverage — Professional+ */}
+                {isPaid && ai.negotiationLeverage && (
+                  <NegotiationLeverage leverage={ai.negotiationLeverage} />
+                )}
 
-            {/* ── UNIVERSAL DATA SECTIONS ──────────────────────────────── */}
+                {/* Property Valuation + Comparables + Offer Strategy — address reports only */}
+                {isPropertyReport && pd && (
+                  <>
+                    <Card className="p-5 sm:p-6" data-testid="section-valuation">
+                      <SectionHeading>Property Valuation Assessment</SectionHeading>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Estimated Range <EstimateTag /></p>
+                          <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-estimated-range">
+                            {pd.valuationAssessment.estimatedRange}
+                          </p>
+                        </div>
+                        <KpiValue label="vs Area Average" value={pd.valuationAssessment.priceVsAreaAverage} />
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Value Score <EstimateTag /></p>
+                          <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-value-score">
+                            {pd.valuationAssessment.valueScore}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed border-l-2 border-border pl-3">
+                        The range gives you a starting anchor for offer calibration — not a final number. For a binding figure, instruct a RICS-regulated surveyor.
+                      </p>
+                    </Card>
 
-            {/* ── Nearby Stations ─────────────────────────────────────────── */}
-            {ai.nearbyStations && ai.nearbyStations.length > 0 && (
-              <CollapsibleSection title="Nearby Stations" testId="section-stations">
-                <div className="space-y-0">
-                  {/* ── Commute picture interpretation ── */}
-                  {(() => {
-                    const stations = ai.nearbyStations ?? [];
-                    const sorted = stations.slice().sort((a, b) => a.walkMins - b.walkMins);
-                    const closest = sorted[0];
-                    const closestWalk = closest?.walkMins ?? 999;
-
-                    // Classify network type
-                    const TUBE_LINES = ["jubilee","central","northern","victoria","piccadilly","bakerloo",
-                      "district","circle","metropolitan","elizabeth","elizabeth line","hammersmith & city",
-                      "hammersmith","overground","london overground","dlr","liberty","lioness",
-                      "mildmay","suffragette","weaver","windrush"];
-                    const hasLondonTube = stations.some(s => s.lines.some(l => TUBE_LINES.includes(l.toLowerCase())));
-                    const hasNationalRail = stations.some(s => s.modes?.includes("national-rail"));
-                    const hasElizabethLine = stations.some(s =>
-                      s.lines.some(l => l.toLowerCase().includes("elizabeth")) ||
-                      s.modes?.includes("elizabeth-line")
-                    );
-                    const totalStations = stations.length;
-                    const stationsWithin10 = stations.filter(s => s.walkMins <= 10).length;
-                    const stationsWithin20 = stations.filter(s => s.walkMins <= 20).length;
-
-                    // Connectivity verdict
-                    const connectivityLabel: string =
-                      (hasLondonTube || hasElizabethLine) && closestWalk <= 10 ? "Well connected — London network"
-                      : hasNationalRail && closestWalk <= 12 ? "Well connected — National Rail"
-                      : hasNationalRail && closestWalk <= 20 ? "Rail-reliant — good National Rail access"
-                      : (hasLondonTube || hasElizabethLine) && closestWalk <= 20 ? "Rail-reliant — London network within reach"
-                      : closestWalk <= 25 ? "Moderate rail access — some commuter dependence on car"
-                      : "Limited rail access — car-dependent for most journeys";
-
-                    const connectivityColor =
-                      connectivityLabel.startsWith("Well") ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
-                      : connectivityLabel.startsWith("Rail") ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
-                      : connectivityLabel.startsWith("Moderate") ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
-                      : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25";
-
-                    // What destinations the lines reach — practical context
-                    const allLines = stations.flatMap(s => s.lines.map(l => l.toLowerCase()));
-                    const destinations: string[] = [];
-                    if (allLines.some(l => l.includes("elizabeth"))) destinations.push("Reading, Paddington, Liverpool St, Canary Wharf, Heathrow in one seat");
-                    if (allLines.some(l => ["jubilee","northern","victoria","central"].includes(l))) destinations.push("central London in under 30 min from most stops");
-                    if (allLines.some(l => l.includes("overground") || l.includes("london overground"))) destinations.push("cross-London without changing in the centre");
-                    if (allLines.some(l => l.includes("dlr"))) destinations.push("Canary Wharf and East London directly");
-                    if (hasNationalRail && !hasLondonTube) {
-                      // Try to infer from station names / lines
-                      const stationNames = stations.map(s => s.name.toLowerCase());
-                      if (stationNames.some(n => n.includes("paddington") || n.includes("reading") || n.includes("slough"))) destinations.push("London Paddington direct");
-                      else if (stationNames.some(n => n.includes("victoria") || n.includes("gatwick") || n.includes("brighton"))) destinations.push("London Victoria and South Coast direct");
-                      else if (stationNames.some(n => n.includes("waterloo") || n.includes("woking") || n.includes("guildford"))) destinations.push("London Waterloo direct");
-                      else if (stationNames.some(n => n.includes("st pancras") || n.includes("eurostar") || n.includes("luton"))) destinations.push("London St Pancras and Eurostar");
-                      else if (stationNames.some(n => n.includes("king") || n.includes("cambridge") || n.includes("ely"))) destinations.push("London King's Cross and East of England");
-                      else if (stationNames.some(n => n.includes("london bridge") || n.includes("cannon") || n.includes("thameslink"))) destinations.push("London Bridge and City direct");
-                      else destinations.push("direct services to a major London terminus");
-                    }
-
-                    // Commute picture sentence
-                    let commutePicture: string;
-                    if (connectivityLabel.startsWith("Well connected — London")) {
-                      commutePicture = `${closest.name} is ${closestWalk} min on foot${stationsWithin10 > 1 ? ` and ${stationsWithin10} stations are within a 10-minute walk` : ""} — this is strong urban connectivity.`;
-                    } else if (connectivityLabel.startsWith("Well connected — National")) {
-                      commutePicture = `${closest.name} is ${closestWalk} min away with direct National Rail access — a practical choice for commuters heading into a major city.`;
-                    } else if (connectivityLabel.startsWith("Rail-reliant")) {
-                      commutePicture = `The nearest station is a ${closestWalk}-minute walk. Rail is the practical backbone for longer journeys here — most destinations require the train rather than being reachable on foot.`;
-                    } else if (connectivityLabel.startsWith("Moderate")) {
-                      commutePicture = `The nearest station is a ${closestWalk}-minute walk — manageable but not a short stroll. For daily commuting into a major centre, expect some car or bus dependency to reach the station.`;
-                    } else {
-                      commutePicture = closestWalk < 999
-                        ? `Rail access is limited — the nearest station is ${closestWalk} minutes away. Most daily journeys will be car-dependent.`
-                        : `No stations within easy reach. This area is car-dependent for most journeys.`;
-                    }
-
-                    return (
-                      <div className="mb-4 rounded-lg border border-border/50 bg-muted/30 p-4">
-                        <div className="flex items-start gap-3 mb-2">
-                          <div className="flex-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">Commute picture</p>
-                            <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border mb-2 ${connectivityColor}`}>
-                              {connectivityLabel}
-                            </div>
-                            <p className="text-sm text-foreground/85 leading-relaxed">{commutePicture}</p>
+                    <Card className="p-5 sm:p-6" data-testid="section-comparables">
+                      <SectionHeading>Comparable Sales</SectionHeading>
+                      {pd.comparableSales.length === 1 && pd.comparableSales[0].price === "—" ? (
+                        <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
+                          <FileSearch className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
+                          <div className="flex flex-col gap-1">
+                            <p className="text-sm text-muted-foreground leading-relaxed">{pd.comparableSales[0].address}</p>
+                            <p className="text-xs text-muted-foreground/70">Use the 5-year price trend and area median above as your pricing anchors.</p>
+                            <a href="https://www.rightmove.co.uk/house-prices.html" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Search sold prices on Rightmove →</a>
                           </div>
                         </div>
-                        {destinations.length > 0 && (
-                          <div className="mt-2.5 pt-2.5 border-t border-border/40">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">What these lines make easier to reach</p>
-                            <ul className="space-y-1">
-                              {destinations.map((d, i) => (
-                                <li key={i} className="flex items-start gap-1.5">
-                                  <span className="text-primary mt-1 text-[10px]">›</span>
-                                  <span className="text-xs text-muted-foreground">{d}</span>
+                      ) : (
+                        <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
+                          <table className="w-full text-sm" data-testid="table-comparables">
+                            <thead>
+                              <tr className="border-b border-border/60">
+                                <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Address</th>
+                                <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Type</th>
+                                <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Price</th>
+                                <th className="text-right font-medium text-muted-foreground py-2.5">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pd.comparableSales.map((sale, i) => (
+                                <tr key={i} className="border-b border-border/30 last:border-0">
+                                  <td className="py-2.5 pr-4">{sale.address}</td>
+                                  <td className="py-2.5 pr-4 text-muted-foreground">{sale.type}</td>
+                                  <td className="py-2.5 pr-4 font-serif text-lg">{sale.price}</td>
+                                  <td className="py-2.5 text-right text-muted-foreground">{sale.date}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {pd.comparableSales.length > 1 && (
+                        <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed border-l-2 border-border pl-3">
+                          Properties that sold at a premium typically offer something the subject property may not. Use the lower end as your opening negotiation anchor.
+                        </p>
+                      )}
+                    </Card>
+
+                    {pd.offerStrategy && (
+                      <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-offer-strategy">
+                        <div className="flex items-start justify-between gap-3 mb-5">
+                          <div>
+                            <SectionHeading>Pre-offer Strategy</SectionHeading>
+                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                              Evidence-led guidance for making and defending an offer. Not a formal valuation — instruct a RICS surveyor before exchange.
+                            </p>
+                          </div>
+                          <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                            pd.offerStrategy.confidence === "Strong"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-400/30"
+                              : pd.offerStrategy.confidence === "Moderate"
+                              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-400/30"
+                              : "bg-muted text-muted-foreground border-border"
+                          }`}>
+                            {pd.offerStrategy.confidence} evidence
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-primary/5 border border-primary/10 mb-5">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">Fair Value Range <EstimateTag /></p>
+                            <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-fair-value-range">
+                              {pd.offerStrategy.fairValueRange}
+                            </p>
+                          </div>
+                          <div className="sm:border-l sm:border-border/50 sm:pl-4">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">Opening Range <EstimateTag /></p>
+                            <p className="font-serif text-2xl tracking-tight text-primary" data-testid="text-opening-range">
+                              {pd.offerStrategy.openingRange}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground/80 leading-relaxed mb-5 border-l-2 border-border pl-3">
+                          {pd.offerStrategy.confidenceNote}
+                        </p>
+                        <div className="mb-5">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-2">How we got here</p>
+                          <p className="text-sm text-foreground/90 leading-relaxed">{pd.offerStrategy.rationale}</p>
+                        </div>
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value="seller-points" className="border-t border-border/40">
+                            <AccordionTrigger className="py-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hover:no-underline">
+                              Factors that may support a firmer stance
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <ul className="space-y-2 pt-1">
+                                {pd.offerStrategy.sellerPressurePoints.map((point, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm">
+                                    <span className="text-amber-600 dark:text-amber-400 mt-1 shrink-0">‣</span>
+                                    <span className="text-foreground/90 leading-relaxed">{point}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </AccordionContent>
+                          </AccordionItem>
+                          <AccordionItem value="pre-offer-q" className="border-t border-border/40">
+                            <AccordionTrigger className="py-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hover:no-underline">
+                              Questions to raise before offering
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <ul className="space-y-2 pt-1">
+                                {pd.offerStrategy.preOfferQuestions.map((q, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm">
+                                    <span className="text-primary/60 font-serif mt-0.5 shrink-0 tabular-nums">{i + 1}.</span>
+                                    <span className="text-foreground/90 leading-relaxed">{q}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </Card>
+                    )}
+                  </>
+                )}
+
+                {/* Property Type Split — Professional+ */}
+                {isPaid && (
+                  <CollapsibleSection title="Property Type Split" testId="section-property-types" defaultOpen={false}>
+                    <div className="flex flex-col gap-4">
+                      <p className={`text-sm ${ai.propertyTypeSplit.dominantType.includes("Indicative") || ai.propertyTypeSplit.dominantType.includes("indicative") || ai.propertyTypeSplit.dominantType.includes("limited") ? "text-muted-foreground italic text-xs" : "text-muted-foreground"}`}>{ai.propertyTypeSplit.dominantType}</p>
+                      <div className="flex flex-col gap-2.5">
+                        {[
+                          { label: "Flats / Apartments", value: ai.propertyTypeSplit.flats, color: "bg-[#B8860B]" },
+                          { label: "Terraced Houses", value: ai.propertyTypeSplit.terraced, color: "bg-[#8B6914]" },
+                          { label: "Semi-Detached", value: ai.propertyTypeSplit.semiDetached, color: "bg-[#6B5010]" },
+                          { label: "Detached Houses", value: ai.propertyTypeSplit.detached, color: "bg-[#4A380B]" },
+                          { label: "Other", value: ai.propertyTypeSplit.other, color: "bg-muted-foreground/30" },
+                        ].filter(i => i.value > 0).map(item => (
+                          <div key={item.label} className="flex flex-col gap-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">{item.label}</span>
+                              <span className="text-xs font-semibold text-foreground">{item.value}%</span>
+                            </div>
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${item.color} transition-all duration-700`} style={{ width: `${item.value}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CollapsibleSection>
+                )}
+
+                {/* Rental Market Snapshot — Pro+ */}
+                {isPaid ? (
+                  <CollapsibleSection title="Rental Market Snapshot" testId="section-rental-market" defaultOpen={false}>
+                    <div className="flex flex-col gap-5">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Asking rents nearby</p>
+                          <EstimateTag />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          {[
+                            { label: "1-Bed", value: ai.rentalMarket.oneBedAskingRent },
+                            { label: "2-Bed", value: ai.rentalMarket.twoBedAskingRent },
+                            { label: "3-Bed", value: ai.rentalMarket.threeBedAskingRent },
+                          ].map(item => (
+                            <div key={item.label} className="flex flex-col gap-1">
+                              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                              <span className="text-lg font-bold text-foreground">{item.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="pt-3 border-t border-border/40">
+                        <div className="flex items-center gap-2 mb-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental market signals</p>
+                          <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
+                          <EstimateTag />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          {[
+                            { label: "1-Bed Gross Yield", value: ai.rentalMarket.oneBedYield },
+                            { label: "2-Bed Gross Yield", value: ai.rentalMarket.twoBedYield },
+                            { label: "Demand Level", value: ai.rentalMarket.demandLevel },
+                          ].map(item => (
+                            <div key={item.label} className="flex flex-col gap-1">
+                              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                              <span className={`font-bold ${item.label.includes("Yield") ? "text-green-600 dark:text-green-400 text-lg" : "text-[#B8860B] text-base"}`}>{item.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{ai.rentalMarket.note}</p>
+                      <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                        Rents and yields are ranges derived from ONS Private Rental Market data and VOA 2024 figures for this postcode district.
+                      </p>
+                    </div>
+                  </CollapsibleSection>
+                ) : (
+                  <div className="relative" data-testid="section-rental-market-locked">
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      <Card className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Rental Market Snapshot</h3>
+                        </div>
+                        <div className="h-24 bg-muted rounded" />
+                      </Card>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
+                        <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-foreground">Rental market — Professional</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-2">Asking rents by property size and local letting demand.</p>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Market Outlook + Verdict — gated */}
+                {hasMarketOutlookAccess ? (
+                  <div className="space-y-4">
+                    <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
+                      <SectionHeading>Market Outlook</SectionHeading>
+                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                        Market signals are derived from Land Registry transaction data — not a prediction or forecast. Not financial advice.
+                      </p>
+                      <div className="mb-4">
+                        <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
+                        <p className="text-sm text-foreground leading-relaxed" data-testid="text-kpi-price-growth">
+                          {ai.investmentOutlook.growthForecast}
+                        </p>
+                      </div>
+                      <div className="pt-4 border-t border-border/40">
+                        <div className="flex items-center gap-2 mb-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental yield context</p>
+                          <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
+                          <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-rental-yield">
+                            {ai.investmentOutlook.rentalYieldEstimate}
+                          </p>
+                        </div>
+                      </div>
+                      {ai.investmentOutlook.riskFlags.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                            <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                            Market flags
+                          </p>
+                          <ul className="space-y-1.5">
+                            {ai.investmentOutlook.riskFlags.map((flag, i) => (
+                              <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
+                                {flag}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </Card>
+                    <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
+                      <SectionHeading>Verdict</SectionHeading>
+                      <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
+                    </Card>
+                  </div>
+                ) : (
+                  <FeatureGate
+                    featureName="investment_score"
+                    modalHeadline="Unlock Market Outlook & Verdict"
+                    modalSubtext="Enter your email to see price growth forecasts, rental yield, market flags, and the full brief verdict. Free — no payment required."
+                    teaser={
+                      <LockedPreview
+                        title="Market Outlook & Verdict"
+                        description="Price growth forecast, rental yield estimate, market risk flags, and the full AI brief verdict."
+                        planLabel="Free — enter email"
+                        pricingHref="/pricing"
+                        skeletonRows={4}
+                        testId="section-market-outlook-locked"
+                      />
+                    }
+                  >
+                    <div className="space-y-4">
+                      <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
+                        <SectionHeading>Market Outlook</SectionHeading>
+                        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                          Market signals are derived from Land Registry transaction data — not a prediction or forecast. Not financial advice.
+                        </p>
+                        <div className="mb-4">
+                          <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
+                          <p className="text-sm text-foreground leading-relaxed">{ai.investmentOutlook.growthForecast}</p>
+                        </div>
+                        <div className="pt-4 border-t border-border/40">
+                          <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
+                          <p className="font-serif text-2xl tracking-tight text-foreground">{ai.investmentOutlook.rentalYieldEstimate}</p>
+                        </div>
+                        {ai.investmentOutlook.riskFlags.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                              <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                              Market flags
+                            </p>
+                            <ul className="space-y-1.5">
+                              {ai.investmentOutlook.riskFlags.map((flag, i) => (
+                                <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
+                                  {flag}
                                 </li>
                               ))}
                             </ul>
                           </div>
                         )}
-                        {/* Best station for City/major employment commute */}
-                        {(() => {
-                          const allLines2 = stations.flatMap(s => s.lines.map((l: string) => l.toLowerCase()));
-                          // Rank stations by commuter value for City/West End/Canary Wharf
-                          const elizabethSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase().includes("elizabeth")));
-                          const jubileeSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "jubilee"));
-                          const northernSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "northern"));
-                          const centralSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "central"));
-                          const dlrSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase() === "dlr"));
-                          const overgroundSt = stations.find(s => s.lines.some((l: string) => l.toLowerCase().includes("overground")));
-                          const nationalRailSt = stations.find(s => s.modes?.includes("national-rail") && !s.lines.some((l: string) => [...TUBE_LINES].includes(l.toLowerCase())));
+                      </Card>
+                      <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
+                        <SectionHeading>Verdict</SectionHeading>
+                        <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
+                      </Card>
+                    </div>
+                  </FeatureGate>
+                )}
 
-                          let bestForLine: string | null = null;
-                          if (elizabethSt) {
-                            bestForLine = `Best for City and Canary Wharf commuting: ${elizabethSt.name} (Elizabeth line — direct to Liverpool St, Canary Wharf, City Thameslink and Paddington).`;
-                          } else if (jubileeSt) {
-                            bestForLine = `Best for Canary Wharf and West End: ${jubileeSt.name} (Jubilee line — fast to Canary Wharf, London Bridge, Westminster, Bond St).`;
-                          } else if (northernSt) {
-                            bestForLine = `Best for the City and West End: ${northernSt.name} (Northern line — Bank, London Bridge, Waterloo, King's Cross, Camden).`;
-                          } else if (centralSt) {
-                            bestForLine = `Best for the West End and City: ${centralSt.name} (Central line — Oxford Circus, St Paul's, Bank, Stratford).`;
-                          } else if (dlrSt) {
-                            bestForLine = `Best for Canary Wharf and East London: ${dlrSt.name} (DLR — direct to Canary Wharf without changing).`;
-                          } else if (overgroundSt) {
-                            bestForLine = `Best for cross-London travel: ${overgroundSt.name} (London Overground — connects multiple zones without passing through Zone 1).`;
-                          } else if (nationalRailSt) {
-                            const dest = stations.find(s => s.name.toLowerCase().includes("victoria")) ? "Victoria" : stations.find(s => s.name.toLowerCase().includes("paddington")) ? "Paddington" : stations.find(s => s.name.toLowerCase().includes("waterloo")) ? "Waterloo" : "a major London terminus";
-                            bestForLine = `Best for London commuting: ${nationalRailSt.name} (National Rail — direct services to ${dest}).`;
-                          }
+              </TabsContent>
 
-                          return bestForLine ? (
-                            <div className="mt-2.5 pt-2.5 border-t border-border/40">
-                              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">★ Best for commuting</p>
-                              <p className="text-xs text-foreground/80 leading-relaxed">{bestForLine}</p>
+              {/* ─────────────────────────────────────────────────────────────
+                  TAB 3 — NEIGHBOURHOOD
+                  What it covers:
+                  - Walk Score
+                  - Neighbourhood Profile (character, transport, schools, amenities, green space)
+                  - Commute Calculator
+                  - Nearby Stations (collapsible)
+                  - Nearby Schools (collapsible)
+                  - Local Amenities (collapsible)
+                  - Neighbourhood Map
+              ───────────────────────────────────────────────────────────── */}
+              <TabsContent value="neighbourhood" className="space-y-4 mt-0">
+
+                {/* Walk Score */}
+                {(ai.nearbyStations?.length > 0 || ai.nearbySchools?.length > 0 || ai.nearbyAmenities) && (
+                  <Card className="p-5 sm:p-6">
+                    <WalkScore
+                      stations={ai.nearbyStations ?? []}
+                      schools={ai.nearbySchools ?? []}
+                      amenities={ai.nearbyAmenities}
+                      areaWalkability={ai.neighbourhoodProfile?.walkability}
+                    />
+                  </Card>
+                )}
+
+                {/* Neighbourhood Profile */}
+                <CollapsibleSection title="Neighbourhood Profile" testId="section-neighbourhood">
+                  {isPaid ? (
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {/* Area character synthesis */}
+                      {(() => {
+                        const tier = ai.tier ?? "";
+                        const safety = ai.neighbourhoodProfile?.safetyRating ?? 50;
+                        const schools = ai.neighbourhoodProfile?.schoolsRating ?? 5;
+                        const transport = ai.neighbourhoodProfile?.transportRating ?? 5;
+                        const cafes = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
+                        const coverageThin = ai.neighbourhoodProfile?.coverageThin;
+                        const isAffluent = tier.toLowerCase().includes("prime") || tier.toLowerCase().includes("prestige") || tier.toLowerCase().includes("luxury");
+                        const isFamily = schools >= 7 && safety >= 65;
+                        const isTransitRich2 = transport >= 7;
+                        const isSafe = safety >= 70;
+                        const isVibrant = cafes >= 3;
+                        const isQuiet = cafes <= 1 && !isTransitRich2;
+                        let archetype: string;
+                        let archetypeDetail: string;
+                        if (isAffluent && isFamily && isSafe) {
+                          archetype = "Affluent family area";
+                          archetypeDetail = "High safety ratings and strong school provision signal this as a settled, family-oriented neighbourhood.";
+                        } else if (isAffluent && isTransitRich2) {
+                          archetype = "Affluent, well-connected";
+                          archetypeDetail = "Prime location with strong transit access. Attracts commuter professionals and second-home buyers.";
+                        } else if (isFamily && isQuiet) {
+                          archetype = "Quiet, family-oriented";
+                          archetypeDetail = "Low footfall, limited evening scene, but solid for families who value calm streets and school access over buzz.";
+                        } else if (isVibrant && isTransitRich2 && !isFamily) {
+                          archetype = "Urban, mixed-use";
+                          archetypeDetail = "Active street-level scene with good transit links. Suits younger professionals and downsizers.";
+                        } else if (isTransitRich2 && !isFamily && !isAffluent) {
+                          archetype = "Transient, commuter-facing";
+                          archetypeDetail = "Strong transport access drives demand here more than neighbourhood character.";
+                        } else if (isQuiet && !isSafe && !isFamily) {
+                          archetype = "Mixed character";
+                          archetypeDetail = "The signals here are mixed — limited amenity base, moderate safety rating, and no dominant buyer archetype. Suitable buyers should visit in the evening as well as during the day.";
+                        } else {
+                          archetype = "Suburban residential";
+                          archetypeDetail = "A broadly residential area with moderate scores across safety, schools, and transport.";
+                        }
+                        return (
+                          <div className="sm:col-span-2 rounded-lg border border-border/50 bg-muted/20 p-4 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Area character read</span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{archetype}</span>
                             </div>
-                          ) : null;
-                        })()}
-                        <p className="text-[10px] text-muted-foreground/50 mt-2.5">{totalStations} station{totalStations !== 1 ? "s" : ""} within {stationsWithin20 === totalStations ? "20 min walk" : "1,500m"} · {stationsWithin10} within 10 min</p>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Station rows */}
-                  {ai.nearbyStations.map((station, i) => {
-                    const TUBE_LINES_ROW = ["jubilee","central","northern","victoria","piccadilly","bakerloo",
-                      "district","circle","metropolitan","elizabeth","elizabeth line","hammersmith & city",
-                      "hammersmith","overground","london overground","dlr"];
-                    const isLondonLine = station.lines.some(l => TUBE_LINES_ROW.includes(l.toLowerCase()));
-                    const isElizabethLine = station.lines.some(l => l.toLowerCase().includes("elizabeth")) || station.modes?.includes("elizabeth-line");
-                    const isNationalRail = !isLondonLine && !isElizabethLine && station.modes?.includes("national-rail");
-                    const networkBadge = isElizabethLine ? "Elizabeth line" : isLondonLine ? "London Underground" : isNationalRail ? "National Rail" : station.modes?.[0] ?? null;
-
-                    return (
-                      <div key={i} className="flex items-start justify-between gap-3 py-3 border-b border-border/40 last:border-0">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <Train className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-semibold text-foreground">{station.name}</p>
-                              {networkBadge && (
-                                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{networkBadge}</span>
-                              )}
-                            </div>
-                            {station.lines.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {station.lines.map((line, j) => {
-                                  const style = getLineStyle(line);
-                                  return (
-                                    <span
-                                      key={j}
-                                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                      style={{ backgroundColor: style.bg, color: style.text }}
-                                    >
-                                      {line}
-                                    </span>
-                                  );
-                                })}
-                              </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{archetypeDetail}</p>
+                            {coverageThin && (
+                              <p className="text-[10px] text-muted-foreground/50 italic">Derived from data signals — limited curated enrichment available for this postcode.</p>
                             )}
                           </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-[#B8860B]">{station.walkMins} min</p>
-                          <p className="text-[11px] text-muted-foreground">walk</p>
-                          {station.distanceMetres && (
-                            <p className="text-[11px] text-muted-foreground">{station.distanceMetres}m</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p className="text-xs text-muted-foreground/60 pt-2">Walk times at 80m/min. Destination estimates are approximate — verify door-to-door via Citymapper or Google Maps.</p>
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* ── Nearby Schools ──────────────────────────────────────────────── */}
-            {ai.nearbySchools && ai.nearbySchools.length > 0 && (
-              <CollapsibleSection title="Nearby Schools" testId="section-schools">
-                <div className="space-y-0">
-                  {/* ── School picture interpretation ── */}
-                  {(() => {
-                    const schools = ai.nearbySchools ?? [];
-                    const within20 = schools.filter(s => s.walkMins <= 20);
-                    const outstanding = within20.filter(s => s.ofstedRating === "Outstanding");
-                    const good = within20.filter(s => s.ofstedRating === "Good");
-                    const needsImprovement = within20.filter(s => s.ofstedRating?.includes("Improvement"));
-                    const inadequate = within20.filter(s => s.ofstedRating === "Inadequate");
-                    const unrated = within20.filter(s => !s.ofstedRating || s.ofstedRating === "Not rated" || s.ofstedRating === "Not yet rated");
-                    const desirable = outstanding.length + good.length;
-
-                    // Type breakdown
-                    const hasPrimary = schools.some(s => s.type === "Primary" || s.type === "Nursery");
-                    const hasSecondary = schools.some(s => s.type === "Secondary");
-                    const hasIndependent = schools.some(s => s.type === "Independent");
-                    const typeNote =
-                      hasPrimary && hasSecondary && hasIndependent ? "Primary, secondary, and independent options are all represented nearby."
-                      : hasPrimary && hasSecondary ? "Both primary and secondary schools are within reach."
-                      : hasPrimary && hasIndependent ? "Primary state and independent options are within reach."
-                      : hasPrimary ? "Primarily primary-level coverage — secondary options may require travelling further."
-                      : hasSecondary ? "Secondary school provision nearby — primary options may be further afield."
-                      : "A mix of school types is recorded in the immediate area.";
-
-                    // Overall picture verdict
-                    const pictureLabelText: string =
-                      outstanding.length >= 1 && desirable >= 2 ? "Strong school provision"
-                      : desirable >= 2 ? "Solid school provision"
-                      : desirable === 1 ? "Reasonable school options"
-                      : needsImprovement.length >= 1 && desirable === 0 ? "Mixed school provision"
-                      : inadequate.length >= 1 ? "Limited school quality"
-                      : unrated.length >= 1 && desirable === 0 ? "Unrated — quality uncertain"
-                      : within20.length === 0 ? "Schools further afield"
-                      : "Some school access";
-
-                    const pictureLabelColor =
-                      pictureLabelText.startsWith("Strong") || pictureLabelText.startsWith("Solid")
-                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
-                      : pictureLabelText.startsWith("Reasonable") || pictureLabelText.startsWith("Some")
-                        ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
-                      : pictureLabelText.startsWith("Mixed") || pictureLabelText.startsWith("Unrated")
-                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
-                      : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25";
-
-                    // Plain-English picture sentence
-                    const bestSchoolNearby = outstanding[0] ?? good[0];
-                    let pictureSentence: string;
-                    if (outstanding.length >= 1) {
-                      pictureSentence = `${outstanding[0].name} is rated Outstanding by Ofsted and is ${outstanding[0].walkMins} minutes away — a genuine asset.${desirable > 1 ? ` ${desirable} schools rated Good or Outstanding are within a 20-minute walk.` : ""}`;
-                    } else if (good.length >= 2) {
-                      pictureSentence = `${good.length} Good-rated schools are within a 20-minute walk — solid provision for families prioritising school access.`;
-                    } else if (good.length === 1) {
-                      pictureSentence = `${good[0].name} is rated Good by Ofsted (${good[0].walkMins} min walk). No Outstanding schools in immediate reach, but the closest provision is credible.`;
-                    } else if (needsImprovement.length >= 1 && good.length === 0) {
-                      pictureSentence = `The closest rated schools require improvement — families should check individual catchment options and explore whether better-rated schools are reachable slightly further afield.`;
-                    } else if (unrated.length > 0 && desirable === 0) {
-                      pictureSentence = `Nearby schools have not been rated by Ofsted — quality cannot be confirmed from available data. Check directly with the schools or via the Ofsted inspection reports portal.`;
-                    } else {
-                      pictureSentence = `School options exist nearby — Ofsted ratings are incomplete for some, so individual research is recommended before assuming quality.`;
-                    }
-
-                    // Desirability and resale note
-                    const desirabilityNote = desirable >= 1
-                      ? `Proximity to highly-rated schools is associated with stronger local demand and can support property values, particularly at the primary level.`
-                      : `School quality within walking distance is limited — this may reduce the catchment-premium effect seen in areas with nearby Outstanding or Good schools.`;
-
-                    return (
-                      <div className="mb-4 rounded-lg border border-border/50 bg-muted/30 p-4">
-                        <div className="mb-2">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">School picture</p>
-                          <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border mb-2 ${pictureLabelColor}`}>
-                            {pictureLabelText}
+                        );
+                      })()}
+                      {[
+                        { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
+                        { icon: UtensilsCrossed, label: "Shops & Amenities", text: ai.neighbourhoodProfile.amenities },
+                        { icon: Train, label: "Transport Links", text: ai.neighbourhoodProfile.transport },
+                        { icon: Trees, label: "Green Space", text: ai.neighbourhoodProfile.greenSpace },
+                        { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
+                        { icon: Users, label: "Who Lives Here", text: ai.neighbourhoodProfile.demographics },
+                        { icon: Moon, label: "Evenings & Eating Out", text: ai.neighbourhoodProfile.nightlife },
+                        { icon: Lightbulb, label: "Buyer Notes", text: ai.neighbourhoodProfile.marketComment },
+                      ].map((item) => (
+                        <div key={item.label} className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <item.icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
                           </div>
-                          <p className="text-sm text-foreground/85 leading-relaxed">{pictureSentence}</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
                         </div>
-
-                        <div className="mt-2.5 pt-2.5 border-t border-border/40 space-y-1.5">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Type coverage</p>
-                          <p className="text-xs text-muted-foreground">{typeNote}</p>
-                          {hasIndependent && (
-                            <p className="text-xs text-muted-foreground/70">Independent schools are listed for completeness — fees apply and proximity does not imply catchment access.</p>
-                          )}
-                        </div>
-
-                        <div className="mt-2.5 pt-2.5 border-t border-border/40">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">Desirability signal</p>
-                          <p className="text-xs text-muted-foreground">{desirabilityNote}</p>
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap gap-3 pt-2.5 border-t border-border/40">
-                          {[
-                            { label: "Outstanding", count: outstanding.length, color: "text-emerald-700 dark:text-emerald-400" },
-                            { label: "Good", count: good.length, color: "text-blue-700 dark:text-blue-400" },
-                            { label: "Needs Improvement", count: needsImprovement.length, color: "text-amber-700 dark:text-amber-400" },
-                            { label: "Not rated", count: unrated.length, color: "text-muted-foreground" },
-                          ].filter(x => x.count > 0).map(x => (
-                            <div key={x.label} className="flex items-center gap-1">
-                              <span className={`text-xs font-semibold ${x.color}`}>{x.count}</span>
-                              <span className="text-xs text-muted-foreground">{x.label}</span>
-                            </div>
-                          ))}
-                          <span className="text-xs text-muted-foreground/50 ml-auto">within 20 min walk</span>
-                        </div>
+                      ))}
+                      <div className="sm:col-span-2 flex flex-col gap-3">
+                        <ResidentSentimentBlock ai={ai} />
+                        {ai.briefConfidence && (
+                          <ConfidencePill level={ai.briefConfidence.localSentiment} note={ai.briefConfidence.localSentimentNote} className="mt-1" />
+                        )}
                       </div>
-                    );
-                  })()}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-5">
+                      {[
+                        { icon: Home, label: "Local Character", text: ai.neighbourhoodProfile.character },
+                        { icon: Train, label: "Transport", text: ai.neighbourhoodProfile.transport },
+                        { icon: GraduationCap, label: "Schools", text: ai.neighbourhoodProfile.schools },
+                      ].map((item) => (
+                        <div key={item.label} className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <item.icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                        </div>
+                      ))}
+                      <div className="border-t border-border/40 pt-4">
+                        <ResidentSentimentTeaser ai={ai} />
+                      </div>
+                      <p className="text-xs text-muted-foreground/60 border-t border-border/40 pt-3">
+                        Full neighbourhood detail available in Professional.{" "}
+                        <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                      </p>
+                    </div>
+                  )}
+                </CollapsibleSection>
 
-                  {/* School rows */}
-                  {ai.nearbySchools.map((school, i) => {
-                    const ofstedColour =
-                      school.ofstedRating === "Outstanding"
-                        ? { pill: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" }
-                        : school.ofstedRating === "Good"
-                        ? { pill: "bg-blue-500/15 text-blue-700 dark:text-blue-400", dot: "bg-blue-500" }
-                        : school.ofstedRating?.includes("Improvement")
-                        ? { pill: "bg-amber-500/15 text-amber-700 dark:text-amber-400", dot: "bg-amber-500" }
-                        : school.ofstedRating === "Inadequate"
-                        ? { pill: "bg-red-500/15 text-red-700 dark:text-red-400", dot: "bg-red-500" }
-                        : { pill: "bg-muted text-muted-foreground", dot: "bg-muted-foreground/40" };
-
-                    const walkContext =
-                      school.walkMins <= 5 ? "on your doorstep"
-                      : school.walkMins <= 10 ? "short walk"
-                      : school.walkMins <= 15 ? "15 min walk"
-                      : school.walkMins <= 20 ? "20 min walk"
-                      : "further afield";
-
-                    // Desirability signal per school
-                    const isDesirable = school.ofstedRating === "Outstanding" || school.ofstedRating === "Good";
-                    const isClose = school.walkMins <= 15;
-
-                    return (
-                      <div key={i} className="flex items-start justify-between gap-3 py-3.5 border-b border-border/40 last:border-0">
+                {/* Commute */}
+                {isPaid ? (
+                  <CollapsibleSection title="Commute Calculator" testId="section-commute" defaultOpen={false}>
+                    <div className="flex flex-col gap-3">
+                      <p className="text-xs text-muted-foreground">Journey times from the postcode centre to key destinations.</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border">
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Destination</th>
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Time</th>
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2 pr-4">Mode</th>
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-primary py-2">Via / Notes</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ai.commuteTable.map((row, i) => (
+                              <tr key={i} className="border-b border-border/40 last:border-0">
+                                <td className="py-2.5 pr-4 font-medium">{row.destination}</td>
+                                <td className="py-2.5 pr-4">{row.time}</td>
+                                <td className="py-2.5 pr-4 text-muted-foreground">{row.mode}</td>
+                                <td className="py-2.5 text-muted-foreground text-xs">{row.via}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3 mt-2">
+                        Commute times are indicative estimates. Verify via Google Maps or National Rail using the actual departure point.
+                      </p>
+                    </div>
+                  </CollapsibleSection>
+                ) : (
+                  <CollapsibleSection title="Commute" testId="section-commute" defaultOpen={false}>
+                    <div className="flex flex-col gap-3">
+                      {ai.commuteTable.length > 0 && ai.commuteTable[0].destination !== "Town / City Centre" ? (
                         <div className="flex items-start gap-3">
-                          <div className={`mt-0.5 h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${isDesirable && isClose ? "bg-emerald-500/10" : "bg-primary/10"}`}>
-                            <GraduationCap className={`h-4 w-4 ${isDesirable && isClose ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`} />
+                          <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-sm text-foreground font-medium">{ai.commuteTable[0].destination}</p>
+                            <p className="text-sm text-muted-foreground">{ai.commuteTable[0].time} by {ai.commuteTable[0].mode}</p>
                           </div>
-                          <div className="flex flex-col gap-1">
-                            <p className="text-sm font-semibold text-foreground leading-tight">{school.name}</p>
-                            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{school.type}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <div className={`h-2 w-2 rounded-full shrink-0 ${ofstedColour.dot}`} />
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ofstedColour.pill}`}>
-                                {school.ofstedRating && school.ofstedRating !== "Not rated" && school.ofstedRating !== "Not yet rated"
-                                  ? `Ofsted: ${school.ofstedRating}`
-                                  : "Not yet rated"}
-                              </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-3">
+                          <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <p className="text-sm text-muted-foreground">
+                            Journey times depend on your exact address. Check Nearby Stations for the closest rail connections.
+                          </p>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground/60">
+                        Full commute calculator available in Professional.{" "}
+                        <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                      </p>
+                    </div>
+                  </CollapsibleSection>
+                )}
+
+                {/* Nearby Stations */}
+                {ai.nearbyStations && ai.nearbyStations.length > 0 && (
+                  <CollapsibleSection title="Nearby Stations" testId="section-stations" defaultOpen={false}>
+                    <div className="space-y-0">
+                      {/* ── Commute picture interpretation ── */}
+                      {(() => {
+                        const stations = ai.nearbyStations ?? [];
+                        const sorted = stations.slice().sort((a, b) => a.walkMins - b.walkMins);
+                        const closest = sorted[0];
+                        const closestWalk = closest?.walkMins ?? 999;
+                        const TUBE_LINES = ["jubilee","central","northern","victoria","piccadilly","bakerloo",
+                          "district","circle","metropolitan","elizabeth","elizabeth line","hammersmith & city",
+                          "hammersmith","overground","london overground","dlr","liberty","lioness",
+                          "mildmay","suffragette","weaver","windrush"];
+                        const hasLondonTube = stations.some(s => s.lines.some(l => TUBE_LINES.includes(l.toLowerCase())));
+                        const hasNationalRail = stations.some(s => s.modes?.includes("national-rail"));
+                        const hasElizabethLine = stations.some(s =>
+                          s.lines.some(l => l.toLowerCase().includes("elizabeth")) ||
+                          s.modes?.includes("elizabeth-line")
+                        );
+                        const totalStations = stations.length;
+                        const stationsWithin10 = stations.filter(s => s.walkMins <= 10).length;
+                        const stationsWithin20 = stations.filter(s => s.walkMins <= 20).length;
+                        let pictureLabel = "";
+                        let pictureDetail = "";
+                        if (closestWalk <= 5 && stationsWithin10 >= 2) {
+                          pictureLabel = "Excellent transport access";
+                          pictureDetail = hasElizabethLine
+                            ? `${stationsWithin10} station${stationsWithin10 > 1 ? "s" : ""} within 10 minutes, including Elizabeth line access. Fast cross-London connections within walking distance.`
+                            : hasLondonTube
+                            ? `${stationsWithin10} Tube station${stationsWithin10 > 1 ? "s" : ""} within 10 minutes — strong coverage across multiple lines.`
+                            : `${stationsWithin10} stations within 10 minutes — high-frequency connections with minimal walk time.`;
+                        } else if (closestWalk <= 8 && hasLondonTube) {
+                          pictureLabel = "Good tube access";
+                          pictureDetail = `${closest?.name} is a ${closestWalk}-minute walk — solid commuter base for central London. ${stationsWithin20 > 1 ? `${stationsWithin20} stations within 20 minutes gives resilience if one line is disrupted.` : ""}`;
+                        } else if (closestWalk <= 8 && hasNationalRail) {
+                          pictureLabel = "Good rail access";
+                          pictureDetail = `${closest?.name} is ${closestWalk} minutes away${closest?.lines?.length > 0 ? ` — ${closest.lines.slice(0, 2).join(", ")}` : ""}. Regular services for commuters.`;
+                        } else if (closestWalk <= 12) {
+                          pictureLabel = "Moderate walking distance";
+                          pictureDetail = `Nearest station (${closest?.name}) is ${closestWalk} minutes on foot — manageable but adds time to commutes. ${totalStations > 2 ? `${totalStations} stations within reach.` : ""}`;
+                        } else if (closestWalk <= 20) {
+                          pictureLabel = "Longer walk or requires cycling";
+                          pictureDetail = `${closest?.name} at ${closestWalk} minutes is too far for most daily walkers — cycling or a short bus leg may be needed. Factor into your commute planning.`;
+                        } else {
+                          pictureLabel = "Car-dependent area";
+                          pictureDetail = `No station within easy walking distance (nearest: ${closestWalk} min). This area relies on car or bus transport for most journeys.`;
+                        }
+                        return pictureLabel ? (
+                          <div className="mb-4 flex items-start gap-3 p-3.5 rounded-lg border border-border/40 bg-muted/30">
+                            <Train className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold text-foreground mb-0.5">{pictureLabel}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{pictureDetail}</p>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-[#B8860B]">{school.walkMins} min</p>
-                          <p className="text-[11px] text-muted-foreground">{walkContext}</p>
-                          {school.distanceMetres && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{school.distanceMetres}m</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p className="text-xs text-muted-foreground/60 pt-2">
-                    Ofsted ratings from OpenStreetMap tags — for the definitive current rating see{" "}
-                    <a href="https://www.ofsted.gov.uk" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">ofsted.gov.uk</a>.
-                    Proximity does not guarantee catchment placement — verify with the school or local authority.
-                  </p>
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* ── Local Amenities ──────────────────────────────────────────────── */}
-            {ai.nearbyAmenities && (
-              ai.nearbyAmenities.supermarkets.length > 0 ||
-              ai.nearbyAmenities.cafesAndRestaurants.length > 0 ||
-              ai.nearbyAmenities.health.length > 0 ||
-              ai.nearbyAmenities.greenSpaces.length > 0
-            ) && (
-              <CollapsibleSection title="Local Amenities" testId="section-amenities">
-                <div className="space-y-5">
-                  {/* ── Amenity picture interpretation ── */}
-                  {(() => {
-                    const supermarkets = ai.nearbyAmenities?.supermarkets ?? [];
-                    const cafes = ai.nearbyAmenities?.cafesAndRestaurants ?? [];
-                    const health = ai.nearbyAmenities?.health ?? [];
-
-                    // Grocery tier
-                    const premiumGrocers = ["waitrose","marks & spencer","m&s","marks and spencer","whole foods","planet organic"];
-                    const valueGrocers = ["lidl","aldi","iceland","farmfoods","heron foods"];
-                    const hasPremium = supermarkets.some(s => premiumGrocers.some(p => s.name.toLowerCase().includes(p)));
-                    const hasValue = supermarkets.some(s => valueGrocers.some(v => s.name.toLowerCase().includes(v)));
-                    const hasSupermarket = supermarkets.length > 0;
-
-                    const groceryVerdict: string =
-                      hasPremium ? `${supermarkets.find(s => premiumGrocers.some(p => s.name.toLowerCase().includes(p)))!.name} gives this area a premium grocery anchor.`
-                      : hasValue && hasSupermarket ? `Budget grocery options are close by — daily essentials are covered, but the nearest premium supermarket may require a short drive.`
-                      : hasSupermarket ? `Supermarket coverage is present but mainstream — no premium anchor within walking distance.`
-                      : `No supermarkets recorded within the data radius — most grocery shopping will require a car or short trip.`;
-
-                    // Café density
-                    const cafeVerdict: string =
-                      cafes.length >= 4 ? `An active café and restaurant scene (${cafes.length} venues within range) — the kind of street-level energy that supports daily-life liveability.`
-                      : cafes.length >= 2 ? `Some café and dining options nearby — thin but functional for occasional use. Not a destination area for eating out.`
-                      : cafes.length === 1 ? `Limited café presence — one venue recorded. Most eating out will require travelling to a nearby high street or town centre.`
-                      : `No cafés or restaurants recorded in the immediate area — the high street, if any, is not within walking range of this postcode.`;
-
-                    // Health coverage
-                    const healthVerdict: string =
-                      health.length >= 2 ? `GP and health services are within reach (${health.length} facilities recorded).`
-                      : health.length === 1 ? `One health facility recorded nearby — adequate, but check if it is accepting new NHS patients.`
-                      : `No GP or health facilities in the immediate data radius — check NHS GP finder for the nearest practice.`;
-
-                    // Overall high-street read
-                    const amenityScore = (hasSupermarket ? 1 : 0) + (cafes.length >= 2 ? 1 : 0) + (health.length >= 1 ? 1 : 0);
-                    const highStreetVerdict: string =
-                      amenityScore >= 3 ? `Overall: well-provisioned for daily living. Essentials, eating options, and health services are all accessible on foot or nearby.`
-                      : amenityScore === 2 ? `Overall: partially self-sufficient — most needs are met but one or two essentials require travelling further.`
-                      : amenityScore === 1 ? `Overall: limited amenity base. This postcode relies on nearby town centres or a car for most day-to-day needs.`
-                      : `Overall: sparse amenity coverage within the data radius. Verify what's available on foot before committing.`;
-
-                    const overallColor: string =
-                      amenityScore >= 3 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
-                      : amenityScore === 2 ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
-                      : amenityScore === 1 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
-                      : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25";
-
-                    const overallLabel: string =
-                      amenityScore >= 3 ? "Well provisioned"
-                      : amenityScore === 2 ? "Partially self-sufficient"
-                      : amenityScore === 1 ? "Limited amenity base"
-                      : "Sparse — car-dependent";
-
-                    return (
-                      <div className="mb-1 rounded-lg border border-border/50 bg-muted/30 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">Amenity picture</p>
-                        <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border mb-3 ${overallColor}`}>
-                          {overallLabel}
-                        </div>
-                        <div className="space-y-2">
-                          {hasSupermarket && (
-                            <p className="text-xs text-foreground/85 leading-relaxed">{groceryVerdict}</p>
-                          )}
-                          <p className="text-xs text-foreground/85 leading-relaxed">{cafeVerdict}</p>
-                          {health.length > 0 && (
-                            <p className="text-xs text-muted-foreground leading-relaxed">{healthVerdict}</p>
-                          )}
-                          <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/40 pt-2 mt-1">{highStreetVerdict}</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {ai.nearbyAmenities.supermarkets.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <ShoppingCart className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Supermarkets & Shops</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        {ai.nearbyAmenities.supermarkets.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
-                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {ai.nearbyAmenities.cafesAndRestaurants.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Coffee className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cafés & Restaurants</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        {ai.nearbyAmenities.cafesAndRestaurants.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
-                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {ai.nearbyAmenities.health.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Stethoscope className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Health & Medical</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        {ai.nearbyAmenities.health.map((s, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-foreground">{s.name} <span className="text-muted-foreground text-xs">({s.type})</span></span>
-                            <span className="text-xs text-muted-foreground shrink-0 ml-2">{s.distanceMetres}m</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {ai.nearbyAmenities.greenSpaces.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <TreePine className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Parks & Green Spaces</p>
-                      </div>
-                      <div className="space-y-2.5">
-                        {ai.nearbyAmenities.greenSpaces.map((s, i) => {
-                          const parkContext =
-                            s.walkMins <= 3 ? "right on your street"
-                            : s.walkMins <= 7 ? "perfect for a morning run"
-                            : s.walkMins <= 12 ? "great for weekend walks"
-                            : "a pleasant stroll away";
+                        ) : null;
+                      })()}
+                      {/* Station list */}
+                      <div className="space-y-2">
+                        {ai.nearbyStations.slice(0, isPaid ? undefined : 3).map((station, i) => {
+                          const TUBE_LINE_COLOURS: Record<string, string> = {
+                            "jubilee": "#A0A5A9", "central": "#E32017", "northern": "#000000",
+                            "victoria": "#0098D4", "piccadilly": "#003688", "bakerloo": "#B36305",
+                            "district": "#00782A", "circle": "#FFD300", "metropolitan": "#9B0056",
+                            "elizabeth": "#6950a1", "elizabeth line": "#6950a1",
+                            "hammersmith & city": "#F3A9BB", "hammersmith": "#F3A9BB",
+                            "overground": "#EE7C0E", "london overground": "#EE7C0E",
+                            "dlr": "#00A4A7", "liberty": "#6950a1", "lioness": "#6950a1",
+                            "mildmay": "#6950a1", "suffragette": "#6950a1",
+                            "weaver": "#6950a1", "windrush": "#6950a1",
+                          };
                           return (
-                            <div key={i} className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Leaf className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                                  <p className="text-xs text-muted-foreground">{parkContext}</p>
+                            <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/20 last:border-0">
+                              <Train className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-sm font-medium text-foreground">{station.name}</p>
+                                  <span className="text-xs text-muted-foreground shrink-0">{station.walkMins} min walk</span>
                                 </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <span className="text-sm font-bold text-[#B8860B]">{s.walkMins} min</span>
-                                <p className="text-[11px] text-muted-foreground">walk</p>
+                                {station.lines.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {station.lines.map((line, j) => {
+                                      const color = TUBE_LINE_COLOURS[line.toLowerCase()];
+                                      return color ? (
+                                        <span key={j} className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: color === "#FFD300" ? "#b89a00" : color, color: color === "#FFD300" || color === "#A0A5A9" ? "#000" : "#fff" }}>
+                                          {line}
+                                        </span>
+                                      ) : (
+                                        <span key={j} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{line}</span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
                         })}
+                        {!isPaid && ai.nearbyStations.length > 3 && (
+                          <p className="text-xs text-muted-foreground/60 pt-2">
+                            {ai.nearbyStations.length - 3} more station{ai.nearbyStations.length - 3 > 1 ? "s" : ""} — unlock with Professional. <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                          </p>
+                        )}
                       </div>
                     </div>
-                  )}
-                  <p className="text-xs text-muted-foreground pt-1">Source: OpenStreetMap. Coverage is typically accurate but may not include every local business or amenity.</p>
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* ── Crime Statistics — Professional+ ────────────────────────────── */}
-            {isPaid && ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
-              <CollapsibleSection title="Crime Statistics" testId="section-crime-unavailable">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
-                  <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
-                  <div className="flex flex-col gap-1">
-                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
-                    <p className="text-xs text-muted-foreground/70 mt-2 leading-relaxed">
-                      No recorded data doesn't mean no crime — it means the API returned no records for this period. Check police.uk directly before deciding whether the area meets your safety bar.
-                    </p>
-                    <a href="https://www.police.uk/pu/your-area/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Check crime data at police.uk →</a>
-                  </div>
-                </div>
-              </CollapsibleSection>
-            )}
-            {isPaid && ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 && (
-              <CollapsibleSection title="Crime Statistics" testId="section-crime">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">{ai.crimeStats.totalCrimesPerMonth.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">crimes recorded near this area ({ai.crimeStats.date})</p>
-                    </div>
-                    <Shield className="h-8 w-8 text-primary/30" />
-                  </div>
-                  {ai.crimeStats.topCategories.length > 0 && (
-                    <div className="space-y-2">
-                      {ai.crimeStats.topCategories.map((cat, i) => (
-                        <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-foreground font-medium">{cat.category}</span>
-                            <span className="text-muted-foreground">{cat.count} ({cat.pct}%)</span>
-                          </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary/60 rounded-full"
-                              style={{ width: `${Math.min(cat.pct * 2, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
-                  {/* 12-month trend sparkline — only if we have coords */}
-                  {report.lat && report.lng && (
-                    <div className="pt-2 border-t border-border/40">
-                      <CrimeSparkline lat={report.lat} lng={report.lng} />
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
-                    Why it matters: crime context helps calibrate neighbourhood safety alongside your own visits. Anti-social behaviour, vehicle crime, and burglary rates vary significantly between adjacent postcodes and affect both liveability and insurance costs.
-                  </p>
-                  <p className="text-xs text-muted-foreground">Source: data.police.uk — Police recorded crime data.</p>
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* ── PROFESSIONAL+ SECTIONS ──────────────────────────────────── */}
-
-            {/* Planning Activity — Pro+ */}
-            {isPaid ? (
-              <CollapsibleSection title="Planning Activity" testId="section-planning">
-                <div className="flex flex-col gap-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Planning Applications (past 12 months)</span>
-                      {ai.planningActivity.recentApplications > 0
-                        ? <span className="text-2xl font-bold text-foreground">{ai.planningActivity.recentApplications.toLocaleString()}</span>
-                        : <span className="text-sm text-muted-foreground">Count not available — check the council portal below for recent applications in this area.</span>
-                      }
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Local Authority</span>
-                      <span className="text-sm text-foreground font-medium">{ai.councilTax.borough}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Major Developments</span>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.planningActivity.majorDevelopments}</p>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{ai.planningActivity.note}</p>
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
-                    Why it matters: planning activity within 250–500m can affect outlook, noise, character, and future value. A major development can change a quiet street. Even if no applications appear here, check the council portal directly before exchange — applications can move fast and won't always appear in this data.
-                  </p>
-                  <a
-                    href={ai.planningActivity.councilPortalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary underline underline-offset-2 self-start"
-                  >
-                    View planning portal →
-                  </a>
-                </div>
-              </CollapsibleSection>
-            ) : (
-              <div className="relative" data-testid="section-planning-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-60">
-                  <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <FileSearch className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Planning Activity</h3>
-                    </div>
-                    <div className="h-24 bg-muted rounded" />
-                  </Card>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
-                    <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Planning activity — Professional</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Applications, major developments, and the council portal link for this postcode.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Rental Market Snapshot — Pro+ */}
-            {isPaid ? (
-              <CollapsibleSection title="Rental Market Snapshot" testId="section-rental-market">
-                <div className="flex flex-col gap-5">
-                  {/* Asking rents — useful context for all buyers */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Asking rents nearby</p>
-                      <EstimateTag />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      {[
-                        { label: "1-Bed", value: ai.rentalMarket.oneBedAskingRent },
-                        { label: "2-Bed", value: ai.rentalMarket.twoBedAskingRent },
-                        { label: "3-Bed", value: ai.rentalMarket.threeBedAskingRent },
-                      ].map(item => (
-                        <div key={item.label} className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
-                          <span className="text-lg font-bold text-foreground">{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Yields + demand — investor context */}
-                  <div className="pt-3 border-t border-border/40">
-                    <div className="flex items-center gap-2 mb-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental market signals</p>
-                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
-                      <EstimateTag />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      {[
-                        { label: "1-Bed Gross Yield", value: ai.rentalMarket.oneBedYield },
-                        { label: "2-Bed Gross Yield", value: ai.rentalMarket.twoBedYield },
-                        { label: "Demand Level", value: ai.rentalMarket.demandLevel },
-                      ].map(item => (
-                        <div key={item.label} className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
-                          <span className={`font-bold ${item.label.includes("Yield") ? "text-green-600 dark:text-green-400 text-lg" : "text-[#B8860B] text-base"}`}>{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{ai.rentalMarket.note}</p>
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                    Rents and yields are ranges derived from ONS Private Rental Market data and VOA 2024 figures for this postcode district. Actual achieved rents vary by property condition and specific street.
-                  </p>
-                </div>
-              </CollapsibleSection>
-            ) : (
-              <div className="relative" data-testid="section-rental-market-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-60">
-                  <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Rental Market Snapshot</h3>
-                    </div>
-                    <div className="h-24 bg-muted rounded" />
-                  </Card>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
-                    <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Rental market — Professional</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Asking rents by property size and local letting demand.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Broadband & Infrastructure — Pro+ */}
-            {isPaid ? (
-              <CollapsibleSection title="Broadband & Infrastructure" testId="section-broadband">
-                {ai.broadband.avgDownloadSpeed === "Check at address" ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
-                      <Wifi className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
-                        <p className="text-xs text-muted-foreground/70">{ai.broadband.providers}</p>
-                        <a href="https://checker.ofcom.org.uk/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Check at checker.ofcom.org.uk →</a>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                        ai.broadband.rating === "Excellent"
-                          ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                          : ai.broadband.rating === "Good"
-                          ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-                          : ai.broadband.rating === "Fair"
-                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                          : "bg-red-500/15 text-red-700 dark:text-red-400"
-                      }`}>
-                        <Wifi className="h-3 w-3" />
-                        {ai.broadband.rating}
-                      </span>
-                    </div>
-                    <div className="grid sm:grid-cols-3 gap-4">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Download Speed</span>
-                        <span className="text-xl font-bold text-foreground">{ai.broadband.avgDownloadSpeed}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Full Fibre Availability</span>
-                        <span className="text-xl font-bold text-foreground">{ai.broadband.fullFibreAvailability}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Providers</span>
-                        <span className="text-sm text-foreground font-medium">{ai.broadband.providers}</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
-                    <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
-                      Buyer note: if remote or hybrid working is part of your plan, verify the specific address before exchanging. Postcode averages can mask significant variation at street level — speeds and full-fibre availability can differ property to property. Use <a href="https://checker.ofcom.org.uk/" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">checker.ofcom.org.uk</a> or contact the provider directly.
-                    </p>
-                  </div>
+                  </CollapsibleSection>
                 )}
-              </CollapsibleSection>
-            ) : (
-              <div className="relative" data-testid="section-broadband-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-60">
-                  <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Wifi className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Broadband & Infrastructure</h3>
-                    </div>
-                    <div className="h-20 bg-muted rounded" />
-                  </Card>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
-                    <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Broadband — Professional</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Ofcom average speeds, full fibre availability, and provider coverage.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* Air Quality — Pro+ */}
-            {isPaid ? (
-              <CollapsibleSection title="Air Quality" testId="section-air-quality">
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                      ai.airQuality.rating === "Good"
-                        ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                        : ai.airQuality.rating === "Moderate"
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                        : ai.airQuality.rating === "Poor"
-                        ? "bg-orange-500/15 text-orange-700 dark:text-orange-400"
-                        : "bg-red-500/15 text-red-700 dark:text-red-400"
-                    }`}>
-                      <Wind className="h-3 w-3" />
-                      {ai.airQuality.rating}
-                    </span>
-                    {/* Show 'Modelled estimate' tag when values are modelled (not from a live monitor) */}
-                    {ai.airQuality.no2Level?.includes("est.") && (
-                      <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">
-                        Modelled estimate
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground">WHO guideline: NO₂ ≤10 µg/m³ · PM2.5 ≤5 µg/m³</span>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ (Nitrogen Dioxide)</span>
-                      {/* Strip the '(est.)' suffix — the Modelled estimate tag already communicates this */}
-                      <span className="text-xl font-bold text-foreground">{String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5 (Fine Particles)</span>
-                      <span className="text-xl font-bold text-foreground">{String(ai.airQuality.pm25Level).replace(/ \(est\.\)/g, "")}</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{ai.airQuality.note}</p>
-                  {ai.airQuality.no2Level?.includes("est.") && (
-                    <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                      Figures are modelled from urban density data — no live monitoring station was available for this postcode. Verify against the DEFRA UK-AIR map for the nearest monitor reading.
-                    </p>
-                  )}
-                  <div className="mt-1 p-3 rounded-md bg-primary/5 border border-primary/15">
-                    <p className="text-xs font-semibold text-primary mb-1">How to use this before you offer</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Air quality rarely kills a deal but matters for long-term liveability — especially for families or anyone with respiratory health concerns. If the rating is Moderate or worse, factor it into your questions at viewing. Good air quality in a well-connected area is a genuine quality-of-life advantage worth noting.
-                    </p>
-                  </div>
-                  <a
-                    href="https://uk-air.defra.gov.uk"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary underline underline-offset-2 self-start"
-                  >
-                    View DEFRA UK-AIR data →
-                  </a>
-                </div>
-              </CollapsibleSection>
-            ) : (
-              <div className="relative" data-testid="section-air-quality-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-60">
-                  <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Wind className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Air Quality</h3>
-                    </div>
-                    <div className="h-20 bg-muted rounded" />
-                  </Card>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
-                    <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Air quality — Professional</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Pollution index and health context for this postcode.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── FOR LANDLORDS & INVESTORS ───────────────────────────────── */}
-            <div className="flex items-center gap-3 mt-2 mb-1" data-testid="divider-investor">
-              <div className="flex-1 h-px bg-border/60" />
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-[0.12em] bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20 shrink-0">
-                <Building2 className="h-2.5 w-2.5" />
-                Comparison &amp; market depth
-              </span>
-              <div className="flex-1 h-px bg-border/60" />
-            </div>
-
-            {/* Rental Demand — Investor */}
-            {isInvestor ? (
-              <CollapsibleSection title="Rental Demand" testId="section-rental-demand">
-                {(() => {
-                  const rd = ai.rentalDemand;
-                  const isInsufficient = rd.confidence === "Insufficient";
-                  const isLow = rd.confidence === "Low";
-                  const confidencePillColour =
-                    rd.confidence === "Strong"
-                      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400"
-                      : rd.confidence === "Moderate"
-                      ? "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400"
-                      : rd.confidence === "Low"
-                      ? "bg-orange-500/10 text-orange-700 border-orange-500/20 dark:text-orange-400"
-                      : "bg-muted/60 text-muted-foreground border-border";
-                  const labelColour = (() => {
-                    if (isInsufficient) return "text-muted-foreground";
-                    // Score-based colouring for enriched profiles
-                    if (rd.score != null) {
-                      if (rd.score >= 9) return "text-emerald-600 dark:text-emerald-400";
-                      if (rd.score >= 7) return "text-[#B8860B]";
-                      return "text-muted-foreground";
-                    }
-                    // Label-string-based colouring for fallback (null score) profiles
-                    if (rd.label === "Very High") return "text-emerald-600 dark:text-emerald-400";
-                    if (rd.label === "High" || rd.label === "Moderate–High") return "text-[#B8860B]";
-                    if (rd.label === "Moderate") return "text-[#B8860B]";
-                    if (rd.label === "Limited signal") return "text-muted-foreground";
-                    return "text-muted-foreground";
-                  })();
-
-                  return (
-                    <div className="flex flex-col gap-4">
-                      {/* Label + confidence row */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className={`text-2xl font-bold ${labelColour}`}>
-                          {rd.label}
-                        </span>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.1em] border ${confidencePillColour}`}>
-                          {rd.confidence === "Insufficient" ? "Limited signal" : rd.confidence === "Low" ? "Directional" : rd.confidence === "Moderate" ? "Moderate confidence" : "High confidence"}
-                        </span>
+                {/* Nearby Schools */}
+                {ai.nearbySchools && ai.nearbySchools.length > 0 && (
+                  <CollapsibleSection title="Nearby Schools" testId="section-schools" defaultOpen={false}>
+                    <div className="space-y-0">
+                      {/* School picture interpretation */}
+                      {(() => {
+                        const schools = ai.nearbySchools ?? [];
+                        const outstanding = schools.filter(s => s.ofstedRating === "Outstanding");
+                        const good = schools.filter(s => s.ofstedRating === "Good");
+                        const requiresImprovement = schools.filter(s => s.ofstedRating === "Requires Improvement");
+                        const inadequate = schools.filter(s => s.ofstedRating === "Inadequate");
+                        const totalRated = outstanding.length + good.length + requiresImprovement.length + inadequate.length;
+                        const highQuality = outstanding.length + good.length;
+                        const pctHighQuality = totalRated > 0 ? Math.round((highQuality / totalRated) * 100) : 0;
+                        const closestOutstanding = outstanding.slice().sort((a, b) => a.walkMins - b.walkMins)[0];
+                        let pictureLabel = "";
+                        let pictureDetail = "";
+                        if (outstanding.length >= 2 || (outstanding.length === 1 && good.length >= 2)) {
+                          pictureLabel = "Strong school catchment";
+                          pictureDetail = `${outstanding.length} Outstanding${outstanding.length > 1 ? "" : ""} and ${good.length} Good-rated school${good.length > 1 ? "s" : ""} within reach. ${closestOutstanding ? `${closestOutstanding.name} is ${closestOutstanding.walkMins} minutes away.` : ""}`;
+                        } else if (good.length >= 3 && outstanding.length === 0) {
+                          pictureLabel = "Solid school provision";
+                          pictureDetail = `${good.length} Good-rated schools nearby. No Outstanding-rated schools in this data, but consistently solid provision — worth confirming current catchment areas with the local authority.`;
+                        } else if (requiresImprovement.length > good.length && inadequate.length > 0) {
+                          pictureLabel = "Below-average school provision";
+                          pictureDetail = `More schools rated Requires Improvement or Inadequate than Good or Outstanding in this data. Families should research current Ofsted ratings directly — Ofsted reports can change significantly.`;
+                        } else if (totalRated === 0) {
+                          pictureLabel = "School data limited";
+                          pictureDetail = "Ofsted ratings not available in this data pull. Check Ofsted Find an Inspector directly for up-to-date school ratings in this area.";
+                        } else {
+                          pictureLabel = `${pctHighQuality}% of nearby schools rated Good or Outstanding`;
+                          pictureDetail = `${highQuality} of ${totalRated} rated schools meet the Good or Outstanding bar. ${requiresImprovement.length > 0 ? `${requiresImprovement.length} rated Requires Improvement.` : ""} Verify current catchment areas before committing.`;
+                        }
+                        return pictureLabel ? (
+                          <div className="mb-4 flex items-start gap-3 p-3.5 rounded-lg border border-border/40 bg-muted/30">
+                            <GraduationCap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold text-foreground mb-0.5">{pictureLabel}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{pictureDetail}</p>
+                            </div>
+                          </div>
+                        ) : null;
+                      })()}
+                      <div className="space-y-2">
+                        {ai.nearbySchools.slice(0, isPaid ? undefined : 3).map((school, i) => {
+                          const ratingColors: Record<string, string> = {
+                            "Outstanding": "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                            "Good": "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20",
+                            "Requires Improvement": "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
+                            "Inadequate": "text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/20",
+                          };
+                          const ratingClass = ratingColors[school.ofstedRating] ?? "text-muted-foreground bg-muted border-border/40";
+                          return (
+                            <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/20 last:border-0">
+                              <GraduationCap className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2 flex-wrap">
+                                  <p className="text-sm font-medium text-foreground">{school.name}</p>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${ratingClass}`}>{school.ofstedRating}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">{school.type} · {school.walkMins} min walk</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {!isPaid && ai.nearbySchools.length > 3 && (
+                          <p className="text-xs text-muted-foreground/60 pt-2">
+                            {ai.nearbySchools.length - 3} more school{ai.nearbySchools.length - 3 > 1 ? "s" : ""} — unlock with Professional. <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                          </p>
+                        )}
                       </div>
+                    </div>
+                  </CollapsibleSection>
+                )}
 
-                      {/* Rationale */}
-                      <p className="text-sm text-foreground leading-relaxed">{rd.rationale}</p>
-
-                      {/* Days to let + vs national — only when data exists */}
-                      {!isInsufficient && rd.avgDaysToLet != null && (
-                        <div className="flex flex-wrap gap-4">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
-                              Avg days to let <EstimateTag />
-                            </span>
-                            <span className="text-2xl font-bold text-foreground">
-                              {rd.avgDaysToLet} days
-                            </span>
+                {/* Local Amenities */}
+                {ai.nearbyAmenities && (
+                  <CollapsibleSection title="Local Amenities" testId="section-amenities" defaultOpen={false}>
+                    <div className="space-y-0">
+                      {/* Amenity picture interpretation */}
+                      {(() => {
+                        const amenities = ai.nearbyAmenities;
+                        if (!amenities) return null;
+                        const cafes = amenities.cafesAndRestaurants?.length ?? 0;
+                        const supermarkets = amenities.supermarkets?.length ?? 0;
+                        const green = amenities.greenSpaces?.length ?? 0;
+                        const gyms = amenities.gyms?.length ?? 0;
+                        const pubs = amenities.pubs?.length ?? 0;
+                        const total = cafes + supermarkets + green + gyms + pubs;
+                        const closestCafe = cafes > 0 ? amenities.cafesAndRestaurants![0] : null;
+                        const closestSupermarket = supermarkets > 0 ? amenities.supermarkets![0] : null;
+                        let label = "";
+                        let detail = "";
+                        if (total === 0) {
+                          label = "Limited walkable amenities";
+                          detail = "No amenities returned from Overpass for this area. This may reflect data coverage gaps rather than a lack of facilities — check Google Maps for the actual street-level picture.";
+                        } else if (cafes >= 5 && supermarkets >= 2) {
+                          label = "Excellent walkable amenity base";
+                          detail = `${cafes} cafes/restaurants and ${supermarkets} supermarket${supermarkets > 1 ? "s" : ""} within reach. ${closestCafe ? `${closestCafe.name} is ${closestCafe.walkMins} min.` : ""} Strong daily living score.`;
+                        } else if (cafes >= 3 || supermarkets >= 1) {
+                          label = "Solid local amenities";
+                          detail = `${cafes > 0 ? `${cafes} café/restaurant option${cafes > 1 ? "s" : ""}` : "Limited café scene"}${supermarkets > 0 ? `, ${supermarkets} supermarket${supermarkets > 1 ? "s" : ""}` : " but no supermarket in walking range"}. ${green > 0 ? `${green} green space${green > 1 ? "s" : ""} adds lifestyle value.` : ""}`;
+                        } else {
+                          label = "Limited amenity base";
+                          detail = `Fewer than 3 cafes/restaurants and limited supermarket provision nearby. Day-to-day convenience relies on a short drive or bus. ${green > 0 ? `${green} green space${green > 1 ? "s" : ""} provides outdoor access.` : ""}`;
+                        }
+                        return (
+                          <div className="mb-4 flex items-start gap-3 p-3.5 rounded-lg border border-border/40 bg-muted/30">
+                            <UtensilsCrossed className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold text-foreground mb-0.5">{label}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{detail}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {/* Amenity rows */}
+                      {[
+                        { icon: Coffee, label: "Cafes & Restaurants", items: ai.nearbyAmenities?.cafesAndRestaurants },
+                        { icon: ShoppingCart, label: "Supermarkets", items: ai.nearbyAmenities?.supermarkets },
+                        { icon: TreePine, label: "Green Spaces", items: ai.nearbyAmenities?.greenSpaces },
+                        { icon: Zap, label: "Gyms", items: ai.nearbyAmenities?.gyms },
+                        { icon: Star, label: "Pubs", items: ai.nearbyAmenities?.pubs },
+                        { icon: Stethoscope, label: "Medical", items: ai.nearbyAmenities?.medical },
+                        { icon: BookOpen, label: "Libraries", items: ai.nearbyAmenities?.libraries },
+                      ].filter(cat => (cat.items?.length ?? 0) > 0).map((cat) => (
+                        <div key={cat.label} className="py-3 border-b border-border/20 last:border-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <cat.icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-primary">{cat.label}</span>
+                            <span className="text-[10px] text-muted-foreground">({cat.items!.length})</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {cat.items!.slice(0, 4).map((item, j) => (
+                              <div key={j} className="flex items-center justify-between text-xs">
+                                <span className="text-foreground/80">{item.name}</span>
+                                <span className="text-muted-foreground shrink-0 ml-2">{item.walkMins} min</span>
+                              </div>
+                            ))}
+                            {cat.items!.length > 4 && (
+                              <p className="text-[10px] text-muted-foreground/60">+{cat.items!.length - 4} more</p>
+                            )}
                           </div>
                         </div>
-                      )}
-
-                      {/* vs national average bar — only when we have real data */}
-                      {!isInsufficient && rd.vsNationalAvg && (
-                        <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-muted/60">
-                          <BarChart3 className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-sm font-medium text-foreground">{rd.vsNationalAvg}</span>
-                        </div>
-                      )}
-
-                      {/* Note */}
-                      <p className="text-sm text-muted-foreground leading-relaxed">{rd.note}</p>
-                    </div>
-                  );
-                })()}
-              </CollapsibleSection>
-            ) : (
-              <div className="relative" data-testid="section-rental-demand-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-60">
-                  <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Rental Demand</h3>
-                    </div>
-                    <div className="h-24 bg-muted rounded" />
-                  </Card>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg">
-                    <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Rental demand — Investor</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Letting velocity, demand label, and rental context for this postcode.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
-                  </div>
-                </div>
-              </div>
-            )}
-            {isPaid ? (
-              <CollapsibleSection title="Nearby Development Tracker" testId="section-developments">
-                <NearbyDevelopmentTracker
-                  developments={ai.nearbyDevelopments}
-                  councilPortalUrl={ai.planningActivity?.councilPortalUrl}
-                />
-              </CollapsibleSection>
-            ) : (
-              <div className="relative" data-testid="section-developments-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-60">
-                  <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Construction className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Nearby Development Tracker</h3>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="h-14 bg-muted rounded-lg" />
-                      <div className="h-14 bg-muted/60 rounded-lg" />
-                    </div>
-                  </Card>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[240px]">
-                    <Construction className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-foreground">Development tracker — Professional</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 mb-2">Major nearby schemes with impact classification — upside, disruption, or mixed.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Micro-Area Sold Prices Map — Professional+ ──────────────────── */}
-            {isPaid && ai.recentSoldPrices && ai.recentSoldPrices.length > 0 ? (
-              <CollapsibleSection title="Nearby Sold Prices" testId="section-sold-prices-map">
-                <SoldPricesMap
-                  soldPrices={ai.recentSoldPrices}
-                  centerLat={report.lat}
-                  centerLng={report.lng}
-                  areaMedian={(() => {
-                    const raw = ai.marketOverview?.averagePrice;
-                    if (!raw) return undefined;
-                    const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
-                    return isNaN(n) ? undefined : n;
-                  })()}
-                  showInterpretation={true}
-                  compact={false}
-                />
-                {/* Transaction list — collapsible within the section */}
-                <details className="mt-4 group">
-                  <summary className="cursor-pointer text-xs font-semibold text-primary flex items-center gap-1.5 list-none select-none">
-                    <span className="group-open:hidden">▸ Show transaction list ({ai.recentSoldPrices.length} sales)</span>
-                    <span className="hidden group-open:inline">▾ Hide transaction list</span>
-                  </summary>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Address</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Price</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Type</th>
-                          <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ai.recentSoldPrices.map((sp, i) => (
-                          <tr key={i} className="border-b border-border/50 last:border-0">
-                            <td className="py-2.5 pr-3 text-foreground/80 text-xs">{sp.address}</td>
-                            <td className="py-2.5 pr-3 text-[#B8860B] font-bold text-sm">{sp.price}</td>
-                            <td className="py-2.5 pr-3 text-muted-foreground text-xs">{sp.type}</td>
-                            <td className="py-2.5 text-muted-foreground text-xs">{sp.date}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-              </CollapsibleSection>
-            ) : !isPaid ? (
-              /* Explorer: locked teaser */
-              <div className="relative" data-testid="section-sold-prices-locked">
-                <div className="blur-sm pointer-events-none select-none opacity-50">
-                  <Card className="p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-sm">Nearby Sold Prices</h3>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 mb-3">
-                      {["Lowest nearby", "Local median", "Highest nearby"].map(l => (
-                        <div key={l} className="bg-muted/50 rounded px-2 py-2">
-                          <div className="h-2 w-12 bg-muted rounded mb-1.5" />
-                          <div className="h-3 w-16 bg-muted/80 rounded" />
-                        </div>
                       ))}
                     </div>
-                    <div className="h-52 bg-muted/60 rounded-lg" />
-                  </Card>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-background/95 border border-border rounded-lg px-5 py-4 text-center shadow-lg max-w-xs">
-                    <MapPin className="h-5 w-5 text-primary mx-auto mb-2" />
-                    <p className="text-sm font-semibold text-foreground mb-1">Nearby Sold Prices Map</p>
-                    <p className="text-xs text-muted-foreground mb-3">See recent nearby transactions mapped by price tier — with evidence strength, price spread, and local context. Professional.</p>
-                    <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2 font-semibold">Upgrade to Professional →</span></Link>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {/* ── Street Price Ranking — Investor (micro-area premium/affordable streets) ── */}
-            {isInvestor && ai.recentSoldPrices && ai.recentSoldPrices.length > 0 && (
-              <CollapsibleSection title="Street Price Ranking" testId="section-street-ranking">
-                <StreetPriceRanking soldPrices={ai.recentSoldPrices} />
-              </CollapsibleSection>
-            )}
-
-            {/* ── Neighbourhood Map — ALL plans ──────────────────────────────── */}
-            {report.lat && report.lng && (
-              <CollapsibleSection title="Neighbourhood Map" testId="section-neighbourhood-map">
-                <NeighbourhoodMap
-                  lat={report.lat}
-                  lng={report.lng}
-                  postcode={ai.location}
-                  stations={ai.nearbyStations ?? []}
-                  schools={ai.nearbySchools ?? []}
-                  amenities={ai.nearbyAmenities}
-                />
-              </CollapsibleSection>
-            )}
-
-            {/* ── Mortgage Calculator — ALL plans ─────────────────────────────── */}
-            <CollapsibleSection title="Mortgage Calculator" testId="section-mortgage">
-              <MortgageCalculator
-                suggestedPrice={(() => {
-                  const avg = ai.marketOverview?.averagePrice;
-                  if (!avg) return undefined;
-                  const n = parseInt(avg.replace(/[^0-9]/g, ""), 10);
-                  return isNaN(n) ? undefined : n;
-                })()}
-              />
-            </CollapsibleSection>
-
-            {/* ── HS2 / Infrastructure Flag — ALL plans ───────────────────────── */}
-            {(() => {
-              const flags = getInfrastructureFlags(ai.location);
-              if (flags.length === 0) return null;
-              return (
-                <CollapsibleSection title="Infrastructure Alerts" testId="section-infrastructure">
-                  <div className="space-y-3">
-                    {flags.map((flag, i) => (
-                      <div key={i} className={`p-4 rounded-lg border ${
-                        flag.impact === "Positive" ? "border-green-500/30 bg-green-500/5" :
-                        flag.impact === "Disruptive" ? "border-amber-500/30 bg-amber-500/5" :
-                        "border-blue-500/30 bg-blue-500/5"
-                      }`}>
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="text-sm font-bold text-foreground">{flag.name}</span>
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                            flag.impact === "Positive" ? "bg-green-500/15 text-green-700 dark:text-green-400" :
-                            flag.impact === "Disruptive" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                            "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-                          }`}>{flag.impact}</span>
-                          <span className="text-[10px] text-muted-foreground">{flag.type}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{flag.detail}</p>
-                        <p className="text-xs font-medium text-foreground/70 mt-1.5">Status: {flag.phaseOrStatus}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CollapsibleSection>
-              );
-            })()}
-
-            {/* Property Valuation — only for address searches */}
-            {isPropertyReport && pd && (
-              <>
-                <Card className="p-5 sm:p-6" data-testid="section-valuation">
-                  <SectionHeading>Property Valuation Assessment</SectionHeading>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    {/* Estimated Range — derived from Land Registry median, not an AVM */}
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Estimated Range <EstimateTag /></p>
-                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-estimated-range">
-                        {pd.valuationAssessment.estimatedRange}
-                      </p>
-                    </div>
-                    <KpiValue label="vs Area Average" value={pd.valuationAssessment.priceVsAreaAverage} />
-                    {/* Value Score — derived ratio, not a surveyor assessment */}
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Value Score <EstimateTag /></p>
-                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-value-score">
-                        {pd.valuationAssessment.valueScore}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed border-l-2 border-border pl-3">
-                    How to use this: the range gives you a starting anchor for offer calibration — not a final number. If the asking price sits above the top of the range, use the comparable sales below to understand why, and consider whether a structural survey could reveal a counter-argument. For a binding figure, instruct a RICS-regulated surveyor.
-                  </p>
-                </Card>
-
-                <Card className="p-5 sm:p-6" data-testid="section-comparables">
-                  <SectionHeading>Comparable Sales</SectionHeading>
-                  {pd.comparableSales.length === 1 && pd.comparableSales[0].price === "—" ? (
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
-                      <FileSearch className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm text-muted-foreground leading-relaxed">{pd.comparableSales[0].address}</p>
-                        <p className="text-xs text-muted-foreground/70">Use the 5-year price trend and area median above as your pricing anchors. For deeper comparable research, Zoopla and Rightmove both show sold prices at street level.</p>
-                        <a href="https://www.rightmove.co.uk/house-prices.html" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Search sold prices on Rightmove →</a>
-                      </div>
-                    </div>
-                  ) : (
-                  <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
-                    <table className="w-full text-sm" data-testid="table-comparables">
-                      <thead>
-                        <tr className="border-b border-border/60">
-                          <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Address</th>
-                          <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Type</th>
-                          <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Price</th>
-                          <th className="text-right font-medium text-muted-foreground py-2.5">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pd.comparableSales.map((sale, i) => (
-                          <tr key={i} className="border-b border-border/30 last:border-0">
-                            <td className="py-2.5 pr-4">{sale.address}</td>
-                            <td className="py-2.5 pr-4 text-muted-foreground">{sale.type}</td>
-                            <td className="py-2.5 pr-4 font-serif text-lg">{sale.price}</td>
-                            <td className="py-2.5 text-right text-muted-foreground">{sale.date}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  )}
-                  {pd.comparableSales.length > 1 && (
-                    <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed border-l-2 border-border pl-3">
-                      Reading the comparables: look at the spread between lowest and highest sale. Properties that sold at a premium typically offer something the subject property may not — more space, better condition, a quieter street. Use the lower end as your opening negotiation anchor if the asking price is at or above the mid-range.
-                    </p>
-                  )}
-                </Card>
-
-                {/* Offer Strategy — new evidence-led block */}
-                {pd.offerStrategy && (
-                <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-offer-strategy">
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-3 mb-5">
-                    <div>
-                      <SectionHeading>Pre-offer Strategy</SectionHeading>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        Evidence-led guidance for making and defending an offer. Not a formal valuation — instruct a RICS surveyor before exchange.
-                      </p>
-                    </div>
-                    {/* Confidence badge */}
-                    <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-                      pd.offerStrategy.confidence === "Strong"
-                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-400/30"
-                        : pd.offerStrategy.confidence === "Moderate"
-                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-400/30"
-                        : "bg-muted text-muted-foreground border-border"
-                    }`}>
-                      {pd.offerStrategy.confidence} evidence
-                    </span>
-                  </div>
-
-                  {/* Range row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-primary/5 border border-primary/10 mb-5">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">Fair Value Range <EstimateTag /></p>
-                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-fair-value-range">
-                        {pd.offerStrategy.fairValueRange}
-                      </p>
-                    </div>
-                    <div className="sm:border-l sm:border-border/50 sm:pl-4">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">Opening Range <EstimateTag /></p>
-                      <p className="font-serif text-2xl tracking-tight text-primary" data-testid="text-opening-range">
-                        {pd.offerStrategy.openingRange}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Confidence note */}
-                  <p className="text-xs text-muted-foreground/80 leading-relaxed mb-5 border-l-2 border-border pl-3">
-                    {pd.offerStrategy.confidenceNote}
-                  </p>
-
-                  {/* Rationale */}
-                  <div className="mb-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-2">How we got here</p>
-                    <p className="text-sm text-foreground/90 leading-relaxed">{pd.offerStrategy.rationale}</p>
-                  </div>
-
-                  {/* Seller pressure points */}
-                  <div className="mb-5">
-                    <div className="flex items-center gap-2 mb-2.5">
-                      <ShieldAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Factors that may support a firmer stance</p>
-                    </div>
-                    <ul className="space-y-2">
-                      {pd.offerStrategy.sellerPressurePoints.map((point, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <span className="text-amber-600 dark:text-amber-400 mt-1 shrink-0">‣</span>
-                          <span className="text-foreground/90 leading-relaxed">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Pre-offer questions */}
-                  <div className="pt-4 border-t border-border/40">
-                    <div className="flex items-center gap-2 mb-2.5">
-                      <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Questions to raise before offering</p>
-                    </div>
-                    <ul className="space-y-2">
-                      {pd.offerStrategy.preOfferQuestions.map((q, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <span className="text-primary/60 font-serif mt-0.5 shrink-0 tabular-nums">{i + 1}.</span>
-                          <span className="text-foreground/90 leading-relaxed">{q}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </Card>
+                  </CollapsibleSection>
                 )}
-              </>
-            )}
 
-            {/* === MARKET OUTLOOK + VERDICT — gated (paid plan or email capture) === */}
-            {hasMarketOutlookAccess ? (
-              <div className="space-y-6">
-                {/* Market Outlook — unlocked */}
-                <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
-                  <SectionHeading>Market Outlook</SectionHeading>
-                  <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                    Market signals are derived from Land Registry transaction data — not a prediction or forecast. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
-                  </p>
-                  {/* Market signals — rule-based from real price data, no invented forecasts */}
-                  <div className="mb-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
-                      <p className="text-sm text-foreground leading-relaxed" data-testid="text-kpi-price-growth">
-                        {ai.investmentOutlook.growthForecast}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Rental yield — investor context */}
-                  <div className="pt-4 border-t border-border/40">
-                    <div className="flex items-center gap-2 mb-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental yield context</p>
-                      <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
-                      <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-rental-yield">
-                        {ai.investmentOutlook.rentalYieldEstimate}
-                      </p>
-                    </div>
-                  </div>
-                  {ai.investmentOutlook.riskFlags.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                        <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                        Market flags
-                      </p>
-                      <ul className="space-y-1.5">
-                        {ai.investmentOutlook.riskFlags.map((flag, i) => (
-                          <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
-                            {flag}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </Card>
+                {/* Neighbourhood Map */}
+                {isPaid && report.lat && report.lng && (
+                  <CollapsibleSection title="Neighbourhood Map" testId="section-neighbourhood-map" defaultOpen={false}>
+                    <NeighbourhoodMap
+                      postcode={ai.location}
+                      lat={report.lat}
+                      lng={report.lng}
+                      stations={ai.nearbyStations ?? []}
+                      schools={ai.nearbySchools ?? []}
+                      amenities={ai.nearbyAmenities}
+                    />
+                  </CollapsibleSection>
+                )}
 
-                {/* Verdict — unlocked */}
-                <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
-                  <SectionHeading>Verdict</SectionHeading>
-                  <p className="text-sm leading-relaxed text-foreground/90 italic">
-                    {ai.verdict}
-                  </p>
-                </Card>
+              </TabsContent>
 
-                {/* Price Alerts — investor only */}
-              </div>
-            ) : (
-              /* Email capture gate — blurred preview + overlay CTA, email unlocks full content */
-              <FeatureGate
-                featureName="investment_score"
-                modalHeadline="Unlock Market Outlook & Verdict"
-                modalSubtext="Enter your email to see price growth forecasts, rental yield, market flags, and the full brief verdict. Free — no payment required."
-                teaser={
-                  <LockedPreview
-                    title="Market Outlook & Verdict"
-                    description="Price growth forecast, rental yield estimate, market risk flags, and the full AI brief verdict."
-                    planLabel="Free — enter email"
-                    pricingHref="/pricing"
-                    skeletonRows={4}
-                    testId="section-market-outlook-locked"
-                  />
-                }
-              >
-                {/* Children rendered after email is captured */}
-                <div className="space-y-6">
-                  <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
-                    <SectionHeading>Market Outlook</SectionHeading>
-                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                      Market signals are derived from Land Registry transaction data — not a prediction or forecast. Rental yield is a gross indicative range based on area tier benchmarks and ONS data. Neither figure is specific to an individual property. Not financial advice.
-                    </p>
-                    <div className="mb-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
-                        <p className="text-sm text-foreground leading-relaxed">{ai.investmentOutlook.growthForecast}</p>
-                      </div>
-                    </div>
-                    <div className="pt-4 border-t border-border/40">
-                      <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
-                      <p className="font-serif text-2xl tracking-tight text-foreground">{ai.investmentOutlook.rentalYieldEstimate}</p>
-                    </div>
-                    {ai.investmentOutlook.riskFlags.length > 0 && (
-                      <div className="mt-4">
-                        <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                          <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                          Market flags
+              {/* ─────────────────────────────────────────────────────────────
+                  TAB 4 — DETAILS
+                  What it covers:
+                  - Crime Statistics (paid)
+                  - Broadband & Infrastructure (paid)
+                  - Air Quality (paid)
+                  - Planning Activity (paid)
+                  - Rental Demand (investor)
+                  - Nearby Development Tracker (investor)
+                  - Nearby Sold Prices Map (paid)
+                  - Street Price Ranking (investor)
+              ───────────────────────────────────────────────────────────── */}
+              <TabsContent value="details" className="space-y-4 mt-0">
+
+                {/* Crime Statistics — Professional+ */}
+                {isPaid && ai.crimeStats && ai.crimeStats.totalCrimesPerMonth === 0 && (
+                  <CollapsibleSection title="Crime Statistics" testId="section-crime-unavailable" defaultOpen={false}>
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/40">
+                      <Shield className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
+                        <p className="text-xs text-muted-foreground/70 mt-2 leading-relaxed">
+                          No recorded data doesn't mean no crime — it means the API returned no records for this period. Check police.uk directly before deciding.
                         </p>
-                        <ul className="space-y-1.5">
-                          {ai.investmentOutlook.riskFlags.map((flag, i) => (
-                            <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
-                              {flag}
-                            </li>
-                          ))}
-                        </ul>
+                        <a href="https://www.police.uk/pu/your-area/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Check crime data at police.uk →</a>
                       </div>
+                    </div>
+                  </CollapsibleSection>
+                )}
+                {isPaid && ai.crimeStats && ai.crimeStats.totalCrimesPerMonth > 0 && (
+                  <CollapsibleSection title="Crime Statistics" testId="section-crime" defaultOpen={false}>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{ai.crimeStats.totalCrimesPerMonth.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">crimes recorded near this area ({ai.crimeStats.date})</p>
+                        </div>
+                        <Shield className="h-8 w-8 text-primary/30" />
+                      </div>
+                      {ai.crimeStats.topCategories.length > 0 && (
+                        <div className="space-y-2">
+                          {ai.crimeStats.topCategories.map((cat, i) => (
+                            <div key={i} className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-foreground font-medium">{cat.category}</span>
+                                <span className="text-muted-foreground">{cat.count} ({cat.pct}%)</span>
+                              </div>
+                              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-primary/60 rounded-full" style={{ width: `${Math.min(cat.pct * 2, 100)}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground leading-relaxed">{ai.crimeStats.vsNationalNote}</p>
+                      {report.lat && report.lng && (
+                        <div className="pt-2 border-t border-border/40">
+                          <CrimeSparkline lat={report.lat} lng={report.lng} />
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                        Source: data.police.uk — Police recorded crime data. Anti-social behaviour, vehicle crime, and burglary rates vary significantly between adjacent postcodes.
+                      </p>
+                    </div>
+                  </CollapsibleSection>
+                )}
+
+                {/* Broadband & Infrastructure — Pro+ */}
+                {isPaid ? (
+                  <CollapsibleSection title="Broadband & Infrastructure" testId="section-broadband" defaultOpen={false}>
+                    <div className="flex flex-col gap-4">
+                      <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Download</span>
+                          <span className="text-lg font-bold text-foreground">{ai.broadband.avgDownloadSpeed}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Upload</span>
+                          <span className="text-lg font-bold text-foreground">{ai.broadband.avgUploadSpeed}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Rating</span>
+                          <span className={`text-base font-bold ${
+                            ai.broadband.rating === "Excellent" ? "text-emerald-600 dark:text-emerald-400" :
+                            ai.broadband.rating === "Very Good" ? "text-green-600 dark:text-green-400" :
+                            ai.broadband.rating === "Good" ? "text-primary" :
+                            "text-amber-600 dark:text-amber-400"
+                          }`}>{ai.broadband.rating}</span>
+                        </div>
+                      </div>
+                      {ai.broadband.fullFibreAvailable !== undefined && (
+                        <div className="flex items-center gap-2">
+                          <Wifi className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-xs text-muted-foreground">
+                            Full fibre (FTTP): <span className="font-semibold text-foreground">{ai.broadband.fullFibreAvailable ? "Available" : "Not available"}</span>
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-sm text-muted-foreground leading-relaxed">{ai.broadband.note}</p>
+                      <p className="text-xs text-muted-foreground/70 leading-relaxed">Source: Ofcom Connected Nations dataset (postcode-level). Actual speeds vary by provider and premises.</p>
+                    </div>
+                  </CollapsibleSection>
+                ) : (
+                  <div className="relative" data-testid="section-broadband-locked">
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      <Card className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Wifi className="h-4 w-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Broadband & Infrastructure</h3>
+                        </div>
+                        <div className="h-24 bg-muted rounded" />
+                      </Card>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
+                        <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-foreground">Broadband — Professional</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-2">Download/upload speeds and full fibre availability.</p>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Air Quality — Pro+ */}
+                {isPaid ? (
+                  <CollapsibleSection title="Air Quality" testId="section-air-quality" defaultOpen={false}>
+                    <div className="flex flex-col gap-4">
+                      <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Overall Rating</span>
+                          <span className={`text-base font-bold ${
+                            ai.airQuality.rating === "Good" ? "text-emerald-600 dark:text-emerald-400" :
+                            ai.airQuality.rating === "Moderate" ? "text-amber-600 dark:text-amber-400" :
+                            "text-red-600 dark:text-red-400"
+                          }`}>{ai.airQuality.rating}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ Level</span>
+                          <span className="text-base font-bold text-foreground">{ai.airQuality.no2Level} μg/m³</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5</span>
+                          <span className="text-base font-bold text-foreground">{ai.airQuality.pm25Level} μg/m³</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{ai.airQuality.note}</p>
+                      <p className="text-xs text-muted-foreground/70 leading-relaxed">Source: DEFRA Air Quality modelling. Relevant for families and those with respiratory health concerns.</p>
+                    </div>
+                  </CollapsibleSection>
+                ) : (
+                  <div className="relative" data-testid="section-air-quality-locked">
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      <Card className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Wind className="h-4 w-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Air Quality</h3>
+                        </div>
+                        <div className="h-24 bg-muted rounded" />
+                      </Card>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
+                        <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-foreground">Air Quality — Professional</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-2">NO₂ and PM2.5 levels with rating.</p>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Planning Activity — Pro+ */}
+                {isPaid ? (
+                  <CollapsibleSection title="Planning Activity" testId="section-planning" defaultOpen={false}>
+                    <div className="flex flex-col gap-4">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Planning Applications (past 12 months)</span>
+                          {ai.planningActivity.recentApplications > 0
+                            ? <span className="text-2xl font-bold text-foreground">{ai.planningActivity.recentApplications.toLocaleString()}</span>
+                            : <span className="text-sm text-muted-foreground">Count not available — check the council portal below.</span>
+                          }
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Local Authority</span>
+                          <span className="text-sm text-foreground font-medium">{ai.councilTax.borough}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Major Developments</span>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{ai.planningActivity.majorDevelopments}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{ai.planningActivity.note}</p>
+                      <p className="text-xs text-muted-foreground/70 leading-relaxed border-l-2 border-border pl-3">
+                        Check the council portal directly before exchange — applications can move fast and won't always appear in this data.
+                      </p>
+                      <a href={ai.planningActivity.councilPortalUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start">
+                        View planning portal →
+                      </a>
+                    </div>
+                  </CollapsibleSection>
+                ) : (
+                  <div className="relative" data-testid="section-planning-locked">
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      <Card className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <FileSearch className="h-4 w-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Planning Activity</h3>
+                        </div>
+                        <div className="h-24 bg-muted rounded" />
+                      </Card>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
+                        <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-foreground">Planning activity — Professional</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-2">Applications, major developments, and the council portal link.</p>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rental Demand — Investor */}
+                {user?.plan === "investor" ? (
+                  <CollapsibleSection title="Rental Demand" testId="section-rental-demand" defaultOpen={false}>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Demand Level</span>
+                          <span className="text-base font-bold text-[#B8860B]">{ai.rentalDemand?.demandLevel ?? "—"}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Void Risk <EstimateTag /></span>
+                          <span className="text-base font-bold text-foreground">{ai.rentalDemand?.voidRisk ?? "—"}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Tenant Profile</span>
+                          <span className="text-sm font-medium text-foreground">{ai.rentalDemand?.tenantProfile ?? "—"}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Supply Trend <EstimateTag /></span>
+                          <span className="text-sm font-medium text-foreground">{ai.rentalDemand?.supplyTrend ?? "—"}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{ai.rentalDemand?.note ?? ""}</p>
+                    </div>
+                  </CollapsibleSection>
+                ) : isPaid ? (
+                  <div className="relative" data-testid="section-rental-demand-locked">
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      <Card className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Rental Demand</h3>
+                        </div>
+                        <div className="h-24 bg-muted rounded" />
+                      </Card>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
+                        <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-foreground">Rental Demand — Investor</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-2">Void risk, tenant profile, supply trend.</p>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Nearby Development Tracker — Investor */}
+                {user?.plan === "investor" ? (
+                  <CollapsibleSection title="Nearby Development Tracker" testId="section-developments" defaultOpen={false}>
+                    <NearbyDevelopmentTracker developments={ai.nearbyDevelopments ?? []} />
+                  </CollapsibleSection>
+                ) : isPaid ? (
+                  <div className="relative" data-testid="section-developments-locked">
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      <Card className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Construction className="h-4 w-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Nearby Development Tracker</h3>
+                        </div>
+                        <div className="h-24 bg-muted rounded" />
+                      </Card>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
+                        <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-foreground">Development Tracker — Investor</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-2">Nearby planning applications with impact scores.</p>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Nearby Sold Prices Map — Professional+ */}
+                {isPaid ? (
+                  <CollapsibleSection title="Nearby Sold Prices" testId="section-sold-prices-map" defaultOpen={false}>
+                    {report.lat && report.lng ? (
+                      <div className="space-y-4">
+                        <SoldPricesMap lat={report.lat} lng={report.lng} postcode={ai.location} />
+                        {(() => {
+                          const interp = deriveMapInterpretation(ai);
+                          return interp ? (
+                            <div className="flex items-start gap-3 p-3.5 rounded-lg border border-border/40 bg-muted/30">
+                              <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                              <p className="text-xs text-muted-foreground leading-relaxed">{interp}</p>
+                            </div>
+                          ) : null;
+                        })()}
+                        <p className="text-xs text-muted-foreground/60">Source: HM Land Registry Price Paid Data. Prices shown are registered sale prices — not asking prices.</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Location coordinates not available for this postcode.</p>
                     )}
-                  </Card>
-                  <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
-                    <SectionHeading>Verdict</SectionHeading>
-                    <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
-                  </Card>
-                </div>
-              </FeatureGate>
-            )}
-          </div>
+                  </CollapsibleSection>
+                ) : (
+                  <div className="relative" data-testid="section-sold-prices-locked">
+                    <div className="blur-sm pointer-events-none select-none opacity-60">
+                      <Card className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Nearby Sold Prices</h3>
+                        </div>
+                        <div className="h-32 bg-muted rounded" />
+                      </Card>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
+                        <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-foreground">Sold Prices Map — Professional</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-2">Map of recent sold prices within 500m.</p>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Street Price Ranking — Investor */}
+                {user?.plan === "investor" && (
+                  <CollapsibleSection title="Street Price Ranking" testId="section-street-ranking" defaultOpen={false}>
+                    <StreetPriceRanking postcode={ai.location} lat={report.lat} lng={report.lng} />
+                  </CollapsibleSection>
+                )}
+
+              </TabsContent>
+
+            </Tabs>
+
+          </div>{/* end space-y-0 outer wrapper */}
 
           {/* Bottom CTA */}
           <div className="mt-10 pt-8 border-t border-border/40">
