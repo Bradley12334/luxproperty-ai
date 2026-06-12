@@ -1784,7 +1784,8 @@ ${offerStrategyHtml}` : ""}
     const outstanding = within20.filter((s: any) => s.ofstedRating === "Outstanding");
     const good = within20.filter((s: any) => s.ofstedRating === "Good");
     const needsImprovement = within20.filter((s: any) => s.ofstedRating?.includes("Improvement"));
-    const unrated = within20.filter((s: any) => !s.ofstedRating || s.ofstedRating === "Not rated" || s.ofstedRating === "Not yet rated");
+    const isUnrated = (r: string) => !r || r === "Not rated" || r === "Not yet rated" || r === "No current Ofsted rating";
+    const unrated = within20.filter((s: any) => isUnrated(s.ofstedRating));
     const desirable = outstanding.length + good.length;
     const hasPrimary = pdfSchools.some((s: any) => s.type === "Primary" || s.type === "Nursery");
     const hasSecondary = pdfSchools.some((s: any) => s.type === "Secondary");
@@ -1817,7 +1818,7 @@ ${offerStrategyHtml}` : ""}
     } else if (needsImprovement.length >= 1) {
       pictureSentence = "The nearest rated schools require improvement — families should research options further afield.";
     } else if (unrated.length > 0) {
-      pictureSentence = "Nearby schools are not yet Ofsted-rated — verify current inspection status at ofsted.gov.uk before deciding.";
+      pictureSentence = "Nearby schools have no current Ofsted inspection outcome — verify current inspection status at ofsted.gov.uk before deciding.";
     } else {
       pictureSentence = "School provision exists nearby but Ofsted coverage is incomplete.";
     }
@@ -3927,14 +3928,18 @@ export default function BriefPage() {
                             "Requires Improvement": "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
                             "Inadequate": "text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/20",
                           };
-                          const ratingClass = ratingColors[school.ofstedRating] ?? "text-muted-foreground bg-muted border-border/40";
+                          const isUnratedSchool = !school.ofstedRating ||
+                            school.ofstedRating === "Not rated" ||
+                            school.ofstedRating === "No current Ofsted rating";
+                          const ratingClass = ratingColors[school.ofstedRating] ?? "text-muted-foreground/60 bg-muted/50 border-border/30";
+                          const ratingLabel = isUnratedSchool ? "No current rating" : school.ofstedRating;
                           return (
                             <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/20 last:border-0">
                               <GraduationCap className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2 flex-wrap">
                                   <p className="text-sm font-medium text-foreground">{school.name}</p>
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${ratingClass}`}>{school.ofstedRating}</span>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${ratingClass}`}>{ratingLabel}</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">{school.type} · {school.walkMins} min walk</p>
                               </div>

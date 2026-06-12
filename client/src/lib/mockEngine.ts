@@ -2305,15 +2305,19 @@ async function fetchPlanningActivity(postcode: string, lat: number, lng: number,
   } catch { return null; }
 }
 
-// ─── Ofsted static lookup (bundled JSON — May 2026 Ofsted management information) ───
+// ─── Ofsted static lookup (state + independent, May 2026, ~17k rated schools) ───
+// Sources: Ofsted monthly management information CSV (state-funded, ungraded recovery)
+//          Five-Year Ofsted Inspection Data ODS (non-association independent schools)
+// Keys: "name|outcode" (primary), "name" (fallback), "u:URN" (URN from OSM addr:urn)
 let _ofstedData: Record<string, number> | null = null;
 let _ofstedLoading: Promise<Record<string, number>> | null = null;
 const OFSTED_CODE: Record<number, string> = { 1: "Outstanding", 2: "Good", 3: "Requires Improvement", 4: "Inadequate" };
+const NO_RATING_LABEL = "No current Ofsted rating";
 
 function normaliseName(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[\u2018\u2019\u2032']/g, "")
+    .replace(/[\u2018\u2019\u2032\u201b\u2014\-']/g, " ")
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -2329,16 +2333,25 @@ async function getOfstedData(): Promise<Record<string, number>> {
   return _ofstedLoading;
 }
 
-async function lookupOfstedRating(schoolName: string, postcode: string): Promise<string> {
+async function lookupOfstedRating(schoolName: string, postcode: string, urn?: string): Promise<string> {
   try {
     const data = await getOfstedData();
+    // 1. Try URN first (most precise — no name ambiguity)
+    if (urn) {
+      const byUrn = data[`u:${urn}`];
+      if (byUrn) return OFSTED_CODE[byUrn] ?? NO_RATING_LABEL;
+    }
     const norm = normaliseName(schoolName);
     const outcode = postcode ? postcode.trim().toUpperCase().split(" ")[0] : "";
-    // Try specific key first (name|outcode), then name only
-    const code = data[`${norm}|${outcode}`] ?? data[norm];
-    return code ? (OFSTED_CODE[code] ?? "Not rated") : "Not rated";
+    // 2. Try name|outcode (school name + first part of postcode)
+    const byFull = data[`${norm}|${outcode}`];
+    if (byFull) return OFSTED_CODE[byFull] ?? NO_RATING_LABEL;
+    // 3. Fallback: name only (can match across multiple schools with same name)
+    const byName = data[norm];
+    if (byName) return OFSTED_CODE[byName] ?? NO_RATING_LABEL;
+    return NO_RATING_LABEL;
   } catch {
-    return "Not rated";
+    return NO_RATING_LABEL;
   }
 }
 
@@ -2376,11 +2389,13 @@ async function fetchNearbySchools(lat: number, lng: number): Promise<Array<{
       const dist = distMetres(lat, lng, elLat, elLng);
       const type = tags.amenity === "kindergarten" ? "Nursery" : classifySchoolType(tags);
       const postcode = tags["addr:postcode"] || "";
-      schools.push({ name, type, ofstedRating: "", distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: elLat, lng: elLng, postcode });
+      // OSM sometimes has ref:GB:ofsted (URN) — use it when present for precise matching
+      const urn = tags["ref:GB:ofsted"] || tags["ref:ofsted"] || "";
+      schools.push({ name, type, ofstedRating: "", distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: elLat, lng: elLng, postcode, urn });
     }
     const sorted = schools.sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, 8);
-    // Kick off Ofsted data fetch (warms cache) then resolve all ratings in parallel
-    const ratings = await Promise.all(sorted.map(s => lookupOfstedRating(s.name, s.postcode)));
+    // Fetch Ofsted ratings in parallel — JSON is cached after first load
+    const ratings = await Promise.all(sorted.map(s => lookupOfstedRating(s.name, s.postcode, s.urn || undefined)));
     return sorted.map((s, i) => ({ name: s.name, type: s.type, ofstedRating: ratings[i], distanceMetres: s.distanceMetres, walkMins: s.walkMins, lat: s.lat, lng: s.lng }));
   } catch { return []; }
 }
