@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { generateBrief } from "@/lib/mockEngine";
+import { getUser } from "@/lib/authStore";
 import {
   loadPortfolio,
   addToPortfolio,
@@ -220,7 +221,7 @@ export default function PortfolioPage() {
 
     setIsGenerating(true);
     try {
-      const report = await generateBrief(query);
+      const report = await generateBrief(query, getUser()?.plan);
       const { ok, item } = await addToPortfolio(report);
       if (ok && item) {
         setItems((prev) => {

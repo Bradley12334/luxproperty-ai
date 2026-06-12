@@ -3185,10 +3185,14 @@ export default function BriefPage() {
 
                 {/* Price Trend */}
                 <Card className="p-5 sm:p-6" data-testid="section-price-trend">
-                  <SectionHeading>{isPaid ? "5-Year Price Trend" : "1-Year Price Trend"}</SectionHeading>
+                  <SectionHeading>
+                    {ai.priceTrend.length > 1
+                      ? `${ai.priceTrend.length}-Year Price Trend`
+                      : "1-Year Price Trend"}
+                  </SectionHeading>
                   {!isPaid && (
                     <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                      Most recent Land Registry price data for this postcode. Professional unlocks the full 5-year history.
+                      Most recent Land Registry price data for this postcode. Professional unlocks the full 5-year history; Investor unlocks 10 years.
                     </p>
                   )}
                   <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
@@ -3201,7 +3205,7 @@ export default function BriefPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(isPaid ? ai.priceTrend : ai.priceTrend.slice(-1)).map((row) => (
+                        {ai.priceTrend.map((row) => (
                           <tr key={row.year} className="border-b border-border/30 last:border-0">
                             <td className="py-2.5 pr-4 tabular-nums">{row.year}</td>
                             <td className="py-2.5 pr-4 font-serif text-lg">{row.averagePrice}</td>
@@ -3217,7 +3221,7 @@ export default function BriefPage() {
                   </div>
                   {!isPaid && (
                     <Link href="/pricing">
-                      <p className="text-xs text-primary underline underline-offset-2 mt-3">Unlock 5-year history with Professional →</p>
+                      <p className="text-xs text-primary underline underline-offset-2 mt-3">Unlock 5-year history with Professional, or 10 years with Investor →</p>
                     </Link>
                   )}
                   <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">

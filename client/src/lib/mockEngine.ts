@@ -2581,7 +2581,7 @@ function median(prices: number[]): number {
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
-export async function generateBrief(query: string): Promise<BriefReport> {
+export async function generateBrief(query: string, plan?: string): Promise<BriefReport> {
   // Track usage for Explorer plan counter
   incrementBriefUsage();
 
@@ -2615,15 +2615,24 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   // The pinned anchor is updated deliberately (code change + deploy), not by
   // the clock. When the data year advances, update LAND_REGISTRY_BASE_YEAR here.
   const LAND_REGISTRY_BASE_YEAR = 2025;
-  const years = [
-    LAND_REGISTRY_BASE_YEAR - 4,
-    LAND_REGISTRY_BASE_YEAR - 3,
-    LAND_REGISTRY_BASE_YEAR - 2,
-    LAND_REGISTRY_BASE_YEAR - 1,
-    LAND_REGISTRY_BASE_YEAR,
-  ];
 
-  let yearData: number[][] = [[], [], [], [], []];
+  // ── Plan-based price history entitlement ─────────────────────────────────
+  // Explorer  = 1 year  (most recent only)
+  // Professional = 5 years
+  // Investor  = 10 years
+  // Enforced here in the data layer — frontend receives only entitled rows.
+  const PRICE_HISTORY_YEARS: Record<string, number> = {
+    explorer:     1,
+    professional: 5,
+    investor:     10,
+  };
+  const historyYears = PRICE_HISTORY_YEARS[plan ?? "explorer"] ?? 1;
+  const years = Array.from(
+    { length: historyYears },
+    (_, i) => LAND_REGISTRY_BASE_YEAR - (historyYears - 1) + i
+  );
+
+  let yearData: number[][] = Array.from({ length: historyYears }, () => []);
   let recentTxns: Array<{ address: string; price: number; date: string; type: string }> = [];
   let liveSoldPrices: Array<{ address: string; price: string; date: string; type: string; lat: number; lng: number }> = [];
   let liveFloodRisk: Awaited<ReturnType<typeof fetchFloodRisk>> = null;
@@ -2641,16 +2650,17 @@ export async function generateBrief(query: string): Promise<BriefReport> {
   let liveDwellingMix: Awaited<ReturnType<typeof fetchDwellingMix>> = null;
 
   if (!outsideEnglandWales && district) {
-    [yearData[0], yearData[1], yearData[2], yearData[3], yearData[4], recentTxns, liveSoldPrices] =
-      await Promise.all([
-        fetchLandRegistryYear(district, years[0]),
-        fetchLandRegistryYear(district, years[1]),
-        fetchLandRegistryYear(district, years[2]),
-        fetchLandRegistryYear(district, years[3]),
-        fetchLandRegistryYear(district, years[4]),
-        fetchRecentTransactions(district, outcode),
-        fetchSoldPricesWithCoords(district, outcode),
-      ]) as any;
+    const lrFetches = years.map(yr => fetchLandRegistryYear(district, yr));
+    const [, ...lrResults] = await Promise.all([
+      Promise.resolve(null), // placeholder so index 0 aligns
+      ...lrFetches,
+      fetchRecentTransactions(district, outcode),
+      fetchSoldPricesWithCoords(district, outcode),
+    ]) as any[];
+    // lrResults: [...yearArrays, recentTxns, liveSoldPrices]
+    for (let i = 0; i < historyYears; i++) yearData[i] = lrResults[i] ?? [];
+    recentTxns   = lrResults[historyYears]     ?? [];
+    liveSoldPrices = lrResults[historyYears + 1] ?? [];
   }
 
   // Derive isLondon early so it can be used in API guards below
@@ -2687,7 +2697,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     ? `${((latestMedian - prevMedian) / prevMedian * 100) >= 0 ? "+" : ""}${((latestMedian - prevMedian) / prevMedian * 100).toFixed(1)}%`
     : "—";
 
-  // 5-year trend
+  // Price trend (length = historyYears, plan-enforced)
   const priceTrend = years.map((year, i) => {
     const med = yearMedians[i];
     let change = "—";
@@ -2720,7 +2730,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     const direction = yoyChange.startsWith("+") ? "upward" : "downward";
     const demandLevel = totalTxns > 200 ? "high" : totalTxns > 80 ? "moderate" : "low";
     const yoyAbs = yoyChange.replace("+", "").replace("-", "");
-    const volumeNote = totalTxns > 0 ? `${totalTxns} Land Registry transactions recorded over 5 years` : "limited transaction volume";
+    const volumeNote = totalTxns > 0 ? `${totalTxns} Land Registry transactions recorded over ${historyYears} year${historyYears === 1 ? "" : "s"}` : "limited transaction volume";
     return `Recent price trend is ${direction} (${yoyChange} year-on-year based on Land Registry data). Transaction volume is ${demandLevel} (${volumeNote}). This reflects observed market activity — not a forecast. Future values depend on interest rates, local supply, and national conditions.`;
   })();
   // Comparables
@@ -2742,7 +2752,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     ? `${(((latestMedian - firstValidMedian) / firstValidMedian) * 100).toFixed(1)}%`
     : "—";
 
-  const totalSalesThisYear = yearData[4]?.length || 0;
+  const totalSalesThisYear = yearData[yearData.length - 1]?.length || 0;
   const demandSignal = totalSalesThisYear > 40 ? "High" : totalSalesThisYear > 15 ? "Moderate" : "Low";
 
   // pricePerSqmEstimate: derived from area median ÷ assumed average floor area.
@@ -3246,7 +3256,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
     executiveSummary: outsideEnglandWales
       ? scotlandNote
       : hasData
-        ? `${areaName} (${outcode}) is classified as a ${tier} residential market. Median transaction value stands at ${fmt(latestMedian)}, based on ${totalTxns} Land Registry records across five years. The 5-year price trajectory is ${fiveYearGrowth !== "—" ? `+${fiveYearGrowth}` : "—"}, with year-on-year movement of ${yoyChange}. ${ward ? `Ward: ${ward}.` : ""} ${constituency ? `Parliamentary constituency: ${constituency}.` : ""} Demand is currently ${demandSignal.toLowerCase()}, with ${totalSalesThisYear} registered transactions in the most recent year on record. ${marketMomentum}.`
+        ? `${areaName} (${outcode}) is classified as a ${tier} residential market. Median transaction value stands at ${fmt(latestMedian)}, based on ${totalTxns} Land Registry records across ${historyYears} year${historyYears === 1 ? "" : "s"}. The ${historyYears}-year price trajectory is ${fiveYearGrowth !== "—" ? `+${fiveYearGrowth}` : "—"}, with year-on-year movement of ${yoyChange}. ${ward ? `Ward: ${ward}.` : ""} ${constituency ? `Parliamentary constituency: ${constituency}.` : ""} Demand is currently ${demandSignal.toLowerCase()}, with ${totalSalesThisYear} registered transactions in the most recent year on record. ${marketMomentum}.`
         : `${areaName} (${outcode}) is in ${region}. Transaction volume was below the threshold for full statistical analysis — the report draws on available district-level Land Registry records. Manual verification via Rightmove and Zoopla sold data is advised.`,
     marketOverview: {
       averagePrice: hasData ? fmt(latestMedian) : outsideEnglandWales ? "Scotland/NI — see note" : "Insufficient data",
@@ -3297,7 +3307,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ],
     },
     verdict: hasData
-      ? `${areaName} is a ${tier} market with ${yoyChange.startsWith("+") ? "positive momentum" : "stable conditions"}. Five-year appreciation of ${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"} and ${yoyChange} year-on-year movement ${yoyChange.startsWith("+") ? "supports a considered buying decision for those with a medium-to-long horizon" : "suggests patience is rewarded — pricing power currently sits with informed buyers"}. Estimated price per m² is ${pricePerSqmEstimate}. Buyer profile: ${buyerType}. Strategy: ${tier === "prime" || tier === "premium" ? "target off-market or chain-free properties for best leverage. Instruct a RICS Level 2 or 3 survey." : "look for properties with modernisation potential — 10–20% value uplift typically achievable with cosmetic refurbishment. Use comparables to anchor your offer below asking."}`
+      ? `${areaName} is a ${tier} market with ${yoyChange.startsWith("+") ? "positive momentum" : "stable conditions"}. ${historyYears}-year appreciation of ${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"} and ${yoyChange} year-on-year movement ${yoyChange.startsWith("+") ? "supports a considered buying decision for those with a medium-to-long horizon" : "suggests patience is rewarded — pricing power currently sits with informed buyers"}. Estimated price per m² is ${pricePerSqmEstimate}. Buyer profile: ${buyerType}. Strategy: ${tier === "prime" || tier === "premium" ? "target off-market or chain-free properties for best leverage. Instruct a RICS Level 2 or 3 survey." : "look for properties with modernisation potential — 10–20% value uplift typically achievable with cosmetic refurbishment. Use comparables to anchor your offer below asking."}`
       : outsideEnglandWales
         ? `${areaName} is outside England and Wales. HM Land Registry data does not apply. Engage a local solicitor and RICS-accredited surveyor familiar with ${country} conveyancing law.`
         : `${areaName} is an established residential area. Low transaction volume limits statistical confidence — supplement this report with local agent intelligence and Rightmove sold prices before committing.`,
@@ -3938,7 +3948,7 @@ export async function generateBrief(query: string): Promise<BriefReport> {
       ].join(" ")
     : outsideEnglandWales
     ? `Sold-price data is not available for this region via HM Land Registry. Ranges cannot be calculated. See ros.gov.uk (Scotland) for alternative data.`
-    : `Transaction volume at this postcode is below the threshold for a statistically grounded range. Use the 5-year trend and district-level median as directional anchors only.`;
+    : `Transaction volume at this postcode is below the threshold for a statistically grounded range. Use the ${historyYears}-year trend and district-level median as directional anchors only.`;
 
   // Seller pressure points: evidence-led, framed carefully
   const sellerPressurePoints: string[] = [];
@@ -4052,14 +4062,14 @@ export async function generateBrief(query: string): Promise<BriefReport> {
           ? `${fmt(latestMedian * 0.9)} – ${fmt(latestMedian * 1.15)} (90–115% of ${areaName} median)`
           : "Insufficient recent sales data for this postcode — instruct a RICS-regulated surveyor for a binding valuation before offering.",
         priceVsAreaAverage: hasData
-          ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · 5-yr: +${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"}`
+          ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · ${historyYears}-yr: +${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"}`
           : outsideEnglandWales ? "Sold-price data is not available for this region via Land Registry — see ros.gov.uk (Scotland) or Welsh Government data for alternatives." : "Fewer than 5 recent transactions at this postcode level. Treat the area median as a directional anchor; commission a surveyor for a property-specific figure.",
         valueScore: hasData
           ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : tier === "mid-market" ? "7.4" : "7.0"} / 10`
           : "Check with surveyor",
       },
       comparableSales: comparables.length > 0 ? comparables : [
-        { address: `Transaction volume in ${areaName} is thin for the period covered — HM Land Registry records fewer recent sales at this postcode level. Use the 5-year price trend and area median as your primary anchors; treat any comparable figures as directional rather than precise.`, price: "—", date: "—", type: "—" },
+        { address: `Transaction volume in ${areaName} is thin for the period covered — HM Land Registry records fewer recent sales at this postcode level. Use the ${historyYears}-year price trend and area median as your primary anchors; treat any comparable figures as directional rather than precise.`, price: "—", date: "—", type: "—" },
       ],
       negotiationBrief: {
         suggestedOfferRange: hasData

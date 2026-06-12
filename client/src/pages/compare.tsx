@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { generateBrief } from "@/lib/mockEngine";
+import { getUser } from "@/lib/authStore";
 import type { BriefReport } from "@shared/schema";
 import {
   ArrowRight,
@@ -266,7 +267,7 @@ export default function ComparePage() {
     setError("");
     setter(null);
     try {
-      const r = await generateBrief(cleaned);
+      const r = await generateBrief(cleaned, getUser()?.plan);
       setter(r);
     } catch (e: any) {
       setError(e.message ?? "Failed to load report");

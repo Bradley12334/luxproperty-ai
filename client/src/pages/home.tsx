@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useMutation } from "@tanstack/react-query";
 import { generateBrief } from "@/lib/mockEngine";
+import { getUser } from "@/lib/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -41,7 +42,7 @@ export default function Home() {
 
   const generateBriefMutation = useMutation({
     mutationFn: async (q: string) => {
-      return (await generateBrief(q)) as BriefReport;
+      return (await generateBrief(q, getUser()?.plan)) as BriefReport;
     },
     onSuccess: (data) => {
       navigate(`/brief/${data.id}`);
