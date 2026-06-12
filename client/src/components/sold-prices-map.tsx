@@ -299,12 +299,14 @@ export function SoldPricesMap({
         </div>
       )}
 
-      {/* Map */}
-      <div
-        ref={mapRef}
-        style={{ height: mapHeight, width: "100%", borderRadius: "0.5rem" }}
-        data-testid="sold-prices-map"
-      />
+      {/* Map — outer wrapper carries border-radius; inner div is plain Leaflet host */}
+      <div style={{ height: mapHeight, width: "100%", borderRadius: "0.5rem", overflow: "hidden" }}>
+        <div
+          ref={mapRef}
+          style={{ width: "100%", height: "100%" }}
+          data-testid="sold-prices-map"
+        />
+      </div>
 
       {/* Price tier legend */}
       {legendTiers.length > 1 && (

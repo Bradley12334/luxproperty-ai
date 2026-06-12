@@ -1,3 +1,14 @@
+/**
+ * PostcodeMap — Location Map shown in the Overview tab accordion.
+ *
+ * Same wrapper pattern as NeighbourhoodMap:
+ * - Outer div carries border-radius + overflow:hidden (for visual rounding)
+ * - Inner div is the plain Leaflet host (no decorative CSS)
+ *
+ * border-radius on the Leaflet host div triggers GPU compositing that
+ * offsets Leaflet's CSS transform-based tile positioning → fragmented tiles.
+ */
+
 import { useEffect, useRef } from "react";
 
 interface PostcodeMapProps {
@@ -8,19 +19,27 @@ interface PostcodeMapProps {
 }
 
 export function PostcodeMap({ postcode, lat, lng, areaName }: PostcodeMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const roRef = useRef<ResizeObserver | null>(null);
+  const mapElRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const initStartedRef = useRef(false);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    const mapEl = mapElRef.current;
+    if (!mapEl) return;
 
-    const el = containerRef.current;
+    async function buildMap() {
+      if (mapInstanceRef.current || initStartedRef.current || !mapEl) return;
+      if (mapEl.clientWidth === 0 || mapEl.clientHeight === 0) return;
 
-    const initMap = (L: any) => {
-      if (mapRef.current || !el) return;
+      initStartedRef.current = true;
 
-      // Fix default icon paths (vite/webpack don't bundle them automatically)
+      const L = await import("leaflet");
+
+      if (!mapEl.isConnected || mapInstanceRef.current) {
+        initStartedRef.current = false;
+        return;
+      }
+
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -30,19 +49,19 @@ export function PostcodeMap({ postcode, lat, lng, areaName }: PostcodeMapProps) 
 
       const coords: [number, number] = lat && lng ? [lat, lng] : [51.505, -0.09];
 
-      const map = L.map(el, {
+      const map = L.map(mapEl, {
         center: coords,
         zoom: lat && lng ? 14 : 12,
         zoomControl: true,
         scrollWheelZoom: false,
-        attributionControl: true,
-        // Ensure Leaflet doesn't try to animate before container is sized
-        fadeAnimation: true,
-        markerZoomAnimation: true,
+        dragging: true,
+        tap: true,
+        doubleClickZoom: true,
       });
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
         maxZoom: 19,
       }).addTo(map);
 
@@ -65,63 +84,76 @@ export function PostcodeMap({ postcode, lat, lng, areaName }: PostcodeMapProps) 
         L.marker(coords, { icon: goldIcon })
           .addTo(map)
           .bindPopup(
-            `<div style="font-family:-apple-system,sans-serif;font-size:13px;line-height:1.5">
+            `<div style="font-family:system-ui,sans-serif;font-size:13px;line-height:1.5">
               <strong style="font-size:14px">${postcode}</strong><br>
               <span style="color:#6b7280">${areaName || ""}</span>
             </div>`,
-            { offset: [0, -8] }
+            { offset: [0, -8] },
           )
           .openPopup();
       }
 
-      mapRef.current = map;
+      mapInstanceRef.current = map;
 
-      // Initial invalidateSize after accordion animation settles
       setTimeout(() => {
-        if (mapRef.current) mapRef.current.invalidateSize();
-      }, 250);
-    };
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize({ animate: false });
+        }
+      }, 300);
+    }
 
-    // ResizeObserver: init map only when container has real px dimensions,
-    // then call invalidateSize on subsequent resizes (tab switches, accordions)
-    roRef.current = new ResizeObserver(() => {
-      const { offsetWidth: w, offsetHeight: h } = el;
-      if (w > 0 && h > 0) {
-        if (!mapRef.current) {
-          import("leaflet").then(initMap);
-        } else {
-          mapRef.current.invalidateSize();
+    let rafId: number;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    function attemptInit() {
+      if (mapInstanceRef.current || initStartedRef.current) return;
+      rafId = requestAnimationFrame(() => {
+        timeoutId = setTimeout(buildMap, 50);
+      });
+    }
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          if (!mapInstanceRef.current) {
+            attemptInit();
+          } else {
+            mapInstanceRef.current.invalidateSize({ animate: false });
+          }
         }
       }
     });
-    roRef.current.observe(el);
+    ro.observe(mapEl);
 
-    // Also attempt immediately in case container is already visible
-    if (el.offsetWidth > 0 && el.offsetHeight > 0) {
-      import("leaflet").then(initMap);
-    }
+    attemptInit();
 
     return () => {
-      roRef.current?.disconnect();
-      roRef.current = null;
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
+      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId);
+      ro.disconnect();
+      initStartedRef.current = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
       }
     };
   }, [lat, lng, postcode, areaName]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full rounded-lg border border-border/40"
-      style={{
-        height: 260,
-        // Do NOT use overflow:hidden — Leaflet tile panes are position:absolute
-        // and will be clipped. Leaflet manages its own overflow internally.
-        minWidth: 0,
-      }}
-      aria-label={`Map showing ${postcode}`}
-    />
+    <>
+      {/* Outer wrapper — carries border-radius and visual clip */}
+      <div
+        className="w-full rounded-lg overflow-hidden border border-border/40"
+        style={{ height: 260 }}
+      >
+        {/* Inner Leaflet host — plain, no decorative CSS */}
+        <div
+          ref={mapElRef}
+          style={{ width: "100%", height: "100%" }}
+          aria-label={`Map showing ${postcode}`}
+        />
+      </div>
+    </>
   );
 }
