@@ -68,10 +68,36 @@ export function PostcodeMap({ postcode, lat, lng, areaName }: PostcodeMapProps) 
       }
 
       mapInstanceRef.current = map;
+
+      // invalidateSize after a short delay so the accordion animation settles
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 150);
+
+      // ResizeObserver: re-invalidate whenever the container gains real dimensions
+      // (handles cases where accordion/tab reveals the map after init)
+      if (mapRef.current) {
+        const ro = new ResizeObserver(() => {
+          if (mapInstanceRef.current) {
+            const el = mapRef.current;
+            if (el && el.offsetWidth > 0 && el.offsetHeight > 0) {
+              mapInstanceRef.current.invalidateSize();
+            }
+          }
+        });
+        ro.observe(mapRef.current);
+        // Store ro on the map instance so we can disconnect it on cleanup
+        (mapInstanceRef.current as any)._roObserver = ro;
+      }
     });
 
     return () => {
       if (mapInstanceRef.current) {
+        if ((mapInstanceRef.current as any)._roObserver) {
+          (mapInstanceRef.current as any)._roObserver.disconnect();
+        }
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }

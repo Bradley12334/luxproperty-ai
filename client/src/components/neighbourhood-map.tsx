@@ -232,10 +232,35 @@ export function NeighbourhoodMap({ lat, lng, postcode, stations = [], schools = 
             .bindPopup(`<strong>${s.name}</strong><br/>${s.type}<br/>${s.distanceMetres}m away`);
         });
       }
+
+      // invalidateSize after a short delay so the tab/collapsible animation settles
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 150);
+
+      // ResizeObserver: re-invalidate whenever the container gains real dimensions
+      // (handles CollapsibleSection {open && <div>} mount + tab-switch reveal)
+      if (mapRef.current) {
+        const ro = new ResizeObserver(() => {
+          if (mapInstanceRef.current) {
+            const el = mapRef.current;
+            if (el && el.offsetWidth > 0 && el.offsetHeight > 0) {
+              mapInstanceRef.current.invalidateSize();
+            }
+          }
+        });
+        ro.observe(mapRef.current);
+        (mapInstanceRef.current as any)._roObserver = ro;
+      }
     });
 
     return () => {
       if (mapInstanceRef.current) {
+        if ((mapInstanceRef.current as any)._roObserver) {
+          (mapInstanceRef.current as any)._roObserver.disconnect();
+        }
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
