@@ -42,7 +42,9 @@ export default function Home() {
 
   const generateBriefMutation = useMutation({
     mutationFn: async (q: string) => {
-      return (await generateBrief(q, getUser()?.plan)) as BriefReport;
+      const callerPlan = getUser()?.plan;
+      console.log(`[LuxProperty] home.tsx mutationFn | getUser().plan="${callerPlan}" | query="${q}"`);
+      return (await generateBrief(q, callerPlan)) as BriefReport;
     },
     onSuccess: (data) => {
       navigate(`/brief/${data.id}`);

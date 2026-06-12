@@ -1565,6 +1565,7 @@ function deriveBriefConfidence(
   specificProfile: boolean, // true if curated enrichment data exists for this postcode
   areaName: string,
   fiveYearGrowth: string,
+  historyYears: number,
 ): AreaIntelligence["briefConfidence"] {
 
   // ── Evidence signal inventory ──────────────────────────────────────────────
@@ -1620,12 +1621,12 @@ function deriveBriefConfidence(
     marketTrendNote = "No Land Registry trend data available for this region.";
   } else if (strongVolume && yoyValid && hasFiveyearTrend) {
     marketTrend = "High";
-    marketTrendNote = `${totalSalesThisYear} registered transactions and a consistent 5-year trend give a reliable picture of price direction in ${areaName}.`;
+    marketTrendNote = `${totalSalesThisYear} registered transactions and a consistent ${historyYears}-year trend give a reliable picture of price direction in ${areaName}.`;
   } else if (yoyValid && (moderateVolume || hasFiveyearTrend)) {
     marketTrend = "Medium";
     marketTrendNote = thinVolume
       ? `YoY figure is available but transaction volume is moderate (${totalSalesThisYear} sales) — treat the trend as directional rather than definitive.`
-      : `Year-on-year price data is available. Five-year trend data limited — treat longer-term trajectory as indicative.`;
+      : `Year-on-year price data is available. ${historyYears}-year trend data limited — treat longer-term trajectory as indicative.`;
   } else {
     marketTrend = "Low";
     marketTrendNote = `Price change data is absent or based on very few transactions (${totalSalesThisYear}) — the trajectory is uncertain.`;
@@ -2626,7 +2627,12 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     professional: 5,
     investor:     10,
   };
-  const historyYears = PRICE_HISTORY_YEARS[plan ?? "explorer"] ?? 1;
+  const resolvedPlan = plan ?? "explorer";
+  const historyYears = PRICE_HISTORY_YEARS[resolvedPlan] ?? 1;
+  // ── Entitlement proof-point (visible in browser DevTools → Console) ───────
+  console.log(
+    `[LuxProperty] generateBrief called | plan param="${plan}" | resolved="${resolvedPlan}" | historyYears=${historyYears} | years window: ${LAND_REGISTRY_BASE_YEAR - (historyYears - 1)}–${LAND_REGISTRY_BASE_YEAR}`
+  );
   const years = Array.from(
     { length: historyYears },
     (_, i) => LAND_REGISTRY_BASE_YEAR - (historyYears - 1) + i
@@ -2661,6 +2667,10 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     for (let i = 0; i < historyYears; i++) yearData[i] = lrResults[i] ?? [];
     recentTxns   = lrResults[historyYears]     ?? [];
     liveSoldPrices = lrResults[historyYears + 1] ?? [];
+    console.log(
+      `[LuxProperty] Land Registry fetched | years requested=${historyYears} | rows per year:`,
+      yearData.map((d, i) => `${years[i]}:${d.length}`)
+    );
   }
 
   // Derive isLondon early so it can be used in API guards below
@@ -2698,6 +2708,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     : "—";
 
   // Price trend (length = historyYears, plan-enforced)
+  console.log(`[LuxProperty] priceTrend rows to be built: ${years.length} | years: [${years.join(",")}]`);
   const priceTrend = years.map((year, i) => {
     const med = yearMedians[i];
     let change = "—";
@@ -4048,6 +4059,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     !!specificProfile,
     areaName,
     fiveYearGrowth,
+    historyYears,
   );
 
   // ─── Shortlist Verdict ─────────────────────────────────────────────────────────────

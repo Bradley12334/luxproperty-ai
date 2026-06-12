@@ -1568,7 +1568,7 @@ function exportToPDF(
   ${pdfNegotiationLeverageSection}
 
   <div class="section">
-    <div class="section-label">5-Year Price Trend</div>
+    <div class="section-label">${ai.priceTrend.length}-Year Price Trend</div>
     <table><thead><tr><th>Year</th><th>Median Price</th><th style="text-align:right">Change</th></tr></thead>
     <tbody>${priceTrendRows}</tbody></table>
   </div>
@@ -3271,7 +3271,7 @@ export default function BriefPage() {
                           <FileSearch className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
                           <div className="flex flex-col gap-1">
                             <p className="text-sm text-muted-foreground leading-relaxed">{pd.comparableSales[0].address}</p>
-                            <p className="text-xs text-muted-foreground/70">Use the 5-year price trend and area median above as your pricing anchors.</p>
+                            <p className="text-xs text-muted-foreground/70">Use the {ai.priceTrend.length}-year price trend and area median above as your pricing anchors.</p>
                             <a href="https://www.rightmove.co.uk/house-prices.html" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2 self-start mt-1">Search sold prices on Rightmove →</a>
                           </div>
                         </div>
