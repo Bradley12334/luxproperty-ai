@@ -4340,27 +4340,52 @@ export default function BriefPage() {
                 ) : null}
 
                 {/* Nearby Sold Prices Map — Professional+ */}
-                {isPaid ? (
+                {isPaid && (ai.recentSoldPrices ?? []).length > 0 ? (
                   <CollapsibleSection title="Nearby Sold Prices" testId="section-sold-prices-map" defaultOpen={false}>
-                    {report.lat && report.lng ? (
-                      <div className="space-y-4">
-                        <SoldPricesMap lat={report.lat} lng={report.lng} postcode={ai.location} />
-                        {(() => {
-                          const interp = deriveMapInterpretation(ai);
-                          return interp ? (
-                            <div className="flex items-start gap-3 p-3.5 rounded-lg border border-border/40 bg-muted/30">
-                              <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                              <p className="text-xs text-muted-foreground leading-relaxed">{interp}</p>
-                            </div>
-                          ) : null;
-                        })()}
-                        <p className="text-xs text-muted-foreground/60">Source: HM Land Registry Price Paid Data. Prices shown are registered sale prices — not asking prices.</p>
+                    <SoldPricesMap
+                      soldPrices={ai.recentSoldPrices}
+                      centerLat={report.lat}
+                      centerLng={report.lng}
+                      areaMedian={(() => {
+                        const raw = ai.marketOverview?.averagePrice;
+                        if (!raw) return undefined;
+                        const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+                        return isNaN(n) ? undefined : n;
+                      })()}
+                      showInterpretation={true}
+                    />
+                    {/* Transaction list */}
+                    <details className="mt-4 group">
+                      <summary className="cursor-pointer text-xs font-semibold text-primary flex items-center gap-1.5 list-none select-none">
+                        <span className="group-open:hidden">▸ Show transaction list ({ai.recentSoldPrices.length} sales)</span>
+                        <span className="hidden group-open:inline">▾ Hide transaction list</span>
+                      </summary>
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border">
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Address</th>
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Price</th>
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2 pr-3">Type</th>
+                              <th className="text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground py-2">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ai.recentSoldPrices.map((sp, i) => (
+                              <tr key={i} className="border-b border-border/50 last:border-0">
+                                <td className="py-2.5 pr-3 text-foreground/80 text-xs">{sp.address}</td>
+                                <td className="py-2.5 pr-3 text-[#B8860B] font-bold text-sm">{sp.price}</td>
+                                <td className="py-2.5 pr-3 text-muted-foreground text-xs">{sp.type}</td>
+                                <td className="py-2.5 text-muted-foreground text-xs">{sp.date}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Location coordinates not available for this postcode.</p>
-                    )}
+                    </details>
+                    <p className="text-xs text-muted-foreground/60 mt-3">Source: HM Land Registry Price Paid Data. Prices shown are registered sale prices — not asking prices.</p>
                   </CollapsibleSection>
-                ) : (
+                ) : !isPaid ? (
                   <div className="relative" data-testid="section-sold-prices-locked">
                     <div className="blur-sm pointer-events-none select-none opacity-60">
                       <Card className="p-5 sm:p-6">
@@ -4380,7 +4405,7 @@ export default function BriefPage() {
                       </div>
                     </div>
                   </div>
-                )}
+                ) : null /* paid but no sold price data — render nothing */}
 
                 {/* Street Price Ranking — Investor */}
                 {user?.plan === "investor" && (

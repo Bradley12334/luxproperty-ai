@@ -162,7 +162,6 @@ export async function registerRoutes(
 
   // ─── Vercel API handlers (dev bridge) ───────────────────────────────────────
   const apiRoutes: Array<[string, string]> = [
-    ["/api/nearby-stations",  "nearby-stations.js"],
     ["/api/nearby-schools",   "nearby-schools.js"],
     ["/api/local-amenities",  "local-amenities.js"],
     ["/api/planning-activity","planning-activity.js"],
