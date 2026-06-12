@@ -302,7 +302,7 @@ export function SoldPricesMap({
       {/* Map */}
       <div
         ref={mapRef}
-        style={{ height: mapHeight, width: "100%", borderRadius: "0.5rem", overflow: "hidden" }}
+        style={{ height: mapHeight, width: "100%", borderRadius: "0.5rem" }}
         data-testid="sold-prices-map"
       />
 

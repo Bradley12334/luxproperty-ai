@@ -224,7 +224,7 @@ function CollapsibleSection({ title, children, defaultOpen = true, testId }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <Card className="overflow-hidden" data-testid={testId}>
+    <Card className={open ? "" : "overflow-hidden"} data-testid={testId}>
       <button
         className="w-full flex items-center justify-between p-5 sm:p-6 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setOpen(o => !o)}
@@ -3061,7 +3061,7 @@ export default function BriefPage() {
 
                 {/* Map */}
                 {(report.lat && report.lng) && (
-                  <Card className="overflow-hidden" data-testid="section-map">
+                  <Card data-testid="section-map">
                     <Accordion type="single" defaultValue="map" collapsible className="w-full">
                       <AccordionItem value="map" className="border-0">
                         <AccordionTrigger className="px-5 sm:px-6 py-4 text-xs font-semibold uppercase tracking-[0.15em] text-primary hover:no-underline hover:bg-muted/30">
