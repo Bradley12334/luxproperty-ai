@@ -4,9 +4,8 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, MapPin, TrendingUp, Home, Train, GraduationCap, Search } from "lucide-react";
+import { ArrowRight, MapPin, Home, Train, GraduationCap, Search } from "lucide-react";
 
 // Top 30 UK postcode areas with curated data for SEO pages
 const AREA_DATA: Record<string, {
@@ -56,6 +55,96 @@ const TOP_AREAS = [
   { code: "W11", label: "Notting Hill" },
 ];
 
+const GUIDE_SECTIONS = [
+  {
+    number: "01",
+    icon: Home,
+    title: "Check flood risk",
+    body: [
+      "Flood risk is one of the most overlooked checks UK buyers can make, especially if the property itself looks perfectly fine on viewing day. A street can appear completely normal and still sit within an area with elevated river, sea or surface water flood exposure.",
+      "This matters because flood risk can affect insurance premiums, mortgage decisions, resale value and future maintenance costs.",
+    ],
+    bullets: [
+      "River flooding",
+      "Sea flooding",
+      "Surface water flooding after heavy rain",
+      "Groundwater flooding in some locations",
+    ],
+  },
+  {
+    number: "02",
+    icon: MapPin,
+    title: "Check crime levels",
+    body: [
+      "Crime is one of the first things buyers want to know, but many people rely too heavily on hearsay or broad assumptions about an area. It is far better to look at actual local crime data and then compare it with neighbouring postcodes.",
+      "When you review crime, do not just look at the total number. Look at the type of crime as well. There is a big difference between occasional anti-social behaviour and a consistent pattern of burglary or violence.",
+    ],
+    bullets: [],
+  },
+  {
+    number: "03",
+    icon: GraduationCap,
+    title: "Check school quality",
+    body: [
+      "Even if you do not have children, school quality can still affect local demand and resale value. Areas near strong schools often attract more buyers and tend to be more resilient.",
+      "Look at nearby primary and secondary schools, not just the nearest one. A house can technically be close to a school without being in the catchment or without that school being particularly well rated.",
+    ],
+    bullets: [],
+  },
+  {
+    number: "04",
+    icon: Train,
+    title: "Check transport links",
+    body: [
+      "A postcode can look attractive on paper, but the day-to-day reality of getting around can be very different. Check rail stations, Underground or tram access where relevant, major roads, and actual travel times to the places that matter to you.",
+    ],
+    bullets: [],
+  },
+  {
+    number: "05",
+    icon: Search,
+    title: "Check planning and development nearby",
+    body: [
+      "One of the most common buyer regrets is discovering too late that something major is planned nearby. That could be a large housing development, a new block, a road scheme, a commercial site or an infrastructure project.",
+      "Search the local planning portal and look not only at the property itself, but also the surrounding roads and plots.",
+    ],
+    bullets: [],
+  },
+  {
+    number: "06",
+    icon: Home,
+    title: "Check sold prices and local price direction",
+    body: [
+      "It is easy to anchor on the asking price, but asking prices are only part of the picture. You want to know what people have actually paid nearby and whether the area looks stable, rising or softening.",
+    ],
+    bullets: [],
+  },
+  {
+    number: "07",
+    icon: Search,
+    title: "Check council tax, broadband and mobile coverage",
+    body: [
+      "These practical details are not exciting, but they affect the cost and usability of a home. A property can seem perfect until you realise the broadband is poor, the phone signal drops out indoors, or the council tax band is higher than expected.",
+    ],
+    bullets: [],
+  },
+];
+
+const FAQ_ITEMS = [
+  {
+    q: "What is the most important thing to check about an area before buying?",
+    a: "There is no single answer, because it depends on your priorities. For most buyers, the main checks are flood risk, crime, schools, transport and planned development nearby.",
+  },
+  {
+    q: "Is postcode data enough to decide whether to buy?",
+    a: "No. Postcode-level data is a strong starting point, but it should be combined with physical visits, local planning checks and common sense.",
+  },
+  {
+    q: "Do conveyancing searches tell me all of this?",
+    a: "No. Conveyancing searches help uncover legal and environmental issues, but they do not give you a full picture of what everyday life in the neighbourhood will be like.",
+  },
+];
+
 export default function AreaPage() {
   const params = useParams<{ postcode: string }>();
   const [, navigate] = useLocation();
@@ -63,14 +152,15 @@ export default function AreaPage() {
   const area = AREA_DATA[postcode];
 
   useDocumentTitle(
-    area ? `${area.name} (${postcode}) Property Report` : `${postcode} Property Market`,
+    area
+      ? `${area.name} (${postcode}) Property Report`
+      : "How to Check an Area Before Buying a House in the UK",
     area
       ? `Property market data for ${postcode} — ${area.name}. Average prices, price trends, comparable sales and buyer intelligence. Powered by HM Land Registry data.`
-      : `Property market intelligence for ${postcode}. Browse price trends, comparable sales and local insights on LuxProperty.ai.`
+      : "Before you make an offer, here is how to properly check a neighbourhood in the UK — crime, flood risk, schools, transport, planning and more."
   );
 
   if (!area) {
-    // Unknown postcode — redirect to home with the postcode pre-filled
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
@@ -99,125 +189,135 @@ export default function AreaPage() {
       <Header />
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="border-b border-border/40 py-12 sm:py-16">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
-                {area.tier} Market
-              </Badge>
-              <Badge variant="outline" className="text-[10px]">
-                {area.region}
-              </Badge>
-            </div>
-            <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-3">
-              {area.name} ({postcode}) Property Market
+
+        {/* ── Hero ── */}
+        <section className="border-b border-border/40 py-14 sm:py-20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <Badge variant="secondary" className="text-[10px] uppercase tracking-wider mb-5">
+              Buyer Guide
+            </Badge>
+            <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-5 leading-snug">
+              How to Check an Area Before Buying a House in the UK
             </h1>
-            <p className="text-muted-foreground leading-relaxed max-w-2xl mb-8">
-              {area.description}
+            <p className="text-muted-foreground leading-relaxed text-base max-w-2xl mb-2">
+              Buying a house is one of the biggest financial commitments you will ever make. Most people spend time scrutinising the property itself — the rooms, the condition, the price — but pay much less attention to the area around it.
             </p>
-            <Button
-              onClick={() => navigate(`/?q=${postcode}`)}
-              size="lg"
-              className="font-semibold"
-            >
-              Generate Full Property Report
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <p className="text-muted-foreground leading-relaxed text-base max-w-2xl mb-2">
+              That is a mistake. The neighbourhood you buy into affects your insurance costs, your children's school options, your daily commute, your resale value, and your quality of life. None of that shows up in the brochure.
+            </p>
+            <p className="text-muted-foreground leading-relaxed text-base max-w-2xl">
+              The good news is that most of the data you need is freely available if you know where to look. The challenge is that it is scattered across different government websites, local authority portals, school databases, transport tools, flood maps and planning records. This guide walks through the main checks worth doing before you buy, and how to do them properly.
+            </p>
           </div>
         </section>
 
-        {/* Market Snapshot */}
-        <section className="py-10 border-b border-border/40">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-6">Market Snapshot</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-              {[
-                { label: "Median Sale Price", value: area.medianPrice, icon: Home },
-                { label: "1-Year Price Change", value: area.priceChange, icon: TrendingUp },
-                { label: "Market Tier", value: area.tier, icon: MapPin },
-                { label: "Region", value: area.region, icon: Train },
-              ].map((stat) => (
-                <Card key={stat.label} className="p-4">
-                  <stat.icon className="h-4 w-4 text-primary mb-2" />
-                  <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
-                  <p className="font-serif text-lg tracking-tight">{stat.value}</p>
-                </Card>
-              ))}
+        {/* ── Guide sections ── */}
+        <section className="py-14 border-b border-border/40">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 space-y-12">
+            {GUIDE_SECTIONS.map((section) => (
+              <div key={section.number} className="flex gap-5 sm:gap-8">
+                <div className="shrink-0 pt-0.5">
+                  <span className="font-serif text-2xl text-primary/30 leading-none select-none">
+                    {section.number}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <h2 className="font-serif text-xl sm:text-2xl tracking-tight mb-3">
+                    {section.title}
+                  </h2>
+                  {section.body.map((para, i) => (
+                    <p key={i} className="text-muted-foreground leading-relaxed mb-3 text-[15px]">
+                      {para}
+                    </p>
+                  ))}
+                  {section.bullets.length > 0 && (
+                    <ul className="mt-3 space-y-1.5">
+                      {section.bullets.map((b) => (
+                        <li key={b} className="flex items-start gap-2 text-[15px] text-muted-foreground">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0" />
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Extra advice ── */}
+        <section className="py-14 border-b border-border/40 bg-muted/20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-8">
+              Before you make an offer
+            </p>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="rounded-xl border border-border/60 bg-card p-5">
+                <h3 className="font-serif text-lg tracking-tight mb-2">Visit at different times</h3>
+                <p className="text-[14px] text-muted-foreground leading-relaxed">
+                  Data is essential, but it does not replace physically seeing the area. Visit at different times of day if you can — morning, evening, weekday and weekend. A road that feels calm at 2pm on a Tuesday may feel very different on a Friday night or during the school run.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-card p-5">
+                <h3 className="font-serif text-lg tracking-tight mb-2">Read between the lines</h3>
+                <p className="text-[14px] text-muted-foreground leading-relaxed">
+                  No single metric tells you whether an area is right for you. A place may have average schools but excellent transport and strong long-term demand. The goal is not to find a perfect area — it is to spot risks early, compare places properly, and avoid making a rushed decision based only on the listing.
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Highlights */}
-        <section className="py-10 border-b border-border/40 bg-muted/20">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-6">Area Highlights</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {area.highlights.map((h) => (
-                <div key={h} className="flex items-center gap-2 text-sm">
-                  <GraduationCap className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span>{h}</span>
+        {/* ── FAQ ── */}
+        <section className="py-14 border-b border-border/40">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-8">
+              Frequently asked questions
+            </p>
+            <div className="space-y-7">
+              {FAQ_ITEMS.map((item) => (
+                <div key={item.q}>
+                  <h3 className="font-serif text-lg tracking-tight mb-2">{item.q}</h3>
+                  <p className="text-[15px] text-muted-foreground leading-relaxed">{item.a}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="py-12 border-b border-border/40">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <div className="max-w-xl">
-              <h2 className="font-serif text-2xl tracking-tight mb-3">
-                Get the full {postcode} property report
-              </h2>
-              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                Real Land Registry data, 5-year price trends, neighbourhood profile, market outlook, and comparable sales — all in 60 seconds.
+        {/* ── CTA ── */}
+        <section className="py-16">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <div className="rounded-2xl border border-border/60 bg-card px-7 py-10 sm:px-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-4">
+                LuxProperty
               </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  size="lg"
-                  className="font-semibold"
-                  onClick={() => navigate(`/?q=${postcode}`)}
-                >
-                  <Search className="mr-2 h-4 w-4" />
-                  Generate {postcode} Report — Free
-                </Button>
-                <Link href="/pricing">
-                  <Button variant="outline" size="lg">
-                    View plans
-                  </Button>
-                </Link>
-              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl tracking-tight mb-3">
+                Save yourself hours of tab-switching
+              </h2>
+              <p className="text-[15px] text-muted-foreground leading-relaxed mb-7 max-w-xl">
+                LuxProperty pulls flood risk, crime data, school ratings, transport, broadband, council tax, and more into one buyer brief — for any UK postcode, in minutes.
+              </p>
+              <Button
+                size="lg"
+                className="font-semibold"
+                onClick={() => navigate("/")}
+              >
+                <Search className="mr-2 h-4 w-4" />
+                Check your postcode for free
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </div>
         </section>
 
-        {/* Nearby areas */}
-        <section className="py-12">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-6">Nearby Postcode Areas</p>
-            <div className="flex flex-wrap gap-2">
-              {area.nearbyAreas.map((code) => {
-                const nearby = AREA_DATA[code];
-                return (
-                  <Link key={code} href={`/area/${code}`}>
-                    <Badge
-                      variant="outline"
-                      className="px-3 py-1.5 text-xs cursor-pointer hover:bg-muted transition-colors"
-                    >
-                      {code}{nearby ? ` — ${nearby.name}` : ""}
-                    </Badge>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Area directory */}
+        {/* ── Area directory ── */}
         <section className="py-12 border-t border-border/40 bg-muted/20">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-6">Explore Top UK Property Markets</p>
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-6">
+              Explore top UK property markets
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {TOP_AREAS.map((a) => (
                 <Link key={a.code} href={`/area/${a.code}`}>
@@ -230,6 +330,7 @@ export default function AreaPage() {
             </div>
           </div>
         </section>
+
       </main>
 
       <Footer />
