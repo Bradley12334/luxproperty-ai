@@ -39,7 +39,7 @@ export function CookieBanner() {
         <p className="text-sm text-muted-foreground flex-1 leading-relaxed">
           We use cookies to understand how people use LuxProperty.ai and improve the experience.
           By clicking Accept, you consent to our use of analytics cookies. See our{" "}
-          <a href="/#/privacy" className="underline underline-offset-2 hover:text-foreground">
+          <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
             Privacy Policy
           </a>
           .

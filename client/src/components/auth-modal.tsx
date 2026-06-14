@@ -255,11 +255,11 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
           {tab === "signup" && (
             <p className="text-xs text-muted-foreground text-center leading-relaxed">
               By creating an account you agree to our{" "}
-              <a href="/#/terms" className="underline underline-offset-2 hover:text-foreground">
+              <a href="/terms" className="underline underline-offset-2 hover:text-foreground">
                 Terms of Service
               </a>{" "}
               and{" "}
-              <a href="/#/privacy" className="underline underline-offset-2 hover:text-foreground">
+              <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
                 Privacy Policy
               </a>
               .

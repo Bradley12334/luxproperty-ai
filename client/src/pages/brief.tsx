@@ -4517,7 +4517,7 @@ export default function BriefPage() {
                     Export PDF
                   </Button>
                 ) : (
-                  <a href="/#/pricing">
+                  <a href="/pricing">
                     <Button size="sm" variant="outline" className="gap-1.5 font-semibold" data-testid="button-export-pdf-locked">
                       <Lock className="h-3.5 w-3.5" />
                       Export PDF

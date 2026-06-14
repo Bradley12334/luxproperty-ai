@@ -228,7 +228,7 @@ function CompareColumn({ report, label }: CompareColumnProps) {
         <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">Verdict</p>
         <p className="text-xs text-foreground/90 italic leading-relaxed">{ai.verdict}</p>
         <div className="mt-3">
-          <a href={`/#/brief/${report.id}`}>
+          <a href={`/brief/${report.id}`}>
             <Button size="sm" variant="outline" className="w-full text-xs">
               Full Report <ArrowRight className="ml-1.5 h-3 w-3" />
             </Button>
@@ -243,8 +243,7 @@ export default function ComparePage() {
   // Pre-fill postcode A from ?a= query param (linked from brief page)
   const initialA = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search).get("a") ??
-      // Hash routing: params after the hash path e.g. /#/compare?a=SW1A
-      (() => { try { return new URLSearchParams(window.location.hash.split("?")[1] || "").get("a") ?? ""; } catch { return ""; } })()
+      ""
     : "";
 
   const [postcodeA, setPostcodeA] = useState(initialA);

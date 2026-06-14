@@ -607,7 +607,7 @@ export default function Home() {
               ].map((area) => (
                 <a
                   key={area.code}
-                  href={`/#/area/${area.code}`}
+                  href={`/area/${area.code}`}
                   className="group flex flex-col gap-0.5 px-3.5 py-3 rounded-lg border border-border/50 bg-card hover:border-primary/40 hover:bg-primary/5 transition-colors"
                 >
                   <div className="flex items-center justify-between">
