@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { generateBrief } from "@/lib/mockEngine";
+import { validatePostcodeInput } from "@/lib/postcodeValidation";
 import { getUser } from "@/lib/authStore";
 import type { BriefReport } from "@shared/schema";
 import {
@@ -263,6 +264,12 @@ export default function ComparePage() {
   ) {
     const cleaned = postcode.trim().toUpperCase();
     if (!cleaned) return;
+    // Pre-flight validation — show clear message, do not call engine on bad input
+    const check = validatePostcodeInput(cleaned);
+    if (!check.valid) {
+      setError(check.reason);
+      return;
+    }
     setLoading(true);
     setError("");
     setter(null);

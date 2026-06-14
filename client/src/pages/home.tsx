@@ -26,10 +26,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { BriefReport } from "@shared/schema";
+import { validatePostcodeInput } from "@/lib/postcodeValidation";
 
 export default function Home() {
   useDocumentTitle("", "AI-powered property intelligence for UK buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data.");
   const [query, setQuery] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [, navigate] = useLocation();
 
   const generateBriefMutation = useMutation({
@@ -40,13 +42,23 @@ export default function Home() {
     onSuccess: (data) => {
       navigate(`/brief/${data.id}`);
     },
+    // Keep the typed query in the field and surface a message — do not clear input
+    onError: () => {
+      // query state is untouched; isError will trigger the inline message below
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      generateBriefMutation.mutate(query.trim());
+    setValidationError(null);
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    const check = validatePostcodeInput(trimmed);
+    if (!check.valid) {
+      setValidationError(check.reason);
+      return;
     }
+    generateBriefMutation.mutate(trimmed);
   };
 
   return (
@@ -89,7 +101,10 @@ export default function Home() {
                       type="text"
                       placeholder="SW3 1AA, LS6 2EX, RG1 2AB…"
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        if (validationError) setValidationError(null);
+                      }}
                       className="pl-11 h-12 text-[15px] bg-card border-border"
                       data-testid="input-search"
                     />
@@ -116,9 +131,14 @@ export default function Home() {
                   </Button>
                 </form>
 
-                {generateBriefMutation.isError && (
+                {validationError && (
+                  <p className="mt-3 text-sm text-destructive" data-testid="text-validation-error">
+                    {validationError}
+                  </p>
+                )}
+                {!validationError && generateBriefMutation.isError && (
                   <p className="mt-3 text-sm text-destructive" data-testid="text-error">
-                    Something went wrong. Please try again.
+                    Something went wrong generating the brief. Please try again.
                   </p>
                 )}
 
