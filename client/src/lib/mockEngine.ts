@@ -57,7 +57,10 @@ const outcodeDistrictOverride: Record<string, string> = {
 // Land Registry only covers England & Wales — these prefixes are Scotland or NI
 const nonEnglandWalesPrefixes = ["EH","G","AB","DD","KY","FK","PH","HS","IV","KA","KW","ML","PA","TD","ZE","BT"];
 function isOutsideEnglandWales(outcode: string): boolean {
-  return nonEnglandWalesPrefixes.some(p => outcode.startsWith(p));
+  // Extract only the letter portion of the outcode (e.g. "GL1" -> "GL", "G1" -> "G")
+  // so that "G" (Glasgow) does not match "GL" (Gloucester) or "GU" (Guildford).
+  const letters = outcode.replace(/[0-9].*/,"");
+  return nonEnglandWalesPrefixes.includes(letters);
 }
 
 
@@ -3610,7 +3613,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
         "SA": { label: "Low–Moderate",   daysLow: 30, daysHigh: 45, vs: "Slightly below national average", rationale: "Swansea and the SA area have a functional rental market anchored by Swansea University, though letting velocity is slower than major English cities." },
       };
 
-      const areaProfile = areaProfiles[postcodeArea];
+      const areaProfile = areaProfiles[postcodeArea] ?? null;
 
       // ── Determine the best available label + confidence ──────────────────
       // Priority: live regional data > area profile > tier > insufficient
@@ -3625,7 +3628,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
 
       // Determine whether we have meaningful signals
       const hasLiveSignal   = liveLabel !== null;
-      const hasAreaProfile  = areaProfile !== null;
+      const hasAreaProfile  = areaProfile != null;  // != catches both null and undefined
       const hasTierSignal   = tier !== "unknown";
 
       // Genuinely insufficient: no live data, no area profile, no price data
