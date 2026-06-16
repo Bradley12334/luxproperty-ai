@@ -121,3 +121,29 @@ export function validatePostcodeInput(raw: string): PostcodeValidationResult {
 
   return { valid: true };
 }
+
+/**
+ * Normalises a raw postcode string to uppercase with correct internal space.
+ * Examples:
+ *   "sw31aa"   → "SW3 1AA"
+ *   "RG12AB"   → "RG1 2AB"
+ *   "W1A1AA"   → "W1A 1AA"
+ *   "sw3 1aa"  → "SW3 1AA"
+ *   "  RG1 2AB " → "RG1 2AB"
+ * Outcodes and unrecognised strings are returned uppercased + trimmed only.
+ */
+export function normalizePostcode(raw: string): string {
+  const upper = raw.trim().toUpperCase().replace(/\s+/g, " ");
+
+  // Already has the correct space — just trim
+  const alreadySpaced = upper.match(/^([A-Z]{1,2}[0-9][A-Z0-9]?) ([0-9][A-Z]{2})$/);
+  if (alreadySpaced) return upper;
+
+  // No space — try to insert it before the last 3 chars (inward code = digit + 2 letters)
+  const noSpace = upper.replace(/\s/g, "");
+  const insertSpace = noSpace.match(/^([A-Z]{1,2}[0-9][A-Z0-9]?)([0-9][A-Z]{2})$/);
+  if (insertSpace) return `${insertSpace[1]} ${insertSpace[2]}`;
+
+  // Outcode only or unrecognised — return uppercased
+  return upper;
+}

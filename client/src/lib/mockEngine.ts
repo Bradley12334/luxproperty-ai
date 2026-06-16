@@ -1,6 +1,7 @@
 import type { BriefReport, AreaIntelligence, PropertyDeepDive } from "../../../shared/schema";
 import { enrichmentProfiles } from "./enrichment_data";
 import { incrementBriefUsage } from "../hooks/use-brief-usage";
+import { normalizePostcode } from "./postcodeValidation";
 
 let briefIdCounter = 1;
 const briefStore: Record<number, BriefReport> = {};
@@ -2583,13 +2584,25 @@ function median(prices: number[]): number {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 export async function generateBrief(query: string, plan?: string): Promise<BriefReport> {
+  // ── OUTER SAFETY NET ─────────────────────────────────────────────────────────
+  // Catches any unexpected runtime error anywhere in this function and rethrows
+  // with a typed message so the frontend can surface a specific error instead of
+  // the generic "Something went wrong" fallback.
+  try {
+
   // Track usage for Explorer plan counter
   incrementBriefUsage();
 
+  // ── INPUT NORMALISATION ──────────────────────────────────────────────────────
+  // Normalise before any lookup: uppercase, correct internal space (RG12AB → RG1 2AB).
+  // postcodes.io accepts no-space variants but normalising here ensures consistent
+  // cache keys and correct outcode extraction for all downstream lookups.
   const queryType = detectQueryType(query);
-  const postcode = queryType === "address"
+  const rawPostcode = queryType === "address"
     ? (extractPostcode(query) || query)
-    : query.trim().toUpperCase();
+    : query.trim();
+  const postcode = normalizePostcode(rawPostcode);
+  console.log(`[LuxProperty] normalised input: "${query}" → "${postcode}"`);
   const outcode = getOutcode(postcode);
 
   // Scotland / NI — Land Registry doesn't cover these
@@ -4112,6 +4125,30 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   };
   briefStore[id] = report;
   return report;
+
+  } catch (err: unknown) {
+    // ── TYPED ERROR RETHROW ──────────────────────────────────────────────────
+    // All individual fetch helpers have their own try/catch and return null/[].
+    // This outer catch only fires for genuine programming errors (TypeError etc.).
+    // Log it for diagnosis, then rethrow with a user-safe message attached.
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[LuxProperty] generateBrief unexpected error for "${query}": ${msg}`, err);
+
+    // Detect common patterns and give a specific message
+    if (
+      msg.includes("fetch") ||
+      msg.includes("network") ||
+      msg.includes("Failed to fetch") ||
+      msg.includes("NetworkError")
+    ) {
+      throw new Error("NETWORK_ERROR");
+    }
+    if (msg.includes("timeout") || msg.includes("AbortError")) {
+      throw new Error("TIMEOUT_ERROR");
+    }
+    // Generic fallback — still better than swallowing silently
+    throw new Error("BRIEF_ERROR");
+  }
 }
 
 export function getBrief(id: number): BriefReport | undefined {

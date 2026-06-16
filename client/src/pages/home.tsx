@@ -43,8 +43,10 @@ export default function Home() {
       navigate(`/brief/${data.id}`);
     },
     // Keep the typed query in the field and surface a message — do not clear input
-    onError: () => {
-      // query state is untouched; isError will trigger the inline message below
+    onError: (err: unknown) => {
+      // Errors are logged in generateBrief; query state is untouched.
+      // The error message is rendered via generateBriefMutation.error below.
+      void err; // suppress lint unused-var warning
     },
   });
 
@@ -138,7 +140,16 @@ export default function Home() {
                 )}
                 {!validationError && generateBriefMutation.isError && (
                   <p className="mt-3 text-sm text-destructive" data-testid="text-error">
-                    Something went wrong generating the brief. Please try again.
+                    {(() => {
+                      const msg = generateBriefMutation.error instanceof Error
+                        ? generateBriefMutation.error.message
+                        : "";
+                      if (msg === "NETWORK_ERROR")
+                        return "Network error — check your connection and try again.";
+                      if (msg === "TIMEOUT_ERROR")
+                        return "The request timed out. Please try again.";
+                      return "Something went wrong generating the brief. Please try again.";
+                    })()}
                   </p>
                 )}
 

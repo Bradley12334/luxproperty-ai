@@ -89,3 +89,54 @@ if (failed > 0) {
 
 console.log("All postcode validation tests passed.\n");
 process.exit(0);
+
+// ─── normalizePostcode tests ──────────────────────────────────────────────────
+import { normalizePostcode } from "../client/src/lib/postcodeValidation";
+
+const normCases: Array<{ input: string; expected: string; label: string }> = [
+  // Correct spacing
+  { input: "SW3 1AA",   expected: "SW3 1AA",   label: "already spaced full postcode" },
+  { input: "RG1 2AB",   expected: "RG1 2AB",   label: "already spaced RG1 2AB" },
+  // Lowercase → uppercase + spacing
+  { input: "sw3 1aa",   expected: "SW3 1AA",   label: "lowercase with space" },
+  { input: "sw31aa",    expected: "SW3 1AA",   label: "lowercase no space" },
+  // No space variants
+  { input: "RG12AB",    expected: "RG1 2AB",   label: "no-space RG1 2AB" },
+  { input: "W1A1AA",    expected: "W1A 1AA",   label: "no-space W1A 1AA" },
+  { input: "EC2V7JX",   expected: "EC2V 7JX",  label: "no-space EC2V 7JX" },
+  { input: "M11AE",     expected: "M1 1AE",    label: "no-space M1 1AE" },
+  // Extra whitespace
+  { input: "  SW3 1AA  ", expected: "SW3 1AA", label: "leading/trailing whitespace" },
+  { input: "SW3  1AA",   expected: "SW3 1AA",  label: "double internal space" },
+  // Outcodes — returned upper, unchanged
+  { input: "sw3",        expected: "SW3",       label: "outcode lowercase sw3" },
+  { input: "RG1",        expected: "RG1",       label: "outcode RG1" },
+  { input: "EC2V",       expected: "EC2V",      label: "outcode EC2V" },
+];
+
+let normPassed = 0;
+let normFailed = 0;
+const normFailures: string[] = [];
+
+console.log("\n─── normalizePostcode tests ───");
+for (const c of normCases) {
+  const got = normalizePostcode(c.input);
+  if (got === c.expected) {
+    normPassed++;
+    console.log(`  ✓  ${c.label}`);
+  } else {
+    normFailed++;
+    const msg = `  ✗  ${c.label}\n     input="${c.input}" → got="${got}" expected="${c.expected}"`;
+    normFailures.push(msg);
+    console.log(msg);
+  }
+}
+
+console.log(`\n${normPassed + normFailed} normalizePostcode tests | ${normPassed} passed | ${normFailed} failed\n`);
+
+if (normFailed > 0) {
+  normFailures.forEach(f => console.error(f));
+  console.error("REGRESSION: normalizePostcode tests failed.\n");
+  process.exit(1);
+}
+console.log("All normalizePostcode tests passed.\n");
