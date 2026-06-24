@@ -28,6 +28,11 @@ export function Footer() {
                   Home
                 </span>
               </Link>
+              <Link href="/valuation">
+                <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                  Property Valuation
+                </span>
+              </Link>
               <Link href="/pricing">
                 <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                   Pricing

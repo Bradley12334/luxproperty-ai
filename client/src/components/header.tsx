@@ -64,6 +64,16 @@ export function Header() {
                 Compare
               </Button>
             </Link>
+            <Link href="/valuation">
+              <Button
+                variant={location === "/valuation" ? "secondary" : "ghost"}
+                size="sm"
+                className="text-sm font-medium hidden sm:inline-flex"
+                data-testid="link-valuation"
+              >
+                Valuation
+              </Button>
+            </Link>
             <Link href="/portfolio">
               <Button
                 variant={location === "/portfolio" ? "secondary" : "ghost"}
