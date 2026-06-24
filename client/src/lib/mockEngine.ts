@@ -2210,7 +2210,7 @@ async function fetchTflCommute(lat: number, lng: number): Promise<Array<{
   destination: string; durationMins: number; modes: string[];
 }> | null> {
   try {
-    const res = await fetch(`/api/tfl-commute?lat=${lat}&lng=${lng}`);
+    const res = await fetch(`/api/air-quality?type=tfl&lat=${lat}&lng=${lng}`);
     if (!res.ok) return null;
     const data = await res.json();
     if (data.error || !data.results?.length) return null;
