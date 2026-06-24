@@ -265,23 +265,21 @@ export default function ValuationPage() {
   const [effectiveTier, setEffectiveTier] = useState<PlanTier>("free");
   const resultRef = useRef<HTMLDivElement>(null);
 
-  async function resolveEntitlement(postcode: string) {
-    if (!user?.id) {
-      setEffectiveTier("free");
-      return;
-    }
+  // Returns the resolved tier — caller must call setEffectiveTier with the result
+  async function resolveEntitlement(postcode: string): Promise<PlanTier> {
+    if (!user?.id) return "free";
     try {
       const res = await fetch(
         `/api/valuation-entitlement?userId=${encodeURIComponent(user.id)}&postcode=${encodeURIComponent(postcode)}`
       );
       if (res.ok) {
         const json = await res.json() as { effectiveValuationTier: PlanTier };
-        setEffectiveTier(json.effectiveValuationTier ?? "free");
+        return json.effectiveValuationTier ?? "free";
       }
     } catch {
       // Network error — fall back gracefully; user will see free-tier view
-      setEffectiveTier("free");
     }
+    return "free";
   }
 
   async function handleSearch(e: React.FormEvent) {
@@ -293,11 +291,14 @@ export default function ValuationPage() {
     setReport(null);
     setEffectiveTier("free"); // reset while loading
     try {
-      // Run valuation data fetch and entitlement resolution in parallel
-      const [result] = await Promise.all([
+      // Run valuation data fetch and entitlement resolution in parallel.
+      // Both states are set atomically after Promise.all completes so the
+      // Advanced Analysis gate always reflects the correct tier on first render.
+      const [result, tier] = await Promise.all([
         runValuation(q),
         resolveEntitlement(q),
       ]);
+      setEffectiveTier(tier);
       setReport(result);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch (err: unknown) {
@@ -950,7 +951,7 @@ export default function ValuationPage() {
                   </h3>
                   {isPro ? (
                     <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                      Your plan includes a full Postcode Brief for {postcodeToOutcode(report.queryPostcode)} — schools, transport, crime, flood risk, broadband, and planning activity.
+                      Professional valuation features are included with your Brief for {postcodeToOutcode(report.queryPostcode)}. The Brief also covers schools, transport, crime, flood risk, broadband, and planning activity.
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
