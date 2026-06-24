@@ -39,6 +39,7 @@ import {
   CheckCircle2,
   ExternalLink,
   HelpCircle,
+  ShieldCheck,
 } from "lucide-react";
 import {
   runValuation,
@@ -48,6 +49,19 @@ import {
   type ModuleMetadata,
 } from "@/lib/valuationEngine";
 import { DATA_SOURCES } from "@/lib/valuationSources";
+import {
+  filterEmptyFields,
+  getPropertyFactsCompleteness,
+  getOwnershipCostsCompleteness,
+  getEpcCompleteness,
+  getPlanningCompleteness,
+  getLeaseholdCompleteness,
+  getValueDriversCompleteness,
+  getConsecutiveSuppressedSections,
+  getProvenanceChipClass,
+  type CompletenessResult,
+  type FieldRow,
+} from "@/lib/sectionCompleteness";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,6 +148,78 @@ function UnavailableModule({ meta, label }: { meta: ModuleMetadata; label: strin
       <WifiOff className="h-5 w-5 text-muted-foreground/40 mx-auto mb-2" />
       <p className="text-sm font-medium text-muted-foreground mb-1">{label} unavailable</p>
       <p className="text-xs text-muted-foreground/70 max-w-xs mx-auto">{meta.caveatText}</p>
+    </div>
+  );
+}
+
+// ─── Provenance chip ─────────────────────────────────────────────────────────
+
+function ProvenanceChip({ label }: { label: string | null }) {
+  if (!label) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.14em] border rounded-full px-2 py-0.5 ${getProvenanceChipClass(label as any)}`}>
+      <ShieldCheck className="h-2.5 w-2.5" />
+      {label}
+    </span>
+  );
+}
+
+// ─── Sparse state card ────────────────────────────────────────────────────────
+// Used when a section has data but not enough to justify a full card.
+// Renders a compact, single-line explanation — not a large empty placeholder.
+
+function SparseCard({ message, link }: { message: string; link?: { href: string; label: string } }) {
+  return (
+    <div className="rounded-lg border border-border/40 bg-muted/20 px-4 py-3 flex items-start gap-2.5">
+      <Info className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        {message}
+        {link && (
+          <>
+            {" "}
+            <a href={link.href} target="_blank" rel="noopener noreferrer"
+               className="underline hover:text-foreground inline-flex items-center gap-0.5">
+              {link.label} <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+// ─── Partial note ─────────────────────────────────────────────────────────────
+// Compact footer shown when a card is in partial state.
+
+function PartialNote({ result }: { result: CompletenessResult }) {
+  if (!result.confirmedNote && !result.sparseMessage) return null;
+  return (
+    <p className="text-[10px] text-muted-foreground/70 mt-3 leading-relaxed flex gap-1.5 items-start">
+      <Info className="h-3 w-3 shrink-0 mt-0.5" />
+      {result.confirmedNote ?? result.sparseMessage}
+    </p>
+  );
+}
+
+// ─── Section heading with provenance chip ─────────────────────────────────────
+
+function SectionHeading({
+  id, label, provenance, badge,
+}: {
+  id: string;
+  label: string;
+  provenance?: string | null;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+      <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+        {label}
+      </h2>
+      <div className="flex items-center gap-2">
+        {provenance && <ProvenanceChip label={provenance} />}
+        {badge}
+      </div>
     </div>
   );
 }
@@ -951,20 +1037,15 @@ export default function ValuationPage() {
             </section>
 
             {/* ── What could change the value? ─────────────────────────────── */}
-            <section aria-labelledby="val-drivers-heading">
-              <h2 id="val-drivers-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                What could change the value?
-              </h2>
-              <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
-                {(() => {
-                  const vd = report.valueDrivers;
-                  const hasData = vd.increases.length > 0 || vd.decreases.length > 0;
-                  if (!hasData) {
-                    return (
-                      <p className="text-sm text-muted-foreground">Not enough data to generate value drivers for this postcode.</p>
-                    );
-                  }
-                  return (
+            {(() => {
+              const vd       = report.valueDrivers;
+              const vdComp   = getValueDriversCompleteness(vd);
+              if (vdComp.state === "unavailable") return null;
+
+              return (
+                <section aria-labelledby="val-drivers-heading">
+                  <SectionHeading id="val-drivers-heading" label="What could change the value?" provenance={vdComp.provenanceLabel} />
+                  <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                     <div className="grid sm:grid-cols-2 gap-6">
                       {/* Upside factors */}
                       <div>
@@ -998,7 +1079,7 @@ export default function ValuationPage() {
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">Risk factors</p>
                         </div>
                         {vd.decreases.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">No downside signals identified from available data.</p>
+                          <p className="text-xs text-muted-foreground">No risk signals identified from available data.</p>
                         ) : (
                           <ul className="space-y-3">
                             {vd.decreases.map((d, i) => (
@@ -1016,61 +1097,93 @@ export default function ValuationPage() {
                         )}
                       </div>
                     </div>
-                  );
-                })()}
-                <p className="text-[10px] text-muted-foreground/60 mt-5 leading-relaxed flex gap-1.5 items-start">
-                  <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                  Value drivers are derived automatically from official data sources for this postcode. They are signals, not guarantees. A surveyor or estate agent can give a more complete picture.
-                </p>
-              </div>
-            </section>
+                    <PartialNote result={vdComp} />
+                    <p className="text-[10px] text-muted-foreground/60 mt-4 leading-relaxed flex gap-1.5 items-start">
+                      <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                      Signals derived from official public data for this postcode. These are indicative factors, not a formal assessment. A qualified surveyor or estate agent can provide a fuller picture.
+                    </p>
+                  </div>
+                </section>
+              );
+            })()}
 
             {/* ── Ownership costs summary ───────────────────────────────────── */}
-            <section aria-labelledby="val-costs-heading">
-              <h2 id="val-costs-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                Ownership costs summary
-              </h2>
-              <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
-                {(() => {
-                  const oc = report.ownershipCosts;
-                  const rows: { label: string; value: string | null; note?: string }[] = [
-                    {
-                      label: "Council tax band",
-                      value: oc.councilTaxBand
-                        ? `Band ${oc.councilTaxBand}${oc.councilTaxAnnualEst ? ` — approx. ${fmt(oc.councilTaxAnnualEst)}/yr` : ""}`
-                        : null,
-                    },
-                    {
-                      label: "Energy efficiency",
-                      value: oc.energyEfficiencyNote ?? (oc.epcBand ? `EPC Band ${oc.epcBand}` : null),
-                    },
-                    {
-                      label: "Service charge",
-                      value: oc.serviceChargeNote ?? "Not on record",
-                      note: oc.serviceChargeNote ? undefined : "Leasehold only — request from seller",
-                    },
-                    {
-                      label: "Ground rent",
-                      value: oc.groundRentNote ?? "Not on record",
-                      note: oc.groundRentNote ? undefined : "Leasehold only — request from seller",
-                    },
-                    {
-                      label: "Stamp duty (standard buyer)",
-                      value: oc.sdltMid !== null ? (oc.sdltMid === 0 ? "£0" : fmt(oc.sdltMid)) : null,
-                      note: "Based on mid estimate — verify on GOV.UK",
-                    },
-                    {
-                      label: "Flood risk",
-                      value: oc.floodRiskNote ?? "Not assessed",
-                    },
-                  ];
-                  return (
-                    <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
-                      {rows.map((r) => (
+            {(() => {
+              const oc      = report.ownershipCosts;
+              const ocComp  = getOwnershipCostsCompleteness(oc, report.leaseholdSummary.isLeasehold);
+
+              if (ocComp.state === "unavailable") return null;
+
+              if (ocComp.state === "sparse") {
+                // Stamp duty only — show as a compact inline card, not a full section
+                return (
+                  <section aria-labelledby="val-costs-heading">
+                    <SectionHeading id="val-costs-heading" label="Ownership costs" provenance={ocComp.provenanceLabel} />
+                    {oc.sdltMid !== null && (
+                      <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 mb-3">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs text-muted-foreground">Stamp duty (standard buyer, mid estimate)</span>
+                          <span className="text-sm font-semibold text-foreground">{oc.sdltMid === 0 ? "£0" : fmt(oc.sdltMid)}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">Based on mid estimate — verify on GOV.UK</p>
+                      </div>
+                    )}
+                    <SparseCard message={ocComp.sparseMessage!} />
+                  </section>
+                );
+              }
+
+              const costRows: FieldRow[] = [
+                {
+                  label: "Council tax band",
+                  value: oc.councilTaxBand
+                    ? `Band ${oc.councilTaxBand}${oc.councilTaxAnnualEst ? ` — approx. ${fmt(oc.councilTaxAnnualEst)}/yr` : ""}`
+                    : null,
+                  provenance: "confirmed",
+                },
+                {
+                  label: "Energy efficiency",
+                  value: oc.energyEfficiencyNote ?? (oc.epcBand ? `EPC Band ${oc.epcBand}` : null),
+                  provenance: "confirmed",
+                },
+                ...(report.leaseholdSummary.isLeasehold ? [
+                  {
+                    label: "Service charge",
+                    value: oc.serviceChargeNote,
+                    note: "Request from seller or managing agent",
+                    provenance: "confirmed" as const,
+                  },
+                  {
+                    label: "Ground rent",
+                    value: oc.groundRentNote,
+                    note: "Request from seller or managing agent",
+                    provenance: "confirmed" as const,
+                  },
+                ] : []),
+                {
+                  label: "Stamp duty (standard buyer)",
+                  value: oc.sdltMid !== null ? (oc.sdltMid === 0 ? "£0" : fmt(oc.sdltMid)) : null,
+                  note: "Based on mid estimate — verify on GOV.UK",
+                  provenance: "confirmed" as const,
+                },
+                {
+                  label: "Flood risk",
+                  value: oc.floodRiskNote,
+                  provenance: "confirmed" as const,
+                },
+              ];
+              const { populated: costPopulated } = filterEmptyFields(costRows);
+
+              return (
+                <section aria-labelledby="val-costs-heading">
+                  <SectionHeading id="val-costs-heading" label="Ownership costs" provenance={ocComp.provenanceLabel} />
+                  <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                    <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0">
+                      {costPopulated.map((r) => (
                         <div key={r.label} className="flex items-start justify-between py-2.5 border-b border-border/30 last:border-0 gap-4">
                           <span className="text-xs text-muted-foreground shrink-0">{r.label}</span>
                           <span className="text-xs font-medium text-foreground text-right">
-                            {r.value ?? "Not on record"}
+                            {r.value}
                             {r.note && (
                               <span className="block text-[10px] font-normal text-muted-foreground/60">{r.note}</span>
                             )}
@@ -1078,55 +1191,61 @@ export default function ValuationPage() {
                         </div>
                       ))}
                     </div>
-                  );
-                })()}
-                <p className="text-[10px] text-muted-foreground/60 mt-4 leading-relaxed flex gap-1.5 items-start">
-                  <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                  Council tax estimates are based on published band rates and are approximate — exact amounts depend on local authority and any discounts applied.
-                  Energy costs depend on usage, tariff, and property condition.
-                </p>
-              </div>
-            </section>
+                    <PartialNote result={ocComp} />
+                    <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed flex gap-1.5 items-start">
+                      <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                      Council tax estimates are based on published band rates and are approximate. Energy costs depend on usage, tariff, and property condition.
+                    </p>
+                  </div>
+                </section>
+              );
+            })()}
 
             {/* ── Planning ─────────────────────────────────────────────────── */}
-            <section aria-labelledby="val-planning-heading">
-              <h2 id="val-planning-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                Nearby planning activity
-              </h2>
-              {report.meta.planning.freshnessStatus === "unavailable" ? (
-                <UnavailableModule meta={report.meta.planning} label="Planning applications" />
-              ) : report.planning.length === 0 ? (
-                <div className="rounded-xl border border-border/50 bg-card/50 p-5">
-                  <p className="text-sm text-muted-foreground">{report.meta.planning.caveatText}</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/40 bg-background/60">
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">Reference</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Description</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3">Status</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Decision</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/30">
-                      {report.planning.map((p, i) => (
-                        <tr key={i} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-5 py-3 font-mono text-xs text-foreground">{p.reference}</td>
-                          <td className="px-3 py-3 text-muted-foreground hidden sm:table-cell max-w-xs truncate" title={p.description}>{p.description}</td>
-                          <td className="px-3 py-3 text-muted-foreground text-xs">{p.status}</td>
-                          <td className="px-3 py-3 text-muted-foreground text-xs hidden sm:table-cell">{p.decisionDate ? fmtDate(p.decisionDate) : "Pending"}</td>
+            {(() => {
+              const planComp = getPlanningCompleteness(report.planning, report.meta.planning);
+
+              // sparse = no results OR unavailable source — show compact explanation, not empty table
+              if (planComp.state === "sparse") {
+                return (
+                  <section aria-labelledby="val-planning-heading">
+                    <SectionHeading id="val-planning-heading" label="Nearby planning activity" provenance={planComp.provenanceLabel} />
+                    <SparseCard message={planComp.sparseMessage!} />
+                  </section>
+                );
+              }
+
+              return (
+                <section aria-labelledby="val-planning-heading">
+                  <SectionHeading id="val-planning-heading" label="Nearby planning activity" provenance={planComp.provenanceLabel} />
+                  <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border/40 bg-background/60">
+                          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">Reference</th>
+                          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Description</th>
+                          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3">Status</th>
+                          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Decision</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="border-t border-border/30 px-5 py-3">
-                    <SourceLine meta={report.meta.planning} />
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {report.planning.map((p, i) => (
+                          <tr key={i} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-5 py-3 font-mono text-xs text-foreground">{p.reference}</td>
+                            <td className="px-3 py-3 text-muted-foreground hidden sm:table-cell max-w-xs truncate" title={p.description}>{p.description}</td>
+                            <td className="px-3 py-3 text-muted-foreground text-xs">{p.status}</td>
+                            <td className="px-3 py-3 text-muted-foreground text-xs hidden sm:table-cell">{p.decisionDate ? fmtDate(p.decisionDate) : "Pending"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="border-t border-border/30 px-5 py-3">
+                      <SourceLine meta={report.meta.planning} />
+                    </div>
                   </div>
-                </div>
-              )}
-            </section>
+                </section>
+              );
+            })()}
 
             {/* ── SDLT ─────────────────────────────────────────────────────── */}
             {report.estimate && (
