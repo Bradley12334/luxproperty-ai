@@ -84,6 +84,75 @@ export interface ValuationRange {
   valuationState: ValuationState;
 }
 
+// ─── New section types ─────────────────────────────────────────────────────────
+
+/** Section 1: Since last sale */
+export interface SinceLastSale {
+  lastSoldPrice:    number;
+  lastSoldDate:     string;       // "YYYY-MM-DD"
+  currentMidEstimate: number;     // from estimate.mid
+  changeAmount:     number;       // currentMid - lastSoldPrice (may be negative)
+  changePercent:    number;       // rounded to 1 dp
+  yearsHeld:        number | null; // years since last sale (null if < 1yr)
+  isEstimated:      true;         // always flagged — never a real resale
+}
+
+/** Section 2: Property facts — all fields optional/nullable for graceful fallback */
+export interface PropertyFacts {
+  propertyType:    string | null;   // from comparables or EPC
+  tenure:          string | null;   // "Freehold" | "Leasehold" | null
+  floorAreaM2:     number | null;   // from EPC
+  epcBand:         string | null;   // from EPC
+  bedroomsEst:     string | null;   // estimated from floor area — labelled
+  councilTaxBand:  string | null;   // from council-tax API or null
+  yearBuiltBand:   string | null;   // derived from EPC if available
+  source:          string;          // short citation
+}
+
+/** Section 3: Leasehold summary */
+export interface LeaseholdSummary {
+  isLeasehold:         boolean;
+  leaseYearsRemaining: number | null;
+  leaseWarning:        "critical" | "caution" | "none" | null;  // <80yr, <125yr, ok
+  serviceChargeNote:   string | null;  // "Not on record" etc.
+  groundRentNote:      string | null;
+  valuationImpactNote: string;
+}
+
+/** Section 4: Value change drivers (rule-based from existing data) */
+export interface ValueDrivers {
+  increases: ValueDriver[];
+  decreases: ValueDriver[];
+}
+export interface ValueDriver {
+  label:     string;
+  detail:    string;
+  strength:  "strong" | "moderate" | "weak";  // controls visual weight
+}
+
+/** Section 5: Ownership costs summary */
+export interface OwnershipCosts {
+  councilTaxBand:       string | null;
+  councilTaxAnnualEst:  number | null;   // £/year — Band D × multiplier if known
+  epcBand:              string | null;
+  energyEfficiencyNote: string | null;   // e.g. "Above average (Band C)"
+  serviceChargeNote:    string | null;
+  groundRentNote:       string | null;
+  sdltMid:              number | null;   // from existing sdlt calc
+  floodRiskNote:        string | null;   // null = not assessed
+}
+
+/** Section 6: Comparable selection explainer */
+export interface ComparableSelectionMeta {
+  searchRadiusMiles:   number;
+  candidatesFound:     number;     // total raw matches before weighting
+  selectedCount:       number;     // comparables actually used in estimate
+  radiusExpanded:      boolean;    // true if search went beyond postcode
+  thinDataFallback:    boolean;    // true if indicative path was used
+  weightingFactors:    string[];   // human-readable list
+  explainerLine:       string;     // single sentence summary for the UI
+}
+
 export interface ValuationReport {
   // ── Identity ──────────────────────────────────────────────────────────────
   queryPostcode:  string;
@@ -103,6 +172,14 @@ export interface ValuationReport {
   searchRadiusUsed:  number;           // miles — the radius at which search stopped
   lastSoldPrice:     number | null;
   lastSoldDate:      string | null;
+
+  // ── New enrichment sections ────────────────────────────────────────────────
+  sinceLastSale:           SinceLastSale | null;
+  propertyFacts:           PropertyFacts;
+  leaseholdSummary:        LeaseholdSummary;
+  valueDrivers:            ValueDrivers;
+  ownershipCosts:          OwnershipCosts;
+  comparableSelectionMeta: ComparableSelectionMeta;
 
   // ── Modules ───────────────────────────────────────────────────────────────
   comparables: ComparableSale[];
@@ -1160,6 +1237,283 @@ function buildEstimate(
   };
 }
 
+
+// ─── New section derivation helpers ───────────────────────────────────────────
+
+/** Bedroom band estimate from floor area (EPC-based heuristic, always labelled) */
+function bedroomsFromFloorArea(m2: number | null): string | null {
+  if (!m2) return null;
+  if (m2 < 35)  return "Studio–1 bed (estimated)";
+  if (m2 < 55)  return "1–2 bed (estimated)";
+  if (m2 < 80)  return "2–3 bed (estimated)";
+  if (m2 < 110) return "3–4 bed (estimated)";
+  return "4+ bed (estimated)";
+}
+
+/** Derive SinceLastSale from existing data. Null if we can't compute it. */
+function buildSinceLastSale(
+  lastSoldPrice: number | null,
+  lastSoldDate:  string | null,
+  midEstimate:   number | null,
+): SinceLastSale | null {
+  if (!lastSoldPrice || !lastSoldDate || !midEstimate) return null;
+  if (!isValidPrice(lastSoldPrice) || !isValidDate(lastSoldDate)) return null;
+
+  const changeAmount  = midEstimate - lastSoldPrice;
+  const changePercent = Math.round((changeAmount / lastSoldPrice) * 1000) / 10;
+  const years         = (Date.now() - new Date(lastSoldDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+
+  return {
+    lastSoldPrice,
+    lastSoldDate,
+    currentMidEstimate: midEstimate,
+    changeAmount:       Math.round(changeAmount / 100) * 100,
+    changePercent,
+    yearsHeld:          years >= 1 ? Math.round(years * 10) / 10 : null,
+    isEstimated:        true,
+  };
+}
+
+/** Infer dominant property type from comparable sales */
+function inferPropertyType(comparables: ComparableSale[]): string | null {
+  if (!comparables.length) return null;
+  const freq: Record<string, number> = {};
+  for (const c of comparables) freq[c.propertyType] = (freq[c.propertyType] ?? 0) + 1;
+  return Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
+/** Infer tenure from comparable sales */
+function inferTenure(comparables: ComparableSale[]): string | null {
+  if (!comparables.length) return null;
+  const leaseholdCount  = comparables.filter((c) => c.tenure === "Leasehold").length;
+  const freeholdCount   = comparables.filter((c) => c.tenure === "Freehold").length;
+  if (leaseholdCount === 0 && freeholdCount === 0) return null;
+  return leaseholdCount >= freeholdCount ? "Leasehold" : "Freehold";
+}
+
+/** Build PropertyFacts from existing fetched data */
+function buildPropertyFacts(
+  comparables: ComparableSale[],
+  epc:         EpcData | null,
+): PropertyFacts {
+  const propType  = inferPropertyType(comparables);
+  const tenure    = inferTenure(comparables);
+  const floorArea = epc?.floorAreaM2 ?? null;
+
+  const sources: string[] = [];
+  if (comparables.length > 0) sources.push("HM Land Registry PPD");
+  if (epc) sources.push("MHCLG EPC Register");
+
+  return {
+    propertyType:   propType,
+    tenure,
+    floorAreaM2:    floorArea,
+    epcBand:        epc?.band ?? null,
+    bedroomsEst:    bedroomsFromFloorArea(floorArea),
+    councilTaxBand: null,
+    yearBuiltBand:  null,
+    source:         sources.join(", ") || "No data",
+  };
+}
+
+/** Build LeaseholdSummary from tenure inference */
+function buildLeaseholdSummary(
+  comparables: ComparableSale[],
+): LeaseholdSummary {
+  const tenure      = inferTenure(comparables);
+  const isLeasehold = tenure === "Leasehold";
+  const inferredType = inferPropertyType(comparables);
+  const isFlat       = inferredType === "Flat";
+
+  let valuationImpactNote: string;
+  if (!isLeasehold) {
+    valuationImpactNote = "Freehold properties are not subject to lease length or service charge concerns.";
+  } else if (isFlat) {
+    valuationImpactNote = "Leasehold flats can be materially affected by lease length, service charges, and ground rent. Verify lease terms before proceeding — a lease below 80 years requires mortgage lender approval and may reduce value significantly.";
+  } else {
+    valuationImpactNote = "Leasehold houses carry additional considerations including lease length, annual ground rent, and potential enfranchisement costs. Review the lease terms carefully.";
+  }
+
+  return {
+    isLeasehold,
+    leaseYearsRemaining: null,
+    leaseWarning:        null,
+    serviceChargeNote:   isLeasehold ? "Not on record — request from seller's solicitor" : null,
+    groundRentNote:      isLeasehold ? "Not on record — review the lease" : null,
+    valuationImpactNote,
+  };
+}
+
+/** Rule-based value drivers from already-fetched data */
+function buildValueDrivers(
+  comparables:    ComparableSale[],
+  epc:            EpcData | null,
+  planning:       PlanningApplication[],
+  valuationState: ValuationState,
+  searchRadius:   number,
+): ValueDrivers {
+  const increases: ValueDriver[] = [];
+  const decreases: ValueDriver[] = [];
+
+  const tenure    = inferTenure(comparables);
+  const propType  = inferPropertyType(comparables);
+  const isFlat    = propType === "Flat";
+  const floorArea = epc?.floorAreaM2 ?? null;
+
+  // Good EPC
+  if (epc && ["A","B","C"].includes(epc.band)) {
+    increases.push({
+      label:    "Good energy performance",
+      detail:   `EPC ${epc.band} (score ${epc.score}/100) — above average efficiency. Increasingly valued by buyers and mortgage lenders.`,
+      strength: epc.band === "A" || epc.band === "B" ? "strong" : "moderate",
+    });
+  }
+
+  // Freehold is a positive for houses
+  if (tenure === "Freehold" && !isFlat) {
+    increases.push({
+      label:    "Freehold tenure",
+      detail:   "Freehold ownership — no lease renewal, service charge, or ground rent concerns.",
+      strength: "moderate",
+    });
+  }
+
+  // Strong comparable evidence
+  if (comparables.length >= 5 && valuationState === "strong") {
+    increases.push({
+      label:    "Strong comparable evidence",
+      detail:   `${comparables.length} recent sold-price transactions found${searchRadius > 0 ? ` within ${searchRadius} miles` : " in this postcode"}. Solid evidence base for the estimate.`,
+      strength: "moderate",
+    });
+  }
+
+  // Larger floor area
+  if (floorArea && floorArea >= 90) {
+    increases.push({
+      label:    "Floor area",
+      detail:   `${floorArea} m² floor area (from EPC). Larger than typical — may command a premium.`,
+      strength: floorArea >= 130 ? "strong" : "moderate",
+    });
+  }
+
+  // Poor EPC
+  if (epc && ["E","F","G"].includes(epc.band)) {
+    decreases.push({
+      label:    "Poor energy performance",
+      detail:   `EPC ${epc.band} (score ${epc.score}/100) — below average. Energy improvement costs may be factored into buyer offers.`,
+      strength: epc.band === "F" || epc.band === "G" ? "strong" : "moderate",
+    });
+  }
+
+  // Leasehold flat
+  if (tenure === "Leasehold" && isFlat) {
+    decreases.push({
+      label:    "Leasehold tenure",
+      detail:   "Leasehold flats carry service charge, ground rent, and lease length risk. Verify remaining lease years — below 80 years can reduce value and restrict mortgage availability.",
+      strength: "strong",
+    });
+  }
+
+  // Significant planning activity nearby
+  if (planning.length >= 3) {
+    decreases.push({
+      label:    "Nearby planning activity",
+      detail:   `${planning.length} planning applications recorded nearby. Major nearby development can affect outlook, light, or neighbourhood character.`,
+      strength: planning.length >= 6 ? "strong" : "moderate",
+    });
+  }
+
+  // Thin comparable evidence
+  if (valuationState === "indicative" || comparables.length < 3) {
+    decreases.push({
+      label:    "Thin comparable evidence",
+      detail:   `Only ${comparables.length} recent transaction${comparables.length !== 1 ? "s" : ""} found in the search area. Limited evidence makes the estimate less precise — a wider range reflects this uncertainty.`,
+      strength: comparables.length === 0 ? "strong" : "moderate",
+    });
+  }
+
+  // Expanded search radius needed
+  if (searchRadius >= 1.0 && valuationState !== "unavailable") {
+    decreases.push({
+      label:    "Comparables from wider area",
+      detail:   `The closest comparable evidence was found up to ${searchRadius} mile${searchRadius === 1 ? "" : "s"} away. Properties in the immediate postcode have not transacted recently, reducing precision.`,
+      strength: searchRadius >= 2.0 ? "moderate" : "weak",
+    });
+  }
+
+  // EPC expired
+  if (epc?.isExpired) {
+    decreases.push({
+      label:    "EPC expired",
+      detail:   "The Energy Performance Certificate has expired. Current energy performance may differ from the recorded rating.",
+      strength: "weak",
+    });
+  }
+
+  return { increases, decreases };
+}
+
+/** Build OwnershipCosts from EPC + SDLT */
+function buildOwnershipCosts(
+  epc:  EpcData | null,
+  sdlt: SdltResult | null,
+): OwnershipCosts {
+  let energyEfficiencyNote: string | null = null;
+  if (epc) {
+    const band = epc.band;
+    if (["A","B"].includes(band))      energyEfficiencyNote = `Very efficient (Band ${band}) — among the lowest running costs.`;
+    else if (band === "C")              energyEfficiencyNote = `Above average efficiency (Band C) — moderate annual energy bills likely.`;
+    else if (band === "D")              energyEfficiencyNote = `Average efficiency (Band D) — some improvement potential.`;
+    else if (band === "E")              energyEfficiencyNote = `Below average (Band E) — higher-than-typical energy bills expected.`;
+    else if (["F","G"].includes(band)) energyEfficiencyNote = `Poor efficiency (Band ${band}) — significantly higher energy costs. Upgrade costs should be factored in.`;
+  }
+
+  return {
+    councilTaxBand:       null,
+    councilTaxAnnualEst:  null,
+    epcBand:              epc?.band ?? null,
+    energyEfficiencyNote,
+    serviceChargeNote:    null,
+    groundRentNote:       null,
+    sdltMid:              sdlt?.standardBuyer ?? null,
+    floodRiskNote:        null,
+  };
+}
+
+/** Build ComparableSelectionMeta */
+function buildComparableSelectionMeta(
+  comparables:     ComparableSale[],
+  searchRadius:    number,
+  valuationState:  ValuationState,
+  comparableCount: number,
+): ComparableSelectionMeta {
+  const radiusExpanded   = searchRadius > 0;
+  const thinDataFallback = valuationState === "indicative";
+
+  let explainerLine: string;
+  if (comparables.length === 0) {
+    explainerLine = "No sold-price comparables were found within 3 miles of this postcode in the last 24 months.";
+  } else if (thinDataFallback) {
+    explainerLine = `Only ${comparables.length} comparable${comparables.length !== 1 ? "s" : ""} found${
+      searchRadius > 0 ? ` within ${searchRadius} mile${searchRadius === 1 ? "" : "s"}` : ""
+    }. This estimate uses thin-data fallback logic — treat as directional only.`;
+  } else {
+    explainerLine = `Searched within ${
+      searchRadius === 0 ? "the same postcode" : `${searchRadius} mile${searchRadius === 1 ? "" : "s"}`
+    } and selected ${comparableCount} comparable${comparableCount !== 1 ? "s" : ""} weighted by distance, recency, and property type similarity.`;
+  }
+
+  return {
+    searchRadiusMiles:  searchRadius,
+    candidatesFound:    comparables.length,
+    selectedCount:      comparableCount,
+    radiusExpanded,
+    thinDataFallback,
+    weightingFactors:   ["Distance from postcode", "Sale recency (last 24 months)", "Property type match", "New-build penalty"],
+    explainerLine,
+  };
+}
+
 // ─── Main entry point ──────────────────────────────────────────────────────────
 
 export async function runValuation(rawQuery: string): Promise<ValuationReport> {
@@ -1226,6 +1580,29 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
   const lastSold = sortedByDate[0] ?? null;
   const sdlt     = estimate ? calculateSdlt(estimate.mid) : null;
 
+  // ── Derive new enrichment sections (no additional API calls) ─────────────────
+  const sinceLastSale = buildSinceLastSale(
+    lastSold?.soldPrice ?? null,
+    lastSold?.soldDate  ?? null,
+    estimate?.mid ?? null,
+  );
+  const propertyFacts   = buildPropertyFacts(comps.comparables, epc.data);
+  const leaseholdSummary = buildLeaseholdSummary(comps.comparables);
+  const valueDrivers    = buildValueDrivers(
+    comps.comparables,
+    epc.data,
+    planning.data,
+    valuationState,
+    comps.searchRadiusUsed,
+  );
+  const ownershipCosts  = buildOwnershipCosts(epc.data, sdlt);
+  const comparableSelectionMeta = buildComparableSelectionMeta(
+    comps.comparables,
+    comps.searchRadiusUsed,
+    valuationState,
+    count,
+  );
+
   return {
     queryPostcode:    postcode,
     outcode:          postcodeInfo.outcode,
@@ -1243,6 +1620,13 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
     searchRadiusUsed: comps.searchRadiusUsed,
     lastSoldPrice:    lastSold?.soldPrice ?? null,
     lastSoldDate:     lastSold?.soldDate  ?? null,
+
+    sinceLastSale,
+    propertyFacts,
+    leaseholdSummary,
+    valueDrivers,
+    ownershipCosts,
+    comparableSelectionMeta,
 
     comparables:  comps.comparables,
     priceTrend:   trend.data,

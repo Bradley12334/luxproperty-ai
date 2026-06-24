@@ -38,6 +38,7 @@ import {
   WifiOff,
   CheckCircle2,
   ExternalLink,
+  HelpCircle,
 } from "lucide-react";
 import {
   runValuation,
@@ -528,6 +529,68 @@ export default function ValuationPage() {
               </div>
             </section>
 
+            {/* ── Since last sale ──────────────────────────────────────── */}
+            {report.sinceLastSale && report.estimate && (
+              <section aria-labelledby="val-since-heading">
+                <h2 id="val-since-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+                  Since last recorded sale
+                </h2>
+                <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                  {(() => {
+                    const s = report.sinceLastSale!;
+                    const isUp = s.changeAmount >= 0;
+                    return (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                        {/* Left — last sold */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Last recorded sale</p>
+                          <p className="font-serif text-xl font-semibold text-foreground">{fmt(s.lastSoldPrice)}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{fmtDate(s.lastSoldDate)}{s.yearsHeld !== null ? ` · ${s.yearsHeld} year${s.yearsHeld !== 1 ? "s" : ""} ago` : ""}</p>
+                        </div>
+
+                        {/* Arrow */}
+                        <div className="hidden sm:flex items-center justify-center text-muted-foreground/30">
+                          <ArrowRight className="h-5 w-5" />
+                        </div>
+
+                        {/* Right — estimated now */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Mid estimate now</p>
+                          <p className="font-serif text-xl font-semibold text-foreground">{fmt(s.currentMidEstimate)}</p>
+                          <p className={`text-xs mt-0.5 font-semibold ${
+                            isUp ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
+                          }`}>
+                            {isUp ? "+" : ""}{fmt(Math.abs(s.changeAmount))} ({isUp ? "+" : ""}{s.changePercent}%)
+                          </p>
+                        </div>
+
+                        {/* Change badge */}
+                        <div className={`shrink-0 rounded-lg border px-4 py-3 text-center ${
+                          isUp
+                            ? "border-green-500/40 bg-green-50/70 dark:bg-green-950/20"
+                            : "text-red-600 dark:text-red-400 border-red-400/40 bg-red-50/60 dark:bg-red-950/20"
+                        }`}>
+                          {isUp
+                            ? <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400 mx-auto mb-1" />
+                            : <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400 mx-auto mb-1" />}
+                          <p className={`text-sm font-semibold ${
+                            isUp ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                          }`}>
+                            {isUp ? "+" : ""}{s.changePercent}%
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">estimated change</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <p className="text-[10px] text-muted-foreground/70 mt-4 leading-relaxed flex gap-1.5 items-start">
+                    <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                    Comparison between last recorded Land Registry sale price and the current mid estimate. Not a confirmed resale — the current figure is a model estimate, not a completed transaction.
+                  </p>
+                </div>
+              </section>
+            )}
+
             {/* ── Comparables ─────────────────────────────────────────────── */}
             <section aria-labelledby="val-comps-heading">
               <div className="flex items-center justify-between mb-4">
@@ -611,6 +674,63 @@ export default function ValuationPage() {
               )}
             </section>
 
+            {/* ── Comparable selection explainer ───────────────────────── */}
+            {report.comparableSelectionMeta && (
+              <section aria-labelledby="val-comp-meta-heading">
+                <h2 id="val-comp-meta-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+                  How comparables were selected
+                </h2>
+                <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                  {(() => {
+                    const m = report.comparableSelectionMeta;
+                    return (
+                      <>
+                        <p className="text-sm text-foreground mb-4 leading-relaxed">{m.explainerLine}</p>
+                        <div className="grid sm:grid-cols-3 gap-4 mb-4">
+                          <div className="rounded-lg border border-border/50 bg-background p-3 text-center">
+                            <p className="font-serif text-2xl font-semibold text-foreground">{m.candidatesFound}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">Candidates found</p>
+                          </div>
+                          <div className="rounded-lg border border-border/50 bg-background p-3 text-center">
+                            <p className="font-serif text-2xl font-semibold text-foreground">{m.selectedCount}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">Used in estimate</p>
+                          </div>
+                          <div className="rounded-lg border border-border/50 bg-background p-3 text-center">
+                            <p className="font-serif text-2xl font-semibold text-foreground">
+                              {m.searchRadiusMiles === 0 ? "Same postcode" : `${m.searchRadiusMiles} mi`}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">Search radius</p>
+                          </div>
+                        </div>
+                        {m.weightingFactors.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Weighting applied</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {m.weightingFactors.map((f) => (
+                                <span key={f} className="text-[10px] rounded-full border border-border/50 bg-background px-2.5 py-0.5 text-muted-foreground">{f}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {m.radiusExpanded && (
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-2">
+                            <AlertTriangle className="h-3 w-3 shrink-0" />
+                            Search radius was expanded beyond the immediate postcode due to limited local data.
+                          </p>
+                        )}
+                        {m.thinDataFallback && (
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-1">
+                            <AlertTriangle className="h-3 w-3 shrink-0" />
+                            Thin data path used — estimate is indicative, not high-confidence.
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </section>
+            )}
+
             {/* ── Methodology ─────────────────────────────────────────────── */}
             <section aria-labelledby="val-method-heading">
               <h2 id="val-method-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
@@ -653,6 +773,56 @@ export default function ValuationPage() {
               </div>
             </section>
 
+            {/* ── Property facts ───────────────────────────────────────────── */}
+            <section aria-labelledby="val-facts-heading">
+              <h2 id="val-facts-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+                Property facts
+              </h2>
+              <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                {(() => {
+                  const f = report.propertyFacts;
+                  const rows: { label: string; value: string | null; caveat?: string }[] = [
+                    { label: "Property type", value: f.propertyType },
+                    { label: "Tenure", value: f.tenure },
+                    { label: "Floor area", value: f.floorAreaM2 ? `${f.floorAreaM2} m²` : null },
+                    { label: "EPC band", value: f.epcBand },
+                    {
+                      label: "Est. bedrooms",
+                      value: f.bedroomsEst,
+                      caveat: f.bedroomsEst ? "Estimated from floor area" : undefined,
+                    },
+                    { label: "Council tax band", value: f.councilTaxBand },
+                    { label: "Construction era", value: f.yearBuiltBand },
+                  ];
+                  return (
+                    <>
+                      <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
+                        {rows.map((r) => (
+                          <div key={r.label} className="flex items-baseline justify-between py-2.5 border-b border-border/30 last:border-0">
+                            <span className="text-xs text-muted-foreground shrink-0 mr-4">{r.label}</span>
+                            <span className="text-xs font-medium text-foreground text-right">
+                              {r.value ?? "Not on record"}
+                              {r.caveat && (
+                                <span className="block text-[10px] font-normal text-muted-foreground/60">{r.caveat}</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-border/30 flex items-start gap-2">
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+                          Have we got this right? Property facts are inferred from Land Registry records and EPC data.
+                          Always verify tenure, floor area, and council tax band with your solicitor and local council.
+                          Source: {f.source}
+                        </p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </section>
+
             {/* ── Price trend ──────────────────────────────────────────────── */}
             <section aria-labelledby="val-trend-heading">
               <h2 id="val-trend-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
@@ -670,6 +840,68 @@ export default function ValuationPage() {
                 </div>
               )}
             </section>
+
+            {/* ── Leasehold summary (conditional) ─────────────────────────── */}
+            {report.leaseholdSummary.isLeasehold && (
+              <section aria-labelledby="val-leasehold-heading">
+                <h2 id="val-leasehold-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+                  Leasehold summary
+                </h2>
+                <div className={`rounded-xl border p-5 sm:p-6 ${
+                  report.leaseholdSummary.leaseWarning === "critical"
+                    ? "border-red-400/60 bg-red-50/40 dark:bg-red-950/20"
+                    : report.leaseholdSummary.leaseWarning === "caution"
+                    ? "border-amber-400/50 bg-amber-50/40 dark:bg-amber-950/20"
+                    : "border-border/60 bg-card"
+                }`}>
+                  {(() => {
+                    const l = report.leaseholdSummary;
+                    return (
+                      <>
+                        {l.leaseWarning === "critical" && (
+                          <div className="flex items-start gap-2.5 mb-4 rounded-md border border-red-400/50 bg-red-100/60 dark:bg-red-950/30 px-3.5 py-2.5">
+                            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                            <p className="text-[11px] text-red-800 dark:text-red-300 leading-relaxed">
+                              <span className="font-semibold">Short lease warning.</span> Leases under 80 years can significantly reduce mortgage availability and resale value. Legal advice is strongly recommended before proceeding.
+                            </p>
+                          </div>
+                        )}
+                        {l.leaseWarning === "caution" && (
+                          <div className="flex items-start gap-2.5 mb-4 rounded-md border border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/20 px-3.5 py-2.5">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                              <span className="font-semibold">Lease length to monitor.</span> Under 125 years remaining — consider the cost of lease extension before making an offer.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
+                          {[
+                            { label: "Tenure", value: "Leasehold" },
+                            { label: "Years remaining", value: l.leaseYearsRemaining !== null ? `~${l.leaseYearsRemaining} years` : "Awaiting lease data" },
+                            { label: "Service charge", value: l.serviceChargeNote ?? "Not on record" },
+                            { label: "Ground rent", value: l.groundRentNote ?? "Not on record" },
+                          ].map((r) => (
+                            <div key={r.label} className="flex items-baseline justify-between py-2.5 border-b border-border/30 last:border-0">
+                              <span className="text-xs text-muted-foreground shrink-0 mr-4">{r.label}</span>
+                              <span className="text-xs font-medium text-foreground text-right">{r.value}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground/80 mt-4 leading-relaxed flex gap-1.5 items-start">
+                          <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                          {l.valuationImpactNote}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">
+                          Service charge and ground rent figures are not held in Land Registry or EPC data. User confirmation recommended — request from seller or managing agent.
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              </section>
+            )}
 
             {/* ── EPC ──────────────────────────────────────────────────────── */}
             <section aria-labelledby="val-epc-heading">
@@ -716,6 +948,144 @@ export default function ValuationPage() {
                   <SourceLine meta={report.meta.epc} />
                 </div>
               )}
+            </section>
+
+            {/* ── What could change the value? ─────────────────────────────── */}
+            <section aria-labelledby="val-drivers-heading">
+              <h2 id="val-drivers-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+                What could change the value?
+              </h2>
+              <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                {(() => {
+                  const vd = report.valueDrivers;
+                  const hasData = vd.increases.length > 0 || vd.decreases.length > 0;
+                  if (!hasData) {
+                    return (
+                      <p className="text-sm text-muted-foreground">Not enough data to generate value drivers for this postcode.</p>
+                    );
+                  }
+                  return (
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      {/* Upside factors */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-green-700 dark:text-green-400">Upside factors</p>
+                        </div>
+                        {vd.increases.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No upside signals identified from available data.</p>
+                        ) : (
+                          <ul className="space-y-3">
+                            {vd.increases.map((d, i) => (
+                              <li key={i} className="flex gap-2.5 items-start">
+                                <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${
+                                  d.strength === "strong" ? "bg-green-500" : d.strength === "moderate" ? "bg-green-400" : "bg-green-300"
+                                }`} />
+                                <div>
+                                  <p className="text-xs font-semibold text-foreground">{d.label}</p>
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{d.detail}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* Downside factors */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <TrendingDown className="h-4 w-4 text-red-500 dark:text-red-400" />
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">Risk factors</p>
+                        </div>
+                        {vd.decreases.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No downside signals identified from available data.</p>
+                        ) : (
+                          <ul className="space-y-3">
+                            {vd.decreases.map((d, i) => (
+                              <li key={i} className="flex gap-2.5 items-start">
+                                <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${
+                                  d.strength === "strong" ? "bg-red-500" : d.strength === "moderate" ? "bg-red-400" : "bg-red-300"
+                                }`} />
+                                <div>
+                                  <p className="text-xs font-semibold text-foreground">{d.label}</p>
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{d.detail}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <p className="text-[10px] text-muted-foreground/60 mt-5 leading-relaxed flex gap-1.5 items-start">
+                  <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                  Value drivers are derived automatically from official data sources for this postcode. They are signals, not guarantees. A surveyor or estate agent can give a more complete picture.
+                </p>
+              </div>
+            </section>
+
+            {/* ── Ownership costs summary ───────────────────────────────────── */}
+            <section aria-labelledby="val-costs-heading">
+              <h2 id="val-costs-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+                Ownership costs summary
+              </h2>
+              <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                {(() => {
+                  const oc = report.ownershipCosts;
+                  const rows: { label: string; value: string | null; note?: string }[] = [
+                    {
+                      label: "Council tax band",
+                      value: oc.councilTaxBand
+                        ? `Band ${oc.councilTaxBand}${oc.councilTaxAnnualEst ? ` — approx. ${fmt(oc.councilTaxAnnualEst)}/yr` : ""}`
+                        : null,
+                    },
+                    {
+                      label: "Energy efficiency",
+                      value: oc.energyEfficiencyNote ?? (oc.epcBand ? `EPC Band ${oc.epcBand}` : null),
+                    },
+                    {
+                      label: "Service charge",
+                      value: oc.serviceChargeNote ?? "Not on record",
+                      note: oc.serviceChargeNote ? undefined : "Leasehold only — request from seller",
+                    },
+                    {
+                      label: "Ground rent",
+                      value: oc.groundRentNote ?? "Not on record",
+                      note: oc.groundRentNote ? undefined : "Leasehold only — request from seller",
+                    },
+                    {
+                      label: "Stamp duty (standard buyer)",
+                      value: oc.sdltMid !== null ? (oc.sdltMid === 0 ? "£0" : fmt(oc.sdltMid)) : null,
+                      note: "Based on mid estimate — verify on GOV.UK",
+                    },
+                    {
+                      label: "Flood risk",
+                      value: oc.floodRiskNote ?? "Not assessed",
+                    },
+                  ];
+                  return (
+                    <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
+                      {rows.map((r) => (
+                        <div key={r.label} className="flex items-start justify-between py-2.5 border-b border-border/30 last:border-0 gap-4">
+                          <span className="text-xs text-muted-foreground shrink-0">{r.label}</span>
+                          <span className="text-xs font-medium text-foreground text-right">
+                            {r.value ?? "Not on record"}
+                            {r.note && (
+                              <span className="block text-[10px] font-normal text-muted-foreground/60">{r.note}</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <p className="text-[10px] text-muted-foreground/60 mt-4 leading-relaxed flex gap-1.5 items-start">
+                  <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                  Council tax estimates are based on published band rates and are approximate — exact amounts depend on local authority and any discounts applied.
+                  Energy costs depend on usage, tariff, and property condition.
+                </p>
+              </div>
             </section>
 
             {/* ── Planning ─────────────────────────────────────────────────── */}
