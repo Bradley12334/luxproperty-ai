@@ -265,9 +265,23 @@ export default function ValuationPage() {
   const [effectiveTier, setEffectiveTier] = useState<PlanTier>("free");
   const resultRef = useRef<HTMLDivElement>(null);
 
-  // Returns the resolved tier — caller must call setEffectiveTier with the result
+  // Returns the resolved tier — caller must call setEffectiveTier with the result.
+  //
+  // Fast path: if the user already has a global Professional/Investor plan (read from
+  // authStore which re-validates against the DB on every page load), we know the answer
+  // immediately — no API round-trip needed.
+  //
+  // Slow path: explorer users who may have bought a per-postcode Brief still need the
+  // API call to check postcode_entitlements.
   async function resolveEntitlement(postcode: string): Promise<PlanTier> {
     if (!user?.id) return "free";
+
+    // Fast path — global plan already confirms Pro/Investor access
+    if (user.plan === "professional" || user.plan === "investor") {
+      return user.plan;
+    }
+
+    // Slow path — explorer: check per-postcode Brief entitlements via API
     try {
       const res = await fetch(
         `/api/valuation-entitlement?userId=${encodeURIComponent(user.id)}&postcode=${encodeURIComponent(postcode)}`

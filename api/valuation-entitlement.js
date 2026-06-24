@@ -65,9 +65,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ effectiveValuationTier: "free" });
   }
 
+  // Use service key (same as other API routes) — SUPABASE_ANON_KEY is not guaranteed
+  // to be set in the Vercel environment; SUPABASE_SERVICE_KEY is confirmed present.
+  // The response only exposes the derived tier label, not raw row data.
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY  // anon key is sufficient — no sensitive data returned
+    process.env.SUPABASE_SERVICE_KEY
   );
 
   let effectiveTier = "free";
