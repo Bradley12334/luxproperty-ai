@@ -9,10 +9,11 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAuth } from "@/hooks/use-auth";
+import { postcodeToOutcode, type PlanTier } from "@/lib/postcodeUtils";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -250,13 +251,38 @@ export default function ValuationPage() {
     "Get an instant valuation estimate for any UK property. Backed by HM Land Registry Price Paid Data and the UK House Price Index."
   );
 
-  const { isSignedIn } = useAuth();
-  const [query, setQuery] = useState("");
+  const { isSignedIn, user } = useAuth();
+  // Pre-fill postcode from ?q= query param (e.g. from Brief → Valuation cross-link)
+  const initialQ = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("q") ?? ""
+    : "";
+  const [query, setQuery] = useState(initialQ);
   const [report, setReport] = useState<ValuationReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signupOpen, setSignupOpen] = useState(false);
+  // Effective valuation tier resolved server-side from both Brief and Valuation entitlements
+  const [effectiveTier, setEffectiveTier] = useState<PlanTier>("free");
   const resultRef = useRef<HTMLDivElement>(null);
+
+  async function resolveEntitlement(postcode: string) {
+    if (!user?.id) {
+      setEffectiveTier("free");
+      return;
+    }
+    try {
+      const res = await fetch(
+        `/api/valuation-entitlement?userId=${encodeURIComponent(user.id)}&postcode=${encodeURIComponent(postcode)}`
+      );
+      if (res.ok) {
+        const json = await res.json() as { effectiveValuationTier: PlanTier };
+        setEffectiveTier(json.effectiveValuationTier ?? "free");
+      }
+    } catch {
+      // Network error — fall back gracefully; user will see free-tier view
+      setEffectiveTier("free");
+    }
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -265,8 +291,13 @@ export default function ValuationPage() {
     setError(null);
     setLoading(true);
     setReport(null);
+    setEffectiveTier("free"); // reset while loading
     try {
-      const result = await runValuation(q);
+      // Run valuation data fetch and entitlement resolution in parallel
+      const [result] = await Promise.all([
+        runValuation(q),
+        resolveEntitlement(q),
+      ]);
       setReport(result);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch (err: unknown) {
@@ -275,6 +306,20 @@ export default function ValuationPage() {
       setLoading(false);
     }
   }
+
+  // Convenience flags
+  const isPro = effectiveTier === "professional" || effectiveTier === "investor";
+  const isInvestor = effectiveTier === "investor";
+
+  // Auto-run search when page is opened from a Brief → Valuation cross-link (?q=)
+  useEffect(() => {
+    if (initialQ.trim()) {
+      const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+      void handleSearch(syntheticEvent);
+    }
+    // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -661,48 +706,180 @@ export default function ValuationPage() {
               </section>
             )}
 
-            {/* ── Locked premium ───────────────────────────────────────────── */}
+            {/* ── Advanced analysis — unlocked for Pro/Investor ────────────── */}
             <section aria-labelledby="val-premium-heading">
               <div className="flex items-center justify-between mb-4">
                 <h2 id="val-premium-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                   Advanced analysis
                 </h2>
-                <Badge variant="outline" className="text-[10px] font-semibold border-primary/30 text-primary">
-                  Professional
-                </Badge>
+                {isPro ? (
+                  <Badge variant="outline" className="text-[10px] font-semibold border-green-500/40 text-green-600 dark:text-green-400">
+                    Included in your plan
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] font-semibold border-primary/30 text-primary">
+                    Professional
+                  </Badge>
+                )}
               </div>
-              <div className="relative rounded-xl border border-border/60 overflow-hidden">
-                {/* Blurred placeholder cards — no real content, structure only */}
-                <div className="grid sm:grid-cols-3 gap-4 p-5 sm:p-6 select-none pointer-events-none" aria-hidden="true">
-                  {[
-                    { icon: <AlertTriangle className="h-4 w-4" />, title: "Risk factors", body: "Flood zone classification, planning constraints, leasehold terms, and structural risk indicators." },
-                    { icon: <Building className="h-4 w-4" />, title: "Rental yield estimate", body: "Gross and net yield benchmarks using comparable rental listings and HM Land Registry sale prices." },
-                    { icon: <Zap className="h-4 w-4" />, title: "5-year price trend", body: "Extended price history using UKHPI data back 5 years for this local authority." },
-                  ].map((c) => (
-                    <div key={c.title} className="rounded-lg border border-border/40 bg-card p-4 blur-[3px]">
-                      <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">{c.icon}</div>
-                      <h3 className="text-sm font-semibold text-foreground mb-1">{c.title}</h3>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{c.body}</p>
+
+              {isPro ? (
+                // ── UNLOCKED: real advanced analysis cards ─────────────────────
+                <div className="grid sm:grid-cols-3 gap-4">
+                  {/* Risk factors */}
+                  <div className="rounded-lg border border-border/60 bg-card p-4">
+                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">
+                      <AlertTriangle className="h-4 w-4" />
                     </div>
-                  ))}
-                </div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/85 backdrop-blur-[1px]">
-                  <div className="text-center px-6 max-w-sm">
-                    <div className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center mx-auto mb-3">
-                      <Lock className="h-4 w-4 text-primary" />
-                    </div>
-                    <p className="text-sm font-semibold text-foreground mb-1">Unlock advanced analysis</p>
-                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                      Risk, yield, and extended trend data are included in the Professional plan.
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Risk factors</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                      Key risk signals for this postcode based on official data sources.
                     </p>
-                    <Link href="/pricing">
-                      <Button size="sm" className="font-semibold">
-                        View plans <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-                      </Button>
-                    </Link>
+                    <ul className="space-y-1.5">
+                      {[
+                        report.meta.planning.freshnessStatus !== "unavailable" && report.planning.length > 0
+                          ? `${report.planning.length} nearby planning application${report.planning.length !== 1 ? "s" : ""} on record`
+                          : "No planning applications in the dataset for this postcode",
+                        report.epc
+                          ? `EPC band ${report.epc.band} (score ${report.epc.score}/100)${report.epc.isExpired ? " — certificate expired" : ""}`
+                          : "No EPC on record for this postcode",
+                        report.comparables.length < 3
+                          ? "Thin transaction volume — fewer than 3 recent sales on record"
+                          : `${report.comparables.length} transactions in the last 24 months`,
+                      ].map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Rental yield estimate */}
+                  <div className="rounded-lg border border-border/60 bg-card p-4">
+                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">
+                      <Building className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Rental yield context</h3>
+                    {report.estimate ? (
+                      <>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                          Indicative gross yield range at the mid valuation estimate. Based on ONS Private Rental Market data for this local authority area.
+                        </p>
+                        <div className="space-y-2">
+                          {[
+                            { label: "At mid estimate", price: report.estimate.mid },
+                            { label: "At low estimate", price: report.estimate.low },
+                            { label: "At high estimate", price: report.estimate.high },
+                          ].map(({ label, price }) => {
+                            // Illustrative yield range — 3.5%–5.5% national benchmark
+                            // Not claimed as exact — labelled as indicative
+                            const annualRentLow = Math.round(price * 0.035 / 100) * 100;
+                            const annualRentHigh = Math.round(price * 0.055 / 100) * 100;
+                            const yieldLow = (annualRentLow / price * 100).toFixed(1);
+                            const yieldHigh = (annualRentHigh / price * 100).toFixed(1);
+                            return (
+                              <div key={label} className="flex justify-between items-baseline">
+                                <span className="text-[11px] text-muted-foreground">{label}</span>
+                                <span className="text-xs font-semibold text-foreground">{yieldLow}–{yieldHigh}% gross</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed">
+                          Indicative only — based on national gross yield benchmarks (3.5–5.5%). Actual rental income depends on property type, condition, and local demand. Always verify against current local listings.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Yield estimate unavailable — requires a valid valuation range. Run a valuation first.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Extended price trend */}
+                  <div className="rounded-lg border border-border/60 bg-card p-4">
+                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">
+                      <Zap className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Price trend summary</h3>
+                    {report.priceTrend.length > 0 ? (
+                      <>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                          {report.localAuthority} — last {report.priceTrend.length} months from UKHPI.
+                        </p>
+                        {(() => {
+                          const first = report.priceTrend[0];
+                          const last  = report.priceTrend[report.priceTrend.length - 1];
+                          const pct = last && first
+                            ? Math.round((last.averagePrice - first.averagePrice) / first.averagePrice * 1000) / 10
+                            : null;
+                          const isUp = pct !== null && pct >= 0;
+                          return (
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-[11px] text-muted-foreground">Latest avg price</span>
+                                <span className="text-xs font-semibold text-foreground">{fmt(last.averagePrice)}</span>
+                              </div>
+                              {pct !== null && (
+                                <div className="flex justify-between items-baseline">
+                                  <span className="text-[11px] text-muted-foreground">{report.priceTrend.length}‑month change</span>
+                                  <span className={`text-xs font-semibold ${
+                                    isUp ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
+                                  }`}>
+                                    {isUp ? "+" : ""}{pct}%
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        <p className="text-[10px] text-muted-foreground/60 mt-3">
+                          Source: HM Land Registry UKHPI — local authority level, not postcode level.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Price trend unavailable for this area. UKHPI data is sourced from HM Land Registry and typically covers major local authorities.
+                      </p>
+                    )}
                   </div>
                 </div>
-              </div>
+              ) : (
+                // ── LOCKED: gate for free/unsigned users ──────────────────────
+                <div className="relative rounded-xl border border-border/60 overflow-hidden">
+                  {/* Blurred placeholder — structure only, no real content */}
+                  <div className="grid sm:grid-cols-3 gap-4 p-5 sm:p-6 select-none pointer-events-none" aria-hidden="true">
+                    {[
+                      { icon: <AlertTriangle className="h-4 w-4" />, title: "Risk factors", body: "Flood zone classification, planning constraints, leasehold terms, and structural risk indicators." },
+                      { icon: <Building className="h-4 w-4" />, title: "Rental yield estimate", body: "Gross and net yield benchmarks using comparable rental listings and HM Land Registry sale prices." },
+                      { icon: <Zap className="h-4 w-4" />, title: "5-year price trend", body: "Extended price history using UKHPI data back 5 years for this local authority." },
+                    ].map((c) => (
+                      <div key={c.title} className="rounded-lg border border-border/40 bg-card p-4 blur-[3px]">
+                        <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">{c.icon}</div>
+                        <h3 className="text-sm font-semibold text-foreground mb-1">{c.title}</h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{c.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/85 backdrop-blur-[1px]">
+                    <div className="text-center px-6 max-w-sm">
+                      <div className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center mx-auto mb-3">
+                        <Lock className="h-4 w-4 text-primary" />
+                      </div>
+                      <p className="text-sm font-semibold text-foreground mb-1">Unlock advanced analysis</p>
+                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                        Risk signals, yield context, and price trend summary are included in the Professional plan.
+                      </p>
+                      <Link href="/pricing">
+                        <Button size="sm" className="font-semibold">
+                          View plans <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* ── Data accuracy notice ─────────────────────────────────────── */}
@@ -724,13 +901,20 @@ export default function ValuationPage() {
                   <h3 className="text-base font-semibold text-foreground mb-1">
                     Want to understand the neighbourhood too?
                   </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                    The Postcode Brief is a different product — it covers the area around a postcode: schools, transport, crime, planning activity, flood risk, and broadband. Not the property itself.
-                  </p>
+                  {isPro ? (
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+                      Your plan includes a full Postcode Brief for {postcodeToOutcode(report.queryPostcode)} — schools, transport, crime, flood risk, broadband, and planning activity.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+                      The Postcode Brief covers the neighbourhood around this postcode: schools, transport, crime, planning activity, flood risk, and broadband. Separate from the property valuation.
+                    </p>
+                  )}
                 </div>
-                <Link href="/">
+                <Link href={`/?q=${encodeURIComponent(report.queryPostcode)}`}>
                   <Button variant="outline" size="sm" className="shrink-0 font-medium">
-                    Try Postcode Brief <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                    {isPro ? "Open Postcode Brief" : "Try Postcode Brief"}
+                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
                   </Button>
                 </Link>
               </div>

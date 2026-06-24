@@ -162,15 +162,16 @@ export async function registerRoutes(
 
   // ─── Vercel API handlers (dev bridge) ───────────────────────────────────────
   const apiRoutes: Array<[string, string]> = [
-    ["/api/nearby-schools",   "nearby-schools.js"],
-    ["/api/local-amenities",  "local-amenities.js"],
-    ["/api/planning-activity","planning-activity.js"],
-    ["/api/crime-stats",      "crime-stats.js"],
-    ["/api/air-quality",      "air-quality.js"],
-    ["/api/tfl-commute",      "tfl-commute.js"],
-    ["/api/epc",              "epc.js"],
-    ["/api/rental-market",    "rental-market.js"],
-    ["/api/broadband",        "broadband.js"],
+    ["/api/nearby-schools",          "nearby-schools.js"],
+    ["/api/local-amenities",         "local-amenities.js"],
+    ["/api/planning-activity",       "planning-activity.js"],
+    ["/api/crime-stats",             "crime-stats.js"],
+    ["/api/air-quality",             "air-quality.js"],
+    ["/api/tfl-commute",             "tfl-commute.js"],
+    ["/api/epc",                     "epc.js"],
+    ["/api/rental-market",           "rental-market.js"],
+    ["/api/broadband",               "broadband.js"],
+    ["/api/valuation-entitlement",   "valuation-entitlement.js"],
   ];
 
   for (const [route, file] of apiRoutes) {

@@ -4470,6 +4470,35 @@ export default function BriefPage() {
               </div>
             )}
 
+
+            {/* ── Valuation cross-link — entitlement-aware ──────────────────── */}
+            {ai.location && (
+              <div className="mb-6 rounded-xl border border-border/60 bg-card/80 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1">
+                    Property Valuation
+                  </p>
+                  <p className="text-sm font-medium text-foreground mb-0.5">
+                    Get a current valuation estimate for {ai.location}
+                  </p>
+                  {isPaid ? (
+                    <p className="text-xs text-muted-foreground">
+                      Valuation features are included in your plan for this postcode — comparables, price trend, EPC, and advanced analysis.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      HM Land Registry sold prices, area price trend, EPC band, and SDLT estimate. Free tier available.
+                    </p>
+                  )}
+                </div>
+                <Link href={`/valuation?q=${encodeURIComponent(ai.location)}`}>
+                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5 font-medium whitespace-nowrap" data-testid="button-open-valuation">
+                    <Home className="h-3.5 w-3.5" />
+                    {isPaid ? "Open Valuation" : "Try Valuation"}
+                  </Button>
+                </Link>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
                 Generated from public market data — HM Land Registry, ONS, Environment Agency &amp; more.<br />
