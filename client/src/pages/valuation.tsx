@@ -442,17 +442,18 @@ export default function ValuationPage() {
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                         <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
                           <span className="font-semibold">Indicative estimate — limited sold-price evidence.</span>{" "}
-                          Treat as directional guidance only, not a formal valuation. A wider range is used to reflect the data constraint.
-                          {report.fallbacksUsed?.includes("outcode_broadening") && " Sales from the surrounding outcode district were used to supplement this postcode's thin data."}
+                          This estimate is based on limited sold-price evidence within {report.searchRadiusUsed > 0 ? `${report.searchRadiusUsed} mile${report.searchRadiusUsed === 1 ? "" : "s"} of this postcode` : "this postcode"} and should be treated as directional only, not a formal valuation.
+                          {report.fallbacksUsed?.includes("last_sold_anchor") && " The last recorded sale price at this address was used as a supporting signal."}
+                          {report.fallbacksUsed?.includes("ukhpi_anchor") && " Local authority average price data was used as a supporting signal."}
                         </p>
                       </div>
                     )}
-                    {/* Outcode broadening note for strong estimates */}
-                    {report.valuationState === "strong" && report.fallbacksUsed?.includes("outcode_broadening") && (
+                    {/* Radius search note for strong estimates that needed to expand */}
+                    {report.valuationState === "strong" && report.searchRadiusUsed > 0 && (
                       <div className="rounded-md border border-blue-200/60 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-500/20 px-3.5 py-2 mb-4 flex gap-2 items-start">
                         <Info className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
                         <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                          This postcode had limited exact matches. Comparable sales from the wider {report.outcode} district have been used.
+                          Comparable sales were drawn from within {report.searchRadiusUsed} mile{report.searchRadiusUsed === 1 ? "" : "s"} of this postcode and weighted by proximity, recency, and property type.
                         </p>
                       </div>
                     )}
@@ -489,15 +490,23 @@ export default function ValuationPage() {
                       <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
                       {report.confidenceNote}
                     </p>
+                    {report.searchRadiusUsed > 0 && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-1 leading-relaxed">
+                        Search radius: {report.searchRadiusUsed} mile{report.searchRadiusUsed === 1 ? "" : "s"} &middot; {report.comparableCount} comparable{report.comparableCount !== 1 ? "s" : ""} used
+                      </p>
+                    )}
                     <SourceLine meta={report.meta.comparables} />
                   </>
                 ) : (
                   <div className="rounded-lg border border-border/40 bg-background/60 p-5">
-                    <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
                       <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      Not enough data to generate a valuation range
+                      Valuation unavailable for this postcode
                     </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{report.confidenceNote}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-2">{report.confidenceNote}</p>
+                    <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+                      The search covered up to {report.searchRadiusUsed > 0 ? `${report.searchRadiusUsed} mile${report.searchRadiusUsed === 1 ? "" : "s"} from this postcode` : "the immediate postcode area"}. No sold-price evidence was found in HM Land Registry records for this area in the last 24 months.
+                    </p>
                     <SourceLine meta={report.meta.comparables} />
                   </div>
                 )}
@@ -528,6 +537,7 @@ export default function ValuationPage() {
                         <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Type</th>
                         <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Tenure</th>
                         <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3">Sold</th>
+                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden md:table-cell">Distance</th>
                         <th className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">Price</th>
                       </tr>
                     </thead>
@@ -547,6 +557,9 @@ export default function ValuationPage() {
                             <td className="px-3 py-3 text-muted-foreground hidden sm:table-cell">{c.propertyType}</td>
                             <td className="px-3 py-3 text-muted-foreground hidden sm:table-cell">{c.tenure}</td>
                             <td className="px-3 py-3 text-muted-foreground">{fmtDate(c.soldDate)}</td>
+                            <td className="px-3 py-3 text-muted-foreground hidden md:table-cell text-[11px]">
+                              {c.distanceMiles === 0 ? "Same postcode" : `${c.distanceMiles} mi`}
+                            </td>
                             <td className="px-5 py-3 text-right">
                               <span className="font-semibold text-foreground">{fmt(c.soldPrice)}</span>
                               {c.deltaVsMid !== null && report.estimate && (
