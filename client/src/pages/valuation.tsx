@@ -413,16 +413,22 @@ export default function ValuationPage() {
                     <Badge
                       variant="outline"
                       className={`shrink-0 text-xs font-semibold px-2.5 py-1 ${
-                        report.confidence === "High"
+                        report.valuationState === "strong" && report.confidence === "High"
                           ? "border-green-500/40 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30"
-                          : report.confidence === "Medium"
+                          : report.valuationState === "strong" && report.confidence === "Medium"
                           ? "border-primary/40 text-primary bg-primary/5"
-                          : report.confidence === "Low"
+                          : report.valuationState === "strong"
                           ? "border-orange-400/40 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30"
+                          : report.valuationState === "indicative"
+                          ? "border-amber-400/50 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
                           : "border-border text-muted-foreground bg-muted"
                       }`}
                     >
-                      {report.confidence === "Insufficient" ? "Insufficient data" : `${report.confidence} confidence`}
+                      {report.valuationState === "unavailable"
+                        ? "Insufficient data"
+                        : report.valuationState === "indicative"
+                        ? "Indicative estimate"
+                        : `${report.confidence} confidence`}
                     </Badge>
                     <FreshnessBadge status={report.meta.comparables.freshnessStatus} />
                   </div>
@@ -430,6 +436,26 @@ export default function ValuationPage() {
 
                 {report.estimate ? (
                   <>
+                    {/* Indicative caveat banner */}
+                    {report.valuationState === "indicative" && (
+                      <div className="rounded-md border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-500/30 px-3.5 py-2.5 mb-4 flex gap-2.5 items-start">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                          <span className="font-semibold">Indicative estimate — limited sold-price evidence.</span>{" "}
+                          Treat as directional guidance only, not a formal valuation. A wider range is used to reflect the data constraint.
+                          {report.fallbacksUsed?.includes("outcode_broadening") && " Sales from the surrounding outcode district were used to supplement this postcode's thin data."}
+                        </p>
+                      </div>
+                    )}
+                    {/* Outcode broadening note for strong estimates */}
+                    {report.valuationState === "strong" && report.fallbacksUsed?.includes("outcode_broadening") && (
+                      <div className="rounded-md border border-blue-200/60 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-500/20 px-3.5 py-2 mb-4 flex gap-2 items-start">
+                        <Info className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                          This postcode had limited exact matches. Comparable sales from the wider {report.outcode} district have been used.
+                        </p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-3 gap-3 mb-5">
                       {[
                         { label: "Low", value: report.estimate.low, highlight: false },
@@ -439,10 +465,18 @@ export default function ValuationPage() {
                         <div
                           key={label}
                           className={`rounded-lg p-4 text-center border ${
-                            highlight ? "border-primary/50 bg-primary/5" : "border-border/50 bg-background"
+                            highlight
+                              ? report.valuationState === "indicative"
+                                ? "border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20"
+                                : "border-primary/50 bg-primary/5"
+                              : "border-border/50 bg-background"
                           }`}
                         >
-                          <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${highlight ? "text-primary" : "text-muted-foreground"}`}>
+                          <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${
+                            highlight
+                              ? report.valuationState === "indicative" ? "text-amber-600 dark:text-amber-400" : "text-primary"
+                              : "text-muted-foreground"
+                          }`}>
                             {label}
                           </p>
                           <p className={`font-serif text-xl sm:text-2xl font-semibold ${highlight ? "text-foreground" : "text-muted-foreground"}`}>

@@ -31,6 +31,7 @@ import {
 // ─── Public types ──────────────────────────────────────────────────────────────
 
 export type ConfidenceLevel = "High" | "Medium" | "Low" | "Insufficient";
+export type ValuationState = "strong" | "indicative" | "unavailable";
 
 export interface ComparableSale {
   address: string;
@@ -75,6 +76,8 @@ export interface ValuationRange {
   high: number;
   /** Width of the range as a % of mid — used to communicate uncertainty */
   rangeWidthPct: number;
+  /** Characterises the quality of evidence behind this range */
+  valuationState: ValuationState;
 }
 
 export interface ValuationReport {
@@ -86,10 +89,14 @@ export interface ValuationReport {
   retrievedAt: string;            // ISO timestamp of this report
 
   // ── Valuation ───────────────────────────────────────────────────────────────
-  /** null if fewer than 3 valid comparables could be found */
+  /** null only when truly insufficient data */
   estimate: ValuationRange | null;
   confidence: ConfidenceLevel;
   confidenceNote: string;
+  /** Overall evidence quality classification */
+  valuationState: ValuationState;
+  /** Which fallback strategies were triggered, e.g. ["outcode_broadening", "ukhpi_anchor"] */
+  fallbacksUsed: string[];
   /** How many valid comparables were used */
   comparableCount: number;
   /** null means no individual property was resolved — postcode-only query */
@@ -232,6 +239,36 @@ WHERE {
   OPTIONAL { ?addr lrcommon:street ?street }
   OPTIONAL { ?addr lrcommon:town ?town }
   OPTIONAL { ?addr lrcommon:postcode ?postcode }
+  FILTER (?amount > 10000 && ?amount < 50000000)
+}
+ORDER BY DESC(?date)
+LIMIT 50
+`.trim();
+}
+
+// Outcode-level query — used as a fallback when the exact postcode yields <3 results.
+// Matches all PPD records whose postcode STARTS WITH the outcode (e.g. "BS1 ").
+// We use STRSTARTS so SPARQL stays correct; date filter still applied in JS.
+function buildPpdSparqlQueryOutcode(outcode: string): string {
+  // Normalise outcode to upper-case, no trailing space
+  const oc = outcode.toUpperCase().trim();
+  return `
+PREFIX lrppi: <http://landregistry.data.gov.uk/def/ppi/>
+PREFIX lrcommon: <http://landregistry.data.gov.uk/def/common/>
+SELECT ?paon ?saon ?street ?town ?postcode ?amount ?date ?propertyType ?estate ?category
+WHERE {
+  ?tranx lrppi:pricePaid ?amount ;
+         lrppi:transactionDate ?date ;
+         lrppi:propertyAddress ?addr ;
+         lrppi:propertyType ?propertyType ;
+         lrppi:estateType ?estate ;
+         lrppi:transactionCategory ?category .
+  ?addr lrcommon:postcode ?postcode .
+  FILTER (STRSTARTS(STR(?postcode), "${oc} "))
+  OPTIONAL { ?addr lrcommon:paon ?paon }
+  OPTIONAL { ?addr lrcommon:saon ?saon }
+  OPTIONAL { ?addr lrcommon:street ?street }
+  OPTIONAL { ?addr lrcommon:town ?town }
   FILTER (?amount > 10000 && ?amount < 50000000)
 }
 ORDER BY DESC(?date)
@@ -457,89 +494,115 @@ async function fetchEpc(postcode: string): Promise<{ data: EpcData | null; meta:
 
 // ─── PPD fetch via SPARQL ──────────────────────────────────────────────────────
 
+// Parse raw SPARQL bindings into ComparableSale[], applying 24-month JS date filter.
+// Returns the parsed sales array and the most recent sale date found.
+function parsePpdBindings(
+  bindings: Record<string, { value: string }>[],
+  fallbackPostcode: string,
+): { sales: ComparableSale[]; latestDate: string | null } {
+  const sales: ComparableSale[] = [];
+  let latestDate: string | null = null;
+
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 2);
+
+  for (const row of bindings) {
+    const price = parseFloat(row.amount?.value ?? "");
+    const date  = row.date?.value?.slice(0, 10) ?? "";
+
+    if (!isValidPrice(price)) continue;
+    if (!isValidDate(date)) continue;
+    if (new Date(date) > new Date()) continue;
+    if (new Date(date) < cutoff) continue;
+
+    const addrParts = [
+      row.saon?.value,
+      row.paon?.value,
+      row.street?.value,
+      row.town?.value,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const propTypeRaw = row.propertyType?.value ?? "";
+    const typeSlug = propTypeRaw.split("/").pop() ?? "";
+    const propertyType =
+      typeSlug === "semiDetached" ? "Semi-detached" :
+      typeSlug === "detached"     ? "Detached" :
+      typeSlug === "terraced"     ? "Terraced" :
+      typeSlug === "flat"         ? "Flat" :
+      propTypeRaw.toLowerCase().includes("semi")    ? "Semi-detached" :
+      propTypeRaw.toLowerCase().includes("detach")  ? "Detached" :
+      propTypeRaw.toLowerCase().includes("terrace") ? "Terraced" :
+      propTypeRaw.toLowerCase().includes("flat")    ? "Flat" : "Other";
+
+    const tenureRaw = row.estate?.value ?? "";
+    const tenure = tenureRaw.toLowerCase().includes("free") ? "Freehold" : "Leasehold";
+
+    const catRaw = row.category?.value ?? "";
+    const isNewBuild = catRaw.toLowerCase().includes("new");
+
+    if (!latestDate || date > latestDate) latestDate = date;
+
+    sales.push({
+      address: addrParts || row.postcode?.value || fallbackPostcode,
+      propertyType,
+      tenure,
+      isNewBuild,
+      soldDate: date,
+      soldPrice: price,
+      deltaVsMid: null,
+      source: "hmlr_ppd",
+    });
+  }
+
+  return { sales, latestDate };
+}
+
+async function runSparqlQuery(sparql: string): Promise<Record<string, { value: string }>[]> {
+  const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(sparql)}&output=json`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/sparql-results+json" },
+  });
+  if (!res.ok) throw new Error(`SPARQL ${res.status}`);
+  const json = await res.json();
+  return (json?.results?.bindings ?? []) as Record<string, { value: string }>[];
+}
+
 async function fetchComparables(
-  postcode: string
-): Promise<{ data: ComparableSale[]; meta: ModuleMetadata; latestDate: string | null }> {
+  postcode: string,
+  outcode: string,
+): Promise<{ data: ComparableSale[]; meta: ModuleMetadata; latestDate: string | null; usedOutcodeFallback: boolean }> {
   const retrievedAt = new Date().toISOString();
-  const sparql = buildPpdSparqlQuery(postcode);
 
   try {
-    const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(sparql)}&output=json`;
-    const res = await fetch(url, {
-      headers: { Accept: "application/sparql-results+json" },
-    });
+    // ── Pass 1: exact postcode ─────────────────────────────────────────────────
+    const exactSparql = buildPpdSparqlQuery(postcode);
+    const exactBindings = await runSparqlQuery(exactSparql);
+    const { sales: exactSales, latestDate: exactLatest } = parsePpdBindings(exactBindings, postcode);
 
-    if (!res.ok) throw new Error(`SPARQL ${res.status}`);
+    let sales = exactSales;
+    let latestDate = exactLatest;
+    let usedOutcodeFallback = false;
 
-    const json = await res.json();
-    const bindings: unknown[] = json?.results?.bindings ?? [];
+    // ── Pass 2: outcode broadening (only if <3 exact results) ─────────────────
+    if (exactSales.length < 3) {
+      try {
+        const outcodeSparql = buildPpdSparqlQueryOutcode(outcode);
+        const outcodeBindings = await runSparqlQuery(outcodeSparql);
+        const { sales: outcodeSales, latestDate: outcodeLatest } = parsePpdBindings(outcodeBindings, postcode);
 
-    const sales: ComparableSale[] = [];
-    let latestDate: string | null = null;
-
-    for (const row of bindings as Record<string, { value: string }>[]) {
-      const price = parseFloat(row.amount?.value ?? "");
-      const date  = row.date?.value?.slice(0, 10) ?? "";
-
-      // Validation gates
-      if (!isValidPrice(price)) continue;
-      if (!isValidDate(date)) continue;
-
-      // Reject future dates
-      if (new Date(date) > new Date()) continue;
-
-      // FIX 2 (JS side): Apply date filter here instead of SPARQL.
-      // Keep only transactions from the last 24 months.
-      const cutoff = new Date();
-      cutoff.setFullYear(cutoff.getFullYear() - 2);
-      if (new Date(date) < cutoff) continue;
-
-      const addrParts = [
-        row.saon?.value,
-        row.paon?.value,
-        row.street?.value,
-        row.town?.value,
-      ]
-        .filter(Boolean)
-        .join(", ");
-
-      const propTypeRaw = row.propertyType?.value ?? "";
-      // FIX 3: Extract the last URI segment for reliable matching.
-      // e.g. "http://landregistry.data.gov.uk/def/common/semiDetached" → "semiDetached"
-      const typeSlug = propTypeRaw.split("/").pop() ?? "";
-      const propertyType =
-        typeSlug === "semiDetached" ? "Semi-detached" :
-        typeSlug === "detached"     ? "Detached" :
-        typeSlug === "terraced"     ? "Terraced" :
-        typeSlug === "flat"         ? "Flat" :
-        // Fallback: try contains-match on full URI for safety
-        propTypeRaw.toLowerCase().includes("semi") ? "Semi-detached" :
-        propTypeRaw.toLowerCase().includes("detach") ? "Detached" :
-        propTypeRaw.toLowerCase().includes("terrace") ? "Terraced" :
-        propTypeRaw.toLowerCase().includes("flat") ? "Flat" : "Other";
-
-      const tenureRaw = row.estate?.value ?? "";
-      const tenure = tenureRaw.toLowerCase().includes("free") ? "Freehold" : "Leasehold";
-
-      const catRaw = row.category?.value ?? "";
-      const isNewBuild = catRaw.toLowerCase().includes("new");
-
-      if (!latestDate || date > latestDate) latestDate = date;
-
-      sales.push({
-        address: addrParts || row.postcode?.value || postcode,
-        propertyType,
-        tenure,
-        isNewBuild,
-        soldDate: date,
-        soldPrice: price,
-        deltaVsMid: null,          // computed after estimate
-        source: "hmlr_ppd",
-      });
+        if (outcodeSales.length > exactSales.length) {
+          sales = outcodeSales;
+          latestDate = outcodeLatest;
+          usedOutcodeFallback = true;
+        }
+      } catch {
+        // Pass 2 failed — proceed with whatever pass 1 returned
+      }
     }
 
     // Note: The two most recent calendar months of PPD are always incomplete.
-    // We flag this in the metadata so the UI can caveat it.
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
     const hasRecentOnly =
@@ -547,9 +610,12 @@ async function fetchComparables(
       sales.every((s) => new Date(s.soldDate) >= twoMonthsAgo);
 
     const freshnessStatus = assessFreshness("hmlr_ppd", latestDate);
+    const scope = usedOutcodeFallback
+      ? `outcode ${outcode} (exact postcode had fewer than 3 results)`
+      : `postcode ${postcode}`;
     const caveat = hasRecentOnly
-      ? "All comparable transactions are from the last 2 months. HM Land Registry data for the most recent 2 months is incomplete — additional sales may appear as registrations are processed."
-      : `${sales.length} transaction${sales.length !== 1 ? "s" : ""} found. Most recent: ${latestDate ?? "unknown"}. Source: HM Land Registry Price Paid Data (OGL v3.0).`;
+      ? `All comparable transactions are from the last 2 months. HM Land Registry data for the most recent 2 months is incomplete — additional sales may appear as registrations are processed.`
+      : `${sales.length} transaction${sales.length !== 1 ? "s" : ""} found for ${scope}. Most recent: ${latestDate ?? "unknown"}. Source: HM Land Registry Price Paid Data (OGL v3.0).`;
 
     return {
       data: sales,
@@ -561,6 +627,7 @@ async function fetchComparables(
         caveatText: caveat,
       },
       latestDate,
+      usedOutcodeFallback,
     };
   } catch {
     return {
@@ -571,6 +638,7 @@ async function fetchComparables(
         "Comparable sales data temporarily unavailable. HM Land Registry SPARQL endpoint may be experiencing delays."
       ),
       latestDate: null,
+      usedOutcodeFallback: false,
     };
   }
 }
@@ -721,72 +789,153 @@ async function fetchPostcodeInfo(postcode: string): Promise<PostcodeInfo | null>
 }
 
 // ─── Estimate builder ─────────────────────────────────────────────────────────
-// Rules:
-//  - Minimum 3 valid comparables to produce any estimate.
-//  - <3 → ConfidenceLevel = "Insufficient", estimate = null.
-//  - 3–5 → "Low", range ±18%
-//  - 6–9 → "Medium", range ±12%
-//  - 10+  → "High", range ±8%
-//  - If all comparables are from the incomplete 2-month window → widen by extra 5%
+// Evidence tiers (after outcode broadening has been applied):
+//
+//  Comparables  | State       | ±HalfWidth | Confidence label
+//  10+          | strong      | ±8%        | High confidence
+//  6–9          | strong      | ±12%       | Medium confidence
+//  3–5          | strong      | ±18%       | Low confidence
+//  2 + support  | indicative  | ±25%       | Indicative — limited data
+//  1 + support  | indicative  | ±30%       | Indicative — very limited data
+//  otherwise    | unavailable | —          | Not enough data
+//
+// "support" = lastSoldPrice OR trendAnchor is available.
+// When in indicative mode, if UKHPI trendAnchor available and the median is >40%
+// from LA avg, widen the range by an extra 10% and note the divergence.
 
 function buildEstimate(
   comparables: ComparableSale[],
-): { estimate: ValuationRange | null; confidence: ConfidenceLevel; confidenceNote: string; count: number } {
+  lastSoldPrice: number | null,
+  trendAnchor: number | null,   // latest UKHPI LA average price, or null
+): {
+  estimate: ValuationRange | null;
+  confidence: ConfidenceLevel;
+  confidenceNote: string;
+  valuationState: ValuationState;
+  fallbacksUsed: string[];
+  count: number;
+} {
   const valid = comparables.filter(
     (c) => isValidPrice(c.soldPrice) && isValidDate(c.soldDate)
   );
 
-  if (valid.length < 3) {
+  const fallbacksUsed: string[] = [];
+
+  // ── Strong path (3+ comparables) ────────────────────────────────────────────
+  if (valid.length >= 3) {
+    const sorted = [...valid].sort((a, b) => a.soldPrice - b.soldPrice);
+    const mid =
+      valid.length % 2 === 0
+        ? Math.round((sorted[valid.length / 2 - 1].soldPrice + sorted[valid.length / 2].soldPrice) / 2)
+        : sorted[Math.floor(valid.length / 2)].soldPrice;
+    const midRounded = Math.round(mid / 1000) * 1000;
+
+    const twoMonthsAgo = new Date();
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+    const allRecent = valid.every((c) => new Date(c.soldDate) >= twoMonthsAgo);
+
+    let halfWidthPct: number;
+    let level: ConfidenceLevel;
+    let note: string;
+
+    if (valid.length >= 10) {
+      halfWidthPct = 0.08; level = "High";
+      note = `Based on ${valid.length} comparable sales in the last 24 months. Source: HM Land Registry Price Paid Data.`;
+    } else if (valid.length >= 6) {
+      halfWidthPct = 0.12; level = "Medium";
+      note = `Based on ${valid.length} comparable sales. Moderate transaction volume. Source: HM Land Registry Price Paid Data.`;
+    } else {
+      halfWidthPct = 0.18; level = "Low";
+      note = `Based on ${valid.length} comparable sales. Low confidence — thin transaction volume. Range is intentionally wide. Source: HM Land Registry Price Paid Data.`;
+    }
+
+    if (allRecent) {
+      halfWidthPct += 0.05;
+      note += " All comparables are from the last 2 months — HM Land Registry data for this window is incomplete and estimate uncertainty is higher than usual.";
+    }
+
+    const low  = Math.round(midRounded * (1 - halfWidthPct) / 1000) * 1000;
+    const high = Math.round(midRounded * (1 + halfWidthPct) / 1000) * 1000;
+    const rangeWidthPct = Math.round(halfWidthPct * 2 * 100);
+
     return {
-      estimate: null,
-      confidence: "Insufficient",
-      confidenceNote: `Only ${valid.length} valid comparable${valid.length !== 1 ? "s" : ""} found. A minimum of 3 is required to generate a valuation range. This is common for postcodes with low transaction volumes.`,
+      estimate: { low, mid: midRounded, high, rangeWidthPct, valuationState: "strong" },
+      confidence: level,
+      confidenceNote: note,
+      valuationState: "strong",
+      fallbacksUsed,
       count: valid.length,
     };
   }
 
-  // Median price as the mid estimate
-  const sorted = [...valid].sort((a, b) => a.soldPrice - b.soldPrice);
-  const mid =
-    valid.length % 2 === 0
-      ? Math.round((sorted[valid.length / 2 - 1].soldPrice + sorted[valid.length / 2].soldPrice) / 2)
-      : sorted[Math.floor(valid.length / 2)].soldPrice;
+  // ── Indicative path (1–2 comparables + supporting evidence) ─────────────────
+  const hasLastSale  = isValidPrice(lastSoldPrice ?? 0);
+  const hasTrend     = isValidPrice(trendAnchor ?? 0);
+  const hasSupport   = hasLastSale || hasTrend;
 
-  // Round to nearest £1k
-  const midRounded = Math.round(mid / 1000) * 1000;
+  const canIndicative =
+    (valid.length === 2 && hasSupport) ||
+    (valid.length === 1 && hasLastSale && hasTrend);
 
-  const twoMonthsAgo = new Date();
-  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-  const allRecent = valid.every((c) => new Date(c.soldDate) >= twoMonthsAgo);
+  if (canIndicative) {
+    // Build a price pool: valid comp prices + last-sold price (if separate)
+    const pricePool: number[] = valid.map((c) => c.soldPrice);
+    if (hasLastSale && isValidPrice(lastSoldPrice!)) {
+      // Only add last-sold if it differs from comps (avoid double-counting)
+      const alreadyCounted = valid.some((c) => c.soldPrice === lastSoldPrice);
+      if (!alreadyCounted) {
+        pricePool.push(lastSoldPrice!);
+        fallbacksUsed.push("last_sold_anchor");
+      }
+    }
 
-  let halfWidthPct: number;
-  let level: ConfidenceLevel;
-  let note: string;
+    const sorted = [...pricePool].sort((a, b) => a - b);
+    const midRaw =
+      sorted.length % 2 === 0
+        ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+        : sorted[Math.floor(sorted.length / 2)];
+    let midRounded = Math.round(midRaw / 1000) * 1000;
 
-  if (valid.length >= 10) {
-    halfWidthPct = 0.08; level = "High";
-    note = `Based on ${valid.length} comparable sales within the same postcode outcode in the last 24 months. Source: HM Land Registry Price Paid Data.`;
-  } else if (valid.length >= 6) {
-    halfWidthPct = 0.12; level = "Medium";
-    note = `Based on ${valid.length} comparable sales. Medium confidence — moderate transaction volume. Source: HM Land Registry Price Paid Data.`;
-  } else {
-    halfWidthPct = 0.18; level = "Low";
-    note = `Based on only ${valid.length} comparable sales. Low confidence due to thin transaction volume in this postcode. Range is intentionally wide. Source: HM Land Registry Price Paid Data.`;
+    let halfWidthPct = valid.length === 2 ? 0.25 : 0.30;
+    const level: ConfidenceLevel = "Low";
+
+    // UKHPI sanity anchor: if median is >40% from LA average, note it and widen
+    let divergenceNote = "";
+    if (hasTrend && isValidPrice(trendAnchor!)) {
+      fallbacksUsed.push("ukhpi_anchor");
+      const divergence = Math.abs(midRounded - trendAnchor!) / trendAnchor!;
+      if (divergence > 0.40) {
+        halfWidthPct += 0.10;
+        divergenceNote = ` The estimate diverges significantly from the local authority average (£${Math.round(trendAnchor! / 1000)}k) — this may reflect a property type or micro-location premium/discount. Range widened accordingly.`;
+      }
+    }
+
+    const caveatStrong = valid.length === 2
+      ? `This is an indicative estimate based on only ${valid.length} comparable sales`
+      : `This is an indicative estimate based on ${valid.length} comparable sale with supporting evidence`;
+    const note = `${caveatStrong} in this area in the last 24 months. Treat as directional only — not a formal valuation. Source: HM Land Registry Price Paid Data.${divergenceNote}`;
+
+    const low  = Math.round(midRounded * (1 - halfWidthPct) / 1000) * 1000;
+    const high = Math.round(midRounded * (1 + halfWidthPct) / 1000) * 1000;
+    const rangeWidthPct = Math.round(halfWidthPct * 2 * 100);
+
+    return {
+      estimate: { low, mid: midRounded, high, rangeWidthPct, valuationState: "indicative" },
+      confidence: level,
+      confidenceNote: note,
+      valuationState: "indicative",
+      fallbacksUsed,
+      count: valid.length,
+    };
   }
 
-  if (allRecent) {
-    halfWidthPct += 0.05;
-    note += " All comparables are from the last 2 months — HM Land Registry data for this window is incomplete and estimate uncertainty is higher than usual.";
-  }
-
-  const low  = Math.round(midRounded * (1 - halfWidthPct) / 1000) * 1000;
-  const high = Math.round(midRounded * (1 + halfWidthPct) / 1000) * 1000;
-  const rangeWidthPct = Math.round(halfWidthPct * 2 * 100);
-
+  // ── Unavailable ──────────────────────────────────────────────────────────────
   return {
-    estimate: { low, mid: midRounded, high, rangeWidthPct },
-    confidence: level,
-    confidenceNote: note,
+    estimate: null,
+    confidence: "Insufficient",
+    confidenceNote: `Only ${valid.length} valid comparable${valid.length !== 1 ? "s" : ""} found in this area and there is insufficient supporting evidence to generate even an indicative range. This is uncommon — it may reflect a very thin market or a recently-created postcode.`,
+    valuationState: "unavailable",
+    fallbacksUsed,
     count: valid.length,
   };
 }
@@ -817,19 +966,30 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
 
   // Step 3 — Parallel fetch of all data modules
   const [compResult, trendResult, epcResult, planningResult] = await Promise.allSettled([
-    fetchComparables(postcode),
+    fetchComparables(postcode, postcodeInfo.outcode),
     fetchPriceTrend(laSlug),
     fetchEpc(postcode),
     fetchPlanning(postcode),
   ]);
 
-  const comps     = compResult.status     === "fulfilled" ? compResult.value     : { data: [], meta: makeUnavailableMeta("hmlr_ppd", retrievedAt, "Comparables fetch failed."), latestDate: null };
+  const comps     = compResult.status     === "fulfilled" ? compResult.value     : { data: [], meta: makeUnavailableMeta("hmlr_ppd", retrievedAt, "Comparables fetch failed."), latestDate: null, usedOutcodeFallback: false };
   const trend     = trendResult.status    === "fulfilled" ? trendResult.value    : { data: [], meta: makeUnavailableMeta("hmlr_ukhpi", retrievedAt, "Price trend fetch failed.") };
   const epc       = epcResult.status      === "fulfilled" ? epcResult.value      : { data: null, meta: makeUnavailableMeta("mhclg_epc", retrievedAt, "EPC fetch failed.") };
   const planning  = planningResult.status === "fulfilled" ? planningResult.value : { data: [], meta: makeUnavailableMeta("planning_data_gov", retrievedAt, "Planning data fetch failed.") };
 
   // Step 4 — Build estimate
-  const { estimate, confidence, confidenceNote, count } = buildEstimate(comps.data);
+  // Pass last-sold price and UKHPI trend anchor to enable indicative estimation
+  const trendAnchor = trend.data.length > 0 ? trend.data[trend.data.length - 1].averagePrice : null;
+  const preBuildLastSold = [...comps.data].sort((a, b) => b.soldDate.localeCompare(a.soldDate))[0] ?? null;
+  const { estimate, confidence, confidenceNote, valuationState, fallbacksUsed, count } = buildEstimate(
+    comps.data,
+    preBuildLastSold?.soldPrice ?? null,
+    trendAnchor,
+  );
+  // Track outcode broadening in fallbacksUsed
+  if (comps.usedOutcodeFallback && !fallbacksUsed.includes("outcode_broadening")) {
+    fallbacksUsed.unshift("outcode_broadening");
+  }
 
   // Step 5 — Annotate deltaVsMid on each comparable
   if (estimate) {
@@ -855,6 +1015,8 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
     estimate,
     confidence,
     confidenceNote,
+    valuationState,
+    fallbacksUsed,
     comparableCount: count,
     lastSoldPrice: lastSold?.soldPrice ?? null,
     lastSoldDate: lastSold?.soldDate ?? null,
