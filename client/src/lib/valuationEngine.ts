@@ -210,9 +210,11 @@ export function calculateSdlt(price: number): SdltResult {
 const SPARQL_ENDPOINT = "https://landregistry.data.gov.uk/landregistry/query";
 
 function buildPpdSparqlQuery(postcode: string): string {
-  const outcode = postcode.split(" ")[0].toUpperCase();
-  // Query the outcode area (not exact postcode) for more comparables
-  // The FILTER on price range rejects obvious data-quality outliers
+  // FIX 1: Use the exact full postcode (e.g. "BS1 4DJ"), not just the outcode.
+  // The HMLR PPD triple store stores full postcodes; outcode matching returns 0 rows.
+  // FIX 2: Remove the date FILTER entirely — typed xsd:date comparisons on the HMLR
+  // SPARQL endpoint reliably return 0 results even when the unfiltered query has data.
+  // Date filtering is applied in JavaScript after we receive the results.
   return `
 PREFIX lrppi: <http://landregistry.data.gov.uk/def/ppi/>
 PREFIX lrcommon: <http://landregistry.data.gov.uk/def/common/>
@@ -224,17 +226,16 @@ WHERE {
          lrppi:propertyType ?propertyType ;
          lrppi:estateType ?estate ;
          lrppi:transactionCategory ?category .
-  ?addr lrcommon:postcode "${outcode}"^^<http://www.w3.org/2001/XMLSchema#string> .
+  ?addr lrcommon:postcode "${postcode}"^^<http://www.w3.org/2001/XMLSchema#string> .
   OPTIONAL { ?addr lrcommon:paon ?paon }
   OPTIONAL { ?addr lrcommon:saon ?saon }
   OPTIONAL { ?addr lrcommon:street ?street }
   OPTIONAL { ?addr lrcommon:town ?town }
   OPTIONAL { ?addr lrcommon:postcode ?postcode }
   FILTER (?amount > 10000 && ?amount < 50000000)
-  FILTER (?date >= "${new Date(Date.now() - 730 * 86_400_000).toISOString().slice(0, 10)}"^^<http://www.w3.org/2001/XMLSchema#date>)
 }
 ORDER BY DESC(?date)
-LIMIT 30
+LIMIT 50
 `.trim();
 }
 
@@ -244,13 +245,129 @@ LIMIT 30
 // If the slug is unknown we fall back to region level.
 
 function buildUkhpiUrl(slug: string, months: number = 13): string {
-  const since = new Date();
-  since.setMonth(since.getMonth() - months);
-  const sinceStr = since.toISOString().slice(0, 7); // "YYYY-MM"
+  // FIX 4: Add _properties param — without it the API returns items as plain URI strings
+  // (not data objects), so item["averagePrice"] is always undefined → no trend points.
+  // Also sort DESC so latest months come first regardless of _pageSize.
   return (
     `https://landregistry.data.gov.uk/data/ukhpi/region/${slug}.json` +
-    `?min-refMonth=${sinceStr}&_sort=refMonth&_pageSize=${months}`
+    `?_pageSize=${months}&_properties=refMonth,averagePrice,housePriceIndex&_sort=-refMonth`
   );
+}
+
+// ─── UKHPI local-authority slug lookup ────────────────────────────────────────
+// postcodes.io returns admin_district names like "Bristol, City of".
+// UKHPI uses its own kebab slugs that do NOT follow a simple transform.
+// FIX 5: Hardcoded lookup for common values; falls back to region slug.
+// Add more entries as needed — slugs confirmed against UKHPI API.
+const LA_SLUG_MAP: Record<string, string> = {
+  // Major cities / unitary authorities
+  "bristol, city of":            "city-of-bristol",
+  "city of bristol":             "city-of-bristol",
+  "birmingham":                  "birmingham",
+  "leeds":                       "leeds",
+  "sheffield":                   "sheffield",
+  "manchester":                  "manchester",
+  "liverpool":                   "liverpool",
+  "newcastle upon tyne":         "newcastle-upon-tyne",
+  "coventry":                    "coventry",
+  "leicester":                   "leicester",
+  "nottingham":                  "nottingham",
+  "kingston upon hull, city of": "kingston-upon-hull",
+  "hull":                        "kingston-upon-hull",
+  "stoke-on-trent":              "stoke-on-trent",
+  "wolverhampton":               "wolverhampton",
+  "plymouth":                    "plymouth",
+  "southampton":                 "southampton",
+  "portsmouth":                  "portsmouth",
+  "exeter":                      "exeter",
+  "york":                        "york",
+  "oxford":                      "oxford",
+  "cambridge":                   "cambridge",
+  "reading":                     "reading",
+  "slough":                      "slough",
+  "milton keynes":               "milton-keynes",
+  "northampton":                 "northampton",
+  "luton":                       "luton",
+  "swindon":                     "swindon",
+  "bournemouth, christchurch and poole": "bournemouth-christchurch-and-poole",
+  "brighton and hove":           "brighton-and-hove",
+  "derby":                       "derby",
+  "peterborough":                "peterborough",
+  "gloucester":                  "gloucester",
+  // London boroughs
+  "city of westminster":         "city-of-westminster",
+  "westminster":                 "city-of-westminster",
+  "city of london":              "city-of-london",
+  "camden":                      "camden",
+  "islington":                   "islington",
+  "hackney":                     "hackney",
+  "tower hamlets":               "tower-hamlets",
+  "southwark":                   "southwark",
+  "lambeth":                     "lambeth",
+  "wandsworth":                  "wandsworth",
+  "hammersmith and fulham":      "hammersmith-and-fulham",
+  "kensington and chelsea":      "kensington-and-chelsea",
+  "ealing":                      "ealing",
+  "brent":                       "brent",
+  "barnet":                      "barnet",
+  "haringey":                    "haringey",
+  "enfield":                     "enfield",
+  "waltham forest":              "waltham-forest",
+  "redbridge":                   "redbridge",
+  "newham":                      "newham",
+  "barking and dagenham":        "barking-and-dagenham",
+  "havering":                    "havering",
+  "bromley":                     "bromley",
+  "lewisham":                    "lewisham",
+  "greenwich":                   "greenwich",
+  "bexley":                      "bexley",
+  "croydon":                     "croydon",
+  "sutton":                      "sutton",
+  "merton":                      "merton",
+  "kingston upon thames":        "kingston-upon-thames",
+  "richmond upon thames":        "richmond-upon-thames",
+  "hounslow":                    "hounslow",
+  "hillingdon":                  "hillingdon",
+  "harrow":                      "harrow",
+  "hertsmere":                   "hertsmere",
+  // Regions (fallback values used when LA slug not found)
+  "london":                      "london",
+  "greater london":              "london",
+  "south west":                  "south-west",
+  "south east":                  "south-east",
+  "east of england":             "east-of-england",
+  "east midlands":               "east-midlands",
+  "west midlands":               "west-midlands",
+  "yorkshire and the humber":    "yorkshire-and-the-humber",
+  "north west":                  "north-west",
+  "north east":                  "north-east",
+  "wales":                       "wales",
+  "england":                     "england",
+};
+
+// Region fallback map: postcodes.io region → UKHPI region slug
+const REGION_SLUG_MAP: Record<string, string> = {
+  "London":                      "london",
+  "South West":                  "south-west",
+  "South East":                  "south-east",
+  "East of England":             "east-of-england",
+  "East Midlands":               "east-midlands",
+  "West Midlands":               "west-midlands",
+  "Yorkshire and The Humber":    "yorkshire-and-the-humber",
+  "North West":                  "north-west",
+  "North East":                  "north-east",
+  "Wales":                       "wales",
+};
+
+function getLaSlug(laName: string, region: string): string {
+  const key = laName.toLowerCase().trim();
+  if (LA_SLUG_MAP[key]) return LA_SLUG_MAP[key];
+  // Try partial matches for "X, City of" style names
+  for (const [k, v] of Object.entries(LA_SLUG_MAP)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  // Fall back to region slug
+  return REGION_SLUG_MAP[region] ?? "england";
 }
 
 // ─── EPC fetch (official MHCLG endpoint) ──────────────────────────────────────
@@ -265,10 +382,14 @@ async function fetchEpc(postcode: string): Promise<{ data: EpcData | null; meta:
   const retrievedAt = new Date().toISOString();
 
   try {
-    const url = `${EPC_BASE}/api/search?postcode=${encodeURIComponent(postcode)}&size=1`;
+    // FIX 6: MHCLG EPC API requires Basic auth as base64(email:key), NOT base64(key:).
+    // Also try the /api/v1/domestic/search path which is the documented endpoint.
+    const EPC_EMAIL = "bradleyskana@hotmail.com";
+    const authToken = btoa(`${EPC_EMAIL}:${EPC_API_KEY}`);
+    const url = `${EPC_BASE}/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}&size=1`;
     const res = await fetch(url, {
       headers: {
-        "Authorization": `Basic ${btoa(`${EPC_API_KEY}:`)}`,
+        "Authorization": `Basic ${authToken}`,
         "Accept": "application/json",
       },
     });
@@ -367,6 +488,12 @@ async function fetchComparables(
       // Reject future dates
       if (new Date(date) > new Date()) continue;
 
+      // FIX 2 (JS side): Apply date filter here instead of SPARQL.
+      // Keep only transactions from the last 24 months.
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 2);
+      if (new Date(date) < cutoff) continue;
+
       const addrParts = [
         row.saon?.value,
         row.paon?.value,
@@ -377,15 +504,19 @@ async function fetchComparables(
         .join(", ");
 
       const propTypeRaw = row.propertyType?.value ?? "";
-      const propertyType = propTypeRaw.includes("detached") && propTypeRaw.includes("semi")
-        ? "Semi-detached"
-        : propTypeRaw.includes("detached")
-        ? "Detached"
-        : propTypeRaw.includes("terraced")
-        ? "Terraced"
-        : propTypeRaw.includes("flat")
-        ? "Flat"
-        : "Other";
+      // FIX 3: Extract the last URI segment for reliable matching.
+      // e.g. "http://landregistry.data.gov.uk/def/common/semiDetached" → "semiDetached"
+      const typeSlug = propTypeRaw.split("/").pop() ?? "";
+      const propertyType =
+        typeSlug === "semiDetached" ? "Semi-detached" :
+        typeSlug === "detached"     ? "Detached" :
+        typeSlug === "terraced"     ? "Terraced" :
+        typeSlug === "flat"         ? "Flat" :
+        // Fallback: try contains-match on full URI for safety
+        propTypeRaw.toLowerCase().includes("semi") ? "Semi-detached" :
+        propTypeRaw.toLowerCase().includes("detach") ? "Detached" :
+        propTypeRaw.toLowerCase().includes("terrace") ? "Terraced" :
+        propTypeRaw.toLowerCase().includes("flat") ? "Flat" : "Other";
 
       const tenureRaw = row.estate?.value ?? "";
       const tenure = tenureRaw.toLowerCase().includes("free") ? "Freehold" : "Leasehold";
@@ -517,13 +648,14 @@ async function fetchPlanning(
 
     const apps: PlanningApplication[] = entities.map((e: unknown) => {
       const ent = e as Record<string, unknown>;
-      const fields = (ent.fields ?? {}) as Record<string, unknown>;
+      // FIX 7: planning.data.gov.uk returns fields directly on the entity object,
+      // NOT nested under a `fields` key. ent.fields is always undefined.
       return {
-        reference: (ent.reference ?? fields.reference ?? "Unknown") as string,
-        description: (fields.description ?? fields["development-description"] ?? "No description available") as string,
-        status: (fields.status ?? fields["application-status"] ?? "Unknown") as string,
-        decisionDate: (fields["decision-date"] ?? fields.decisionDate ?? null) as string | null,
-        applicationType: (fields["application-type"] ?? "Unknown") as string,
+        reference: (ent.reference ?? ent["application-reference"] ?? "Unknown") as string,
+        description: (ent.description ?? ent["development-description"] ?? ent.name ?? "No description available") as string,
+        status: (ent.status ?? ent["application-status"] ?? "Unknown") as string,
+        decisionDate: (ent["decision-date"] ?? ent.decisionDate ?? null) as string | null,
+        applicationType: (ent["application-type"] ?? ent.applicationType ?? "Unknown") as string,
       };
     });
 
@@ -680,10 +812,13 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
     );
   }
 
+  // FIX 5 (applied here): Use getLaSlug() instead of the raw naive kebab slug
+  const laSlug = getLaSlug(postcodeInfo.localAuthority, postcodeInfo.region);
+
   // Step 3 — Parallel fetch of all data modules
   const [compResult, trendResult, epcResult, planningResult] = await Promise.allSettled([
     fetchComparables(postcode),
-    fetchPriceTrend(postcodeInfo.localAuthoritySlug),
+    fetchPriceTrend(laSlug),
     fetchEpc(postcode),
     fetchPlanning(postcode),
   ]);
