@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
