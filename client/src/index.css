@@ -202,10 +202,39 @@
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    /* Prevent horizontal overflow on all pages */
+    overflow-x: hidden;
+    /* Smooth scrolling site-wide */
+    scroll-behavior: smooth;
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Prevent horizontal overflow */
+    overflow-x: hidden;
+    /* Improve text rendering on mobile */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Ensure interactive elements have minimum 44px touch targets on mobile */
+  button, [role="button"], a, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  /* Improve tap highlight on mobile */
+  a, button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Images responsive by default */
+  img, svg {
+    max-width: 100%;
+    height: auto;
   }
 }
 
@@ -307,5 +336,56 @@
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
+  }
+}
+
+/* ─── Mobile Responsiveness Utilities ──────────────────────────────────────── */
+
+/* Prevent tables from causing horizontal overflow — wrap in overflow-x-auto parent */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Horizontal scroll containers: show subtle indicator */
+.scroll-shadow-x {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.scroll-shadow-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* Minimum touch target for all interactive elements */
+@media (max-width: 640px) {
+  /* Header nav items */
+  .mobile-nav-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Ensure section headings don't overflow */
+  h1, h2, h3, h4 {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  /* Constrain any fixed-width elements that might overflow */
+  .card, [class*="rounded-xl"], [class*="rounded-lg"] {
+    max-width: 100%;
+  }
+
+  /* Tables: force horizontal scroll in wrapper */
+  .overflow-x-auto table {
+    min-width: 400px;
+  }
+}
+
+/* Pricing page: ensure cards stack cleanly with no negative margin on mobile */
+@media (max-width: 639px) {
+  [data-testid="card-pricing-professional"] {
+    margin-top: 0 !important;
+    order: -1;
   }
 }

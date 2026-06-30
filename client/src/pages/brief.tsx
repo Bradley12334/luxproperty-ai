@@ -148,7 +148,7 @@ function LoadingState() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-10">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 sm:py-10">
           <div className="text-center py-16 mb-8">
             <div className="inline-flex items-center gap-2 text-primary mb-5">
               <FileText className="h-5 w-5 animate-pulse" />
@@ -226,14 +226,14 @@ function CollapsibleSection({ title, children, defaultOpen = true, testId }: {
   return (
     <Card className={open ? "" : "overflow-hidden"} data-testid={testId}>
       <button
-        className="w-full flex items-center justify-between p-5 sm:p-6 text-left hover:bg-muted/30 transition-colors"
+        className="w-full flex items-center justify-between p-4 sm:p-6 text-left hover:bg-muted/30 transition-colors min-h-[52px]"
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
       >
         <span className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">{title}</span>
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && <div className="px-5 sm:px-6 pb-5 sm:pb-6">{children}</div>}
+      {open && <div className="px-4 sm:px-6 pb-4 sm:pb-6">{children}</div>}
     </Card>
   );
 }
@@ -507,14 +507,14 @@ function RedFlagSummaryBlock({
             return (
               <div
                 key={i}
-                className={`px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start ${
+                className={`px-5 sm:px-6 py-4 sm:py-[17px] flex flex-col sm:flex-row gap-2 sm:gap-3.5 sm:items-start ${
                   isHigh
                     ? "bg-red-50/40 dark:bg-red-950/15"
                     : "bg-amber-50/30 dark:bg-amber-950/10"
                 }`}
               >
                 {/* Severity dot + label */}
-                <div className={`flex items-center gap-1.5 min-w-[130px] sm:min-w-[150px] pt-0.5 shrink-0 ${
+                <div className={`flex items-center gap-1.5 sm:min-w-[150px] pt-0.5 shrink-0 ${
                   isHigh ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"
                 }`}>
                   <div className={`h-1.5 w-1.5 rounded-full shrink-0 mt-0.5 ${
@@ -691,8 +691,8 @@ function BuyerVerdictBlock({
       <div className="divide-y divide-border/30">
 
         {/* Best for */}
-        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start bg-[#B8860B]/[0.03]">
-          <div className="flex items-center gap-1.5 min-w-[120px] sm:min-w-[140px] pt-0.5 shrink-0 text-[#B8860B]">
+        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex flex-col sm:flex-row gap-2 sm:gap-3.5 sm:items-start bg-[#B8860B]/[0.03]">
+          <div className="flex items-center gap-1.5 sm:min-w-[140px] pt-0.5 shrink-0 text-[#B8860B]">
             <Target className="h-3.5 w-3.5" />
             <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">Best for</span>
           </div>
@@ -700,8 +700,8 @@ function BuyerVerdictBlock({
         </div>
 
         {/* Strongest positives */}
-        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start bg-emerald-50/30 dark:bg-emerald-950/10">
-          <div className="flex items-center gap-1.5 min-w-[120px] sm:min-w-[140px] pt-0.5 shrink-0 text-emerald-700 dark:text-emerald-400">
+        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex flex-col sm:flex-row gap-2 sm:gap-3.5 sm:items-start bg-emerald-50/30 dark:bg-emerald-950/10">
+          <div className="flex items-center gap-1.5 sm:min-w-[140px] pt-0.5 shrink-0 text-emerald-700 dark:text-emerald-400">
             <CheckCircle2 className="h-3.5 w-3.5" />
             <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">Positives</span>
           </div>
@@ -720,8 +720,8 @@ function BuyerVerdictBlock({
         </div>
 
         {/* Main watch-outs */}
-        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex gap-3.5 items-start bg-amber-50/30 dark:bg-amber-950/10">
-          <div className="flex items-center gap-1.5 min-w-[120px] sm:min-w-[140px] pt-0.5 shrink-0 text-amber-700 dark:text-amber-400">
+        <div className="px-5 sm:px-6 py-4 sm:py-[17px] flex flex-col sm:flex-row gap-2 sm:gap-3.5 sm:items-start bg-amber-50/30 dark:bg-amber-950/10">
+          <div className="flex items-center gap-1.5 sm:min-w-[140px] pt-0.5 shrink-0 text-amber-700 dark:text-amber-400">
             <ShieldAlert className="h-3.5 w-3.5" />
             <span className="text-[10px] font-bold uppercase tracking-[0.13em] leading-tight">Watch-outs</span>
           </div>
@@ -2414,7 +2414,7 @@ function LifestyleGlance({ ai, report }: { ai: BriefReport["areaIntelligence"]; 
         <span className="text-xs font-bold uppercase tracking-[0.14em] text-primary">At a Glance — Life Here</span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         {/* Schools */}
         {bestSchool && (
           <div className="flex flex-col gap-1.5">
@@ -2615,9 +2615,9 @@ function LifestyleFitBlock({ ai }: { ai: BriefReport["areaIntelligence"] }) {
           const cfg    = SCORE_CONFIG[item.score];
           return (
             <div key={item.category} className="px-5 py-4 sm:px-6">
-              <div className="flex items-start gap-3 sm:gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                 {/* Left column: icon + label + bar */}
-                <div className="shrink-0 w-[140px] sm:w-[160px]">
+                <div className="shrink-0 sm:w-[160px]">
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`shrink-0 ${cfg.pill.split(" ")[1]}`}>{meta?.icon}</span>
                     <span className="text-[12px] font-semibold text-foreground leading-tight">
@@ -2956,7 +2956,7 @@ export default function BriefPage() {
               {/* ── Neighbourhood ratings strip ── always visible */}
               <div className="rounded-xl border border-border/40 bg-card p-4 sm:p-5">
                 <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-3">Area Ratings</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
                   {[
                     { icon: GraduationCap, label: "Schools", value: ai.neighbourhoodProfile.schoolsRating },
                     { icon: Train, label: "Transport", value: ai.neighbourhoodProfile.transportRating },
@@ -2965,7 +2965,7 @@ export default function BriefPage() {
                   ].map((item) => (
                     <div key={item.label} className="flex items-center gap-2">
                       <item.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-xs text-muted-foreground w-20 shrink-0">{item.label}</span>
+                      <span className="text-xs text-muted-foreground w-20 sm:w-20 shrink-0">{item.label}</span>
                       <div className="flex-1">
                         <RatingBar value={item.value} />
                       </div>
@@ -2982,11 +2982,11 @@ export default function BriefPage() {
                 Accordions within tabs for secondary detail.
             ═══════════════════════════════════════════════════════════════ */}
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full grid grid-cols-4 mb-6 h-auto rounded-lg bg-muted/60 p-1">
-                <TabsTrigger value="overview" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Overview</TabsTrigger>
-                <TabsTrigger value="market" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Market</TabsTrigger>
-                <TabsTrigger value="neighbourhood" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Nearby</TabsTrigger>
-                <TabsTrigger value="details" className="text-[11px] font-semibold uppercase tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Details</TabsTrigger>
+              <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4 mb-6 h-auto rounded-lg bg-muted/60 p-1">
+                <TabsTrigger value="overview" className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.08em] sm:tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Overview</TabsTrigger>
+                <TabsTrigger value="market" className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.08em] sm:tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Market</TabsTrigger>
+                <TabsTrigger value="neighbourhood" className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.08em] sm:tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Nearby</TabsTrigger>
+                <TabsTrigger value="details" className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.08em] sm:tracking-[0.1em] py-2.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Details</TabsTrigger>
               </TabsList>
 
               {/* ─────────────────────────────────────────────────────────────
@@ -3100,7 +3100,7 @@ export default function BriefPage() {
                 {/* Council Tax */}
                 <CollapsibleSection title="Council Tax" testId="section-council-tax" defaultOpen={false}>
                   <div className="flex flex-col gap-4">
-                    <div className="grid sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                       <div className="flex flex-col gap-1">
                         <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
                           {ai.councilTax.confidence === "Guidance" ? "Most Common Band" : "Estimated Band"}
@@ -3196,7 +3196,7 @@ export default function BriefPage() {
                     </p>
                   )}
                   <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
-                    <table className="w-full text-sm" data-testid="table-price-trend">
+                    <table className="w-full text-xs sm:text-sm whitespace-nowrap" data-testid="table-price-trend">
                       <thead>
                         <tr className="border-b border-border/60">
                           <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Year</th>
@@ -3277,7 +3277,7 @@ export default function BriefPage() {
                         </div>
                       ) : (
                         <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
-                          <table className="w-full text-sm" data-testid="table-comparables">
+                          <table className="w-full text-xs sm:text-sm whitespace-nowrap" data-testid="table-comparables">
                             <thead>
                               <tr className="border-b border-border/60">
                                 <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Address</th>
@@ -3420,15 +3420,15 @@ export default function BriefPage() {
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Asking rents nearby</p>
                           <EstimateTag />
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4">
                           {[
                             { label: "1-Bed", value: ai.rentalMarket.oneBedAskingRent },
                             { label: "2-Bed", value: ai.rentalMarket.twoBedAskingRent },
                             { label: "3-Bed", value: ai.rentalMarket.threeBedAskingRent },
                           ].map(item => (
                             <div key={item.label} className="flex flex-col gap-1">
-                              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
-                              <span className="text-lg font-bold text-foreground">{item.value}</span>
+                              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] text-primary">{item.label}</span>
+                              <span className="text-sm sm:text-lg font-bold text-foreground leading-tight">{item.value}</span>
                             </div>
                           ))}
                         </div>
@@ -3439,15 +3439,15 @@ export default function BriefPage() {
                           <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
                           <EstimateTag />
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4">
                           {[
                             { label: "1-Bed Gross Yield", value: ai.rentalMarket.oneBedYield },
                             { label: "2-Bed Gross Yield", value: ai.rentalMarket.twoBedYield },
                             { label: "Demand Level", value: ai.rentalMarket.demandLevel },
                           ].map(item => (
                             <div key={item.label} className="flex flex-col gap-1">
-                              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{item.label}</span>
-                              <span className={`font-bold ${item.label.includes("Yield") ? "text-green-600 dark:text-green-400 text-lg" : "text-[#B8860B] text-base"}`}>{item.value}</span>
+                              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] text-primary leading-tight">{item.label}</span>
+                              <span className={`font-bold leading-tight ${item.label.includes("Yield") ? "text-green-600 dark:text-green-400 text-sm sm:text-lg" : "text-[#B8860B] text-sm sm:text-base"}`}>{item.value}</span>
                             </div>
                           ))}
                         </div>
@@ -4121,7 +4121,7 @@ export default function BriefPage() {
                 {isPaid ? (
                   <CollapsibleSection title="Broadband & Infrastructure" testId="section-broadband" defaultOpen={false}>
                     <div className="flex flex-col gap-4">
-                      <div className="grid sm:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div className="flex flex-col gap-1">
                           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Avg Download</span>
                           <span className="text-lg font-bold text-foreground">{ai.broadband.avgDownloadSpeed}</span>
@@ -4178,7 +4178,7 @@ export default function BriefPage() {
                 {isPaid ? (
                   <CollapsibleSection title="Air Quality" testId="section-air-quality" defaultOpen={false}>
                     <div className="flex flex-col gap-4">
-                      <div className="grid sm:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div className="flex flex-col gap-1">
                           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Overall Rating</span>
                           <span className={`text-base font-bold ${

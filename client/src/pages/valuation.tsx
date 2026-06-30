@@ -368,7 +368,7 @@ function PropertyHero({
       </div>
 
       {/* ── Main hero body ──────────────────────────────────────────────────── */}
-      <div className="grid sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-border/40">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-border/40">
 
         {/* Left: property identity / map placeholder */}
         <div className="relative min-h-[180px] sm:min-h-[220px] bg-muted/20 flex flex-col items-center justify-center p-6 sm:p-8 overflow-hidden">
@@ -514,7 +514,7 @@ function SoldNearbyCardGrid({
   return (
     <div>
       {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
-      <div className="flex sm:grid sm:grid-cols-3 gap-3 overflow-x-auto pb-1 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0 snap-x snap-mandatory sm:snap-none">
+      <div className="flex sm:grid sm:grid-cols-3 gap-3 overflow-x-auto pb-2 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0 snap-x snap-mandatory sm:snap-none">
         {visible.map((c, i) => (
           <div
             key={i}
@@ -1250,12 +1250,12 @@ function MarketPulseStrip({
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-3 rounded-xl border border-border/50 bg-card/60 overflow-hidden">
+    <div className="grid grid-cols-3 rounded-xl border border-border/50 bg-card/60 overflow-hidden">
       {dataItems.map((item, i) => (
-        <div key={i} className={`px-4 py-3 ${i < dataItems.length - 1 ? "border-r border-border/40" : ""}`}>
-          <p className={`text-lg font-semibold font-serif ${item.colour ?? "text-foreground"}`}>{item.value}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider leading-tight">{item.label}</p>
-          {item.sub && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{item.sub}</p>}
+        <div key={i} className={`px-3 sm:px-4 py-3 ${i < dataItems.length - 1 ? "border-r border-border/40" : ""}`}>
+          <p className={`text-sm sm:text-lg font-semibold font-serif leading-tight ${item.colour ?? "text-foreground"}`}>{item.value}</p>
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider leading-tight">{item.label}</p>
+          {item.sub && <p className="text-[9px] sm:text-[10px] text-muted-foreground/70 mt-0.5">{item.sub}</p>}
         </div>
       ))}
     </div>
@@ -1309,7 +1309,7 @@ function CostToBuySummary({
 
       <div className="space-y-3">
         {/* SDLT */}
-        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border/40">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 pb-3 border-b border-border/40">
           <div>
             <p className="text-sm font-medium text-foreground">Stamp Duty (SDLT)</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -1317,7 +1317,7 @@ function CostToBuySummary({
               <a href="https://www.gov.uk/stamp-duty-land-tax" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">gov.uk</a>
             </p>
           </div>
-          <div className="text-right shrink-0">
+          <div className="sm:text-right shrink-0">
             {sdltFTB !== null && sdltFTB !== undefined && (
               <p className="text-sm font-semibold text-green-700 dark:text-green-400">
                 £{sdltFTB.toLocaleString("en-GB")} <span className="text-[10px] font-normal text-muted-foreground">(FTB rate)</span>
@@ -1333,7 +1333,7 @@ function CostToBuySummary({
         </div>
 
         {/* Solicitor */}
-        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border/40">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 pb-3 border-b border-border/40">
           <div>
             <p className="text-sm font-medium text-foreground">Solicitor / conveyancing fees</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Indicative range for a residential purchase. Get quotes from at least two regulated firms.</p>
@@ -1357,19 +1357,19 @@ function CostToBuySummary({
               { type: "HomeBuyer Report", range: `£${surveyHomebuyerLow}–£${surveyHomebuyerHigh}`, note: "Most common. Recommended for most purchases." },
               { type: "Full Structural Survey", range: `£${surveyStructuralLow}–£${surveyStructuralHigh}`, note: "For older, unusual, or high-value properties." },
             ].map((s) => (
-              <div key={s.type} className="flex items-baseline justify-between gap-3 text-[11px]">
-                <div>
+              <div key={s.type} className="flex items-baseline justify-between gap-2 text-[11px]">
+                <div className="flex-1 min-w-0">
                   <span className="font-medium text-foreground">{s.type}</span>
-                  <span className="text-muted-foreground ml-1.5">— {s.note}</span>
+                  <span className="text-muted-foreground ml-1.5 hidden sm:inline">— {s.note}</span>
                 </div>
-                <span className="font-semibold text-foreground shrink-0">{s.range}</span>
+                <span className="font-semibold text-foreground shrink-0 ml-2">{s.range}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Mortgage arrangement fee */}
-        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border/40">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 pb-3 border-b border-border/40">
           <div>
             <p className="text-sm font-medium text-foreground">Mortgage arrangement fee</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Many lenders offer fee-free products. Compare total cost of borrowing, not just the rate.</p>
@@ -1380,7 +1380,7 @@ function CostToBuySummary({
         </div>
 
         {/* Total */}
-        <div className="flex items-start justify-between gap-4 pt-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 pt-1">
           <div>
             <p className="text-sm font-semibold text-foreground">Total indicative cost to complete</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Excluding deposit and mortgage. Based on HomeBuyer Survey + FTB SDLT where eligible.</p>
@@ -1444,8 +1444,8 @@ function ThreeStepActionPanel({
 
       <div className="grid sm:grid-cols-3 gap-5">
         {steps.map((s) => (
-          <div key={s.number} className="flex gap-4">
-            <span className="font-serif text-3xl font-semibold text-primary/25 shrink-0 leading-none mt-0.5 select-none">{s.number}</span>
+          <div key={s.number} className="flex gap-3 sm:gap-4">
+            <span className="font-serif text-2xl sm:text-3xl font-semibold text-primary/25 shrink-0 leading-none mt-0.5 select-none">{s.number}</span>
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-primary/60">{s.icon}</span>
@@ -1567,7 +1567,7 @@ export default function ValuationPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background overflow-x-hidden">
       <Header />
 
       <main className="flex-1">

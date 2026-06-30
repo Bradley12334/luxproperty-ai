@@ -94,7 +94,7 @@ export default function Home() {
 
                 <form
                   onSubmit={handleSubmit}
-                  className="mt-8 flex flex-col sm:flex-row gap-2.5"
+                  className="mt-8 flex flex-col gap-2.5"
                   data-testid="form-search"
                 >
                   <div className="relative flex-1">
@@ -646,7 +646,7 @@ export default function Home() {
             </p>
 
             {/* Cards: Explorer and Investor sit slightly lower visually */}
-            <div className="grid sm:grid-cols-3 gap-3 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:items-end">
               {/* Explorer */}
               <div
                 className="flex flex-col p-5 rounded-xl border border-border/50 bg-card"
@@ -687,7 +687,7 @@ export default function Home() {
 
               {/* Professional — elevated */}
               <div
-                className="relative flex flex-col p-6 rounded-xl border border-primary/30 bg-card shadow-md ring-1 ring-primary/15 -mt-3 sm:-mt-4"
+                className="relative flex flex-col p-6 rounded-xl border border-primary/30 bg-card shadow-md ring-1 ring-primary/15 sm:-mt-4"
                 data-testid="card-pricing-professional"
               >
                 <span className="absolute -top-px left-5 text-[10px] font-semibold uppercase tracking-[0.16em] bg-primary text-primary-foreground px-2.5 py-0.5 rounded-b-md">

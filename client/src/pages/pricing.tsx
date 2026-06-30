@@ -133,7 +133,7 @@ export default function PricingPage() {
         {/* Pricing Cards */}
         <section className="pb-16 sm:pb-20">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-6 sm:grid-cols-3 items-end">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3 sm:items-end">
               {tiers.map((tier) => {
                 const isInvestor = tier.style === "investor";
                 const isPro = tier.style === "professional";
@@ -141,11 +141,11 @@ export default function PricingPage() {
                 return (
                   <div
                     key={tier.name}
-                    className={`relative flex flex-col rounded-xl p-6 ${
+                    className={`relative flex flex-col rounded-xl p-5 sm:p-6 ${
                       isInvestor
                         ? "bg-[#1A1410] dark:bg-[#1A1410] border border-amber-700/40 shadow-lg shadow-amber-900/10"
                         : isPro
-                        ? "bg-card border-2 border-primary/40 shadow-xl shadow-primary/10 -mx-1 sm:scale-[1.04] sm:origin-bottom z-10 pb-8"
+                        ? "bg-card border-2 border-primary/40 shadow-xl shadow-primary/10 sm:-mx-1 sm:scale-[1.04] sm:origin-bottom z-10 sm:pb-8"
                         : "bg-card border border-border"
                     }`}
                     data-testid={`card-pricing-${tier.name.toLowerCase()}`}
