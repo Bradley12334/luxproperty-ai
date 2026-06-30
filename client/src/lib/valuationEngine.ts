@@ -101,22 +101,46 @@ export interface SinceLastSale {
 export interface PropertyFacts {
   propertyType:    string | null;   // from comparables or EPC
   tenure:          string | null;   // "Freehold" | "Leasehold" | null
+  tenureConfidence: "confirmed" | "inferred" | "uncertain"; // how strongly tenure is known
   floorAreaM2:     number | null;   // from EPC
   epcBand:         string | null;   // from EPC
   bedroomsEst:     string | null;   // estimated from floor area — labelled
   councilTaxBand:  string | null;   // from council-tax API or null
   yearBuiltBand:   string | null;   // derived from EPC if available
   source:          string;          // short citation
+  confirmedFields: string[];        // field labels confirmed from a real source
+  inferredFields:  string[];        // field labels that are inferred/estimated
 }
 
 /** Section 3: Leasehold summary */
 export interface LeaseholdSummary {
   isLeasehold:         boolean;
+  tenureConfidence:    "confirmed" | "inferred" | "uncertain"; // mirrors PropertyFacts
   leaseYearsRemaining: number | null;
   leaseWarning:        "critical" | "caution" | "none" | null;  // <80yr, <125yr, ok
-  serviceChargeNote:   string | null;  // "Not on record" etc.
+  serviceChargeEstGBP: number | null;  // £/year if known
+  groundRentEstGBP:    number | null;  // £/year if known
+  serviceChargeNote:   string | null;  // human text fallback
   groundRentNote:      string | null;
   valuationImpactNote: string;
+}
+
+/**
+ * Rental market context — replaces the hardcoded national-benchmark yield block.
+ * sourceGranularity: what geographic level the rent data comes from.
+ * isBenchmarkOnly: true  → only national/regional benchmark, never show as "local"
+ * rentEvidenceLevel: human-readable description of what the source covers.
+ */
+export interface RentalContext {
+  estimatedMonthlyRentGBP: number | null;   // ONS / rental-market API median
+  rentRangeLow:            number | null;   // £/month
+  rentRangeHigh:           number | null;   // £/month
+  sourceGranularity:       "postcode" | "district" | "local_authority" | "regional" | "national" | null;
+  rentEvidenceLevel:       string | null;   // e.g. "ONS PRS data — Bristol local authority"
+  isBenchmarkOnly:         boolean;         // true = no local evidence, pure benchmark
+  propertyTypeBasis:       string | null;   // e.g. "Flat, 1–2 bed"
+  bedroomBasis:            string | null;
+  dataYear:                number | null;   // e.g. 2024
 }
 
 /** Section 4: Value change drivers (rule-based from existing data) */
@@ -177,6 +201,7 @@ export interface ValuationReport {
   sinceLastSale:           SinceLastSale | null;
   propertyFacts:           PropertyFacts;
   leaseholdSummary:        LeaseholdSummary;
+  rentalContext:           RentalContext;           // replaces hardcoded national benchmark
   valueDrivers:            ValueDrivers;
   ownershipCosts:          OwnershipCosts;
   comparableSelectionMeta: ComparableSelectionMeta;
@@ -1299,20 +1324,46 @@ function buildPropertyFacts(
   const propType  = inferPropertyType(comparables);
   const tenure    = inferTenure(comparables);
   const floorArea = epc?.floorAreaM2 ?? null;
+  const bedroomsEst = bedroomsFromFloorArea(floorArea);
+
+  // Confidence in tenure: confirmed if >=3 comparables all agree, inferred if majority, uncertain otherwise
+  const leaseholdCount = comparables.filter(c => c.tenure === "L").length;
+  const freeholdCount  = comparables.filter(c => c.tenure === "F").length;
+  const tenureTotal    = leaseholdCount + freeholdCount;
+  const tenureConfidence: "confirmed" | "inferred" | "uncertain" =
+    tenureTotal >= 3 && (leaseholdCount === tenureTotal || freeholdCount === tenureTotal)
+      ? "confirmed"
+      : tenureTotal >= 1
+      ? "inferred"
+      : "uncertain";
+
+  // Track which fields have real values
+  const confirmedFields: string[] = [];
+  const inferredFields:  string[] = [];
+
+  if (propType)         confirmedFields.push("Property type");
+  if (tenure && tenureConfidence === "confirmed") confirmedFields.push("Tenure");
+  if (tenure && tenureConfidence === "inferred")  inferredFields.push("Tenure");
+  if (floorArea)        confirmedFields.push("Floor area");
+  if (epc?.band)        confirmedFields.push("EPC band");
+  if (bedroomsEst)      inferredFields.push("Est. bedrooms");
 
   const sources: string[] = [];
   if (comparables.length > 0) sources.push("HM Land Registry PPD");
   if (epc) sources.push("MHCLG EPC Register");
 
   return {
-    propertyType:   propType,
+    propertyType:    propType,
     tenure,
-    floorAreaM2:    floorArea,
-    epcBand:        epc?.band ?? null,
-    bedroomsEst:    bedroomsFromFloorArea(floorArea),
-    councilTaxBand: null,
-    yearBuiltBand:  null,
-    source:         sources.join(", ") || "No data",
+    tenureConfidence,
+    floorAreaM2:     floorArea,
+    epcBand:         epc?.band ?? null,
+    bedroomsEst,
+    councilTaxBand:  null,
+    yearBuiltBand:   null,
+    source:          sources.join(", ") || "No data",
+    confirmedFields,
+    inferredFields,
   };
 }
 
@@ -1325,6 +1376,17 @@ function buildLeaseholdSummary(
   const inferredType = inferPropertyType(comparables);
   const isFlat       = inferredType === "Flat";
 
+  // Mirror the tenure confidence calculation from buildPropertyFacts
+  const leaseholdCount = comparables.filter(c => c.tenure === "L").length;
+  const freeholdCount  = comparables.filter(c => c.tenure === "F").length;
+  const tenureTotal    = leaseholdCount + freeholdCount;
+  const tenureConfidence: "confirmed" | "inferred" | "uncertain" =
+    tenureTotal >= 3 && (leaseholdCount === tenureTotal || freeholdCount === tenureTotal)
+      ? "confirmed"
+      : tenureTotal >= 1
+      ? "inferred"
+      : "uncertain";
+
   let valuationImpactNote: string;
   if (!isLeasehold) {
     valuationImpactNote = "Freehold properties are not subject to lease length or service charge concerns.";
@@ -1336,11 +1398,54 @@ function buildLeaseholdSummary(
 
   return {
     isLeasehold,
+    tenureConfidence,
     leaseYearsRemaining: null,
     leaseWarning:        null,
-    serviceChargeNote:   isLeasehold ? "Not on record — request from seller's solicitor" : null,
-    groundRentNote:      isLeasehold ? "Not on record — review the lease" : null,
+    serviceChargeEstGBP: null,
+    groundRentEstGBP:    null,
+    serviceChargeNote:   null,   // no longer pre-populated with "Not on record" strings
+    groundRentNote:      null,
     valuationImpactNote,
+  };
+}
+
+/**
+ * Build RentalContext from the rental-market API response.
+ * If the API returned data, use it. Otherwise mark as benchmark-only.
+ * We deliberately do NOT invent a yield from a hardcoded 3.5–5.5% range.
+ */
+function buildRentalContext(
+  rentalMarketData: { medianRent?: number; rentLow?: number; rentHigh?: number; localAuthority?: string; propertyType?: string; bedrooms?: string; year?: number } | null,
+  localAuthority: string | null,
+  propertyFacts: PropertyFacts,
+): RentalContext {
+  // If rental-market API returned a real median rent for this local authority
+  if (rentalMarketData?.medianRent && rentalMarketData.medianRent > 0) {
+    const la = rentalMarketData.localAuthority ?? localAuthority ?? "this area";
+    return {
+      estimatedMonthlyRentGBP: rentalMarketData.medianRent,
+      rentRangeLow:            rentalMarketData.rentLow ?? null,
+      rentRangeHigh:           rentalMarketData.rentHigh ?? null,
+      sourceGranularity:       "local_authority",
+      rentEvidenceLevel:       `ONS Private Rental Market statistics — ${la}`,
+      isBenchmarkOnly:         false,
+      propertyTypeBasis:       rentalMarketData.propertyType ?? propertyFacts.propertyType,
+      bedroomBasis:            rentalMarketData.bedrooms ?? propertyFacts.bedroomsEst,
+      dataYear:                rentalMarketData.year ?? null,
+    };
+  }
+
+  // No usable local rental data — do not invent a range
+  return {
+    estimatedMonthlyRentGBP: null,
+    rentRangeLow:            null,
+    rentRangeHigh:           null,
+    sourceGranularity:       null,
+    rentEvidenceLevel:       null,
+    isBenchmarkOnly:         true,
+    propertyTypeBasis:       null,
+    bedroomBasis:            null,
+    dataYear:                null,
   };
 }
 
@@ -1586,8 +1691,12 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
     lastSold?.soldDate  ?? null,
     estimate?.mid ?? null,
   );
-  const propertyFacts   = buildPropertyFacts(comps.comparables, epc.data);
-  const leaseholdSummary = buildLeaseholdSummary(comps.comparables);
+  const propertyFacts    = buildPropertyFacts(comps.comparables, epc.data);
+  const leaseholdSummary  = buildLeaseholdSummary(comps.comparables);
+  // rentalContext: built from rental-market API result (rentalMarket is not yet fetched here,
+  // so we pass null — the UI will call getRentalContext helper when the API response arrives).
+  // For now, produce a null-rent benchmark-only context so the module renders correctly.
+  const rentalContext     = buildRentalContext(null, postcodeInfo.localAuthority, propertyFacts);
   const valueDrivers    = buildValueDrivers(
     comps.comparables,
     epc.data,
@@ -1624,6 +1733,7 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
     sinceLastSale,
     propertyFacts,
     leaseholdSummary,
+    rentalContext,
     valueDrivers,
     ownershipCosts,
     comparableSelectionMeta,
