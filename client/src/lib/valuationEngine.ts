@@ -48,6 +48,7 @@ export interface ComparableSale {
   weight:       number;        // composite weight 0–1 (higher = more influential)
   pricePerSqM?: number;
   deltaVsMid:   number | null;
+  postcode?:    string;        // postcode of the comparable sale (for timeline isSubject matching)
   source:       "hmlr_ppd";
 }
 
@@ -177,6 +178,31 @@ export interface ComparableSelectionMeta {
   explainerLine:       string;     // single sentence summary for the UI
 }
 
+/**
+ * A single entry in the property history timeline.
+ * Built entirely from Land Registry PPD — no invented events.
+ */
+export interface TimelineEvent {
+  date:         string;             // ISO date string
+  type:         "sold" | "listed" | "price_change"; // only "sold" supported for now
+  label:        string;             // short human label e.g. "Sold"
+  priceGBP:     number | null;
+  address:      string | null;      // full or partial address if known
+  detail:       string | null;      // e.g. tenure, property type
+  isSubject:    boolean;            // true if this is the queried postcode's own record
+}
+
+/**
+ * Property history — all known sale events for the queried postcode,
+ * ordered newest-first. Derived entirely from the Land Registry comparables
+ * already fetched; no new API call needed.
+ */
+export interface PropertyHistory {
+  events:          TimelineEvent[];
+  earliestYear:    number | null;   // year of oldest known event
+  totalEvents:     number;
+}
+
 export interface ValuationReport {
   // ── Identity ──────────────────────────────────────────────────────────────
   queryPostcode:  string;
@@ -201,6 +227,7 @@ export interface ValuationReport {
   sinceLastSale:           SinceLastSale | null;
   propertyFacts:           PropertyFacts;
   leaseholdSummary:        LeaseholdSummary;
+  propertyHistory:         PropertyHistory;         // timeline of known sale events
   rentalContext:           RentalContext;           // replaces hardcoded national benchmark
   valueDrivers:            ValueDrivers;
   ownershipCosts:          OwnershipCosts;
@@ -1410,6 +1437,40 @@ function buildLeaseholdSummary(
 }
 
 /**
+ * Build PropertyHistory from the comparables already fetched.
+ * Orders by date newest-first. Marks same-postcode sales as subject.
+ * No new API call — pure derivation.
+ */
+function buildPropertyHistory(
+  comparables: ComparableSale[],
+  queryPostcode: string,
+): PropertyHistory {
+  const normalised = queryPostcode.replace(/\s+/g, "").toUpperCase();
+
+  const events: TimelineEvent[] = comparables
+    .filter(c => c.soldPrice > 0 && c.soldDate)
+    .map(c => {
+      const salePostcode = (c.postcode ?? "").replace(/\s+/g, "").toUpperCase();
+      const isSubject = salePostcode === normalised;
+      return {
+        date:      c.soldDate,
+        type:      "sold" as const,
+        label:     "Sold",
+        priceGBP:  c.soldPrice,
+        address:   c.address ?? null,
+        detail:    [c.propertyType, c.tenure].filter(Boolean).join(" \u00b7 ") || null,
+        isSubject,
+      };
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const years = events.map(e => new Date(e.date).getFullYear()).filter(y => y > 1990);
+  const earliestYear = years.length ? Math.min(...years) : null;
+
+  return { events, earliestYear, totalEvents: events.length };
+}
+
+/**
  * Build RentalContext from the rental-market API response.
  * If the API returned data, use it. Otherwise mark as benchmark-only.
  * We deliberately do NOT invent a yield from a hardcoded 3.5–5.5% range.
@@ -1693,6 +1754,7 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
   );
   const propertyFacts    = buildPropertyFacts(comps.comparables, epc.data);
   const leaseholdSummary  = buildLeaseholdSummary(comps.comparables);
+  const propertyHistory   = buildPropertyHistory(comps.comparables, postcode);
   // rentalContext: built from rental-market API result (rentalMarket is not yet fetched here,
   // so we pass null — the UI will call getRentalContext helper when the API response arrives).
   // For now, produce a null-rent benchmark-only context so the module renders correctly.
@@ -1733,6 +1795,7 @@ export async function runValuation(rawQuery: string): Promise<ValuationReport> {
     sinceLastSale,
     propertyFacts,
     leaseholdSummary,
+    propertyHistory,
     rentalContext,
     valueDrivers,
     ownershipCosts,

@@ -40,6 +40,14 @@ import {
   ExternalLink,
   HelpCircle,
   ShieldCheck,
+  Layers,
+  Calendar,
+  History,
+  Navigation,
+  Ruler,
+  Leaf,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   runValuation,
@@ -47,6 +55,9 @@ import {
   type ValuationReport,
   type FreshnessStatus,
   type ModuleMetadata,
+  type ComparableSale,
+  type TimelineEvent,
+  type PropertyHistory,
 } from "@/lib/valuationEngine";
 import { DATA_SOURCES } from "@/lib/valuationSources";
 import {
@@ -268,6 +279,454 @@ function SectionHeading({
 }
 
 // ─── Price trend SVG chart ────────────────────────────────────────────────────
+
+// ─── Property hero ────────────────────────────────────────────────────────────
+// The main identity block at the top of every result page.
+// Left: address + key confirmed facts  Right: estimate panel
+
+function PropertyHero({
+  report,
+  isPro,
+}: {
+  report: ValuationReport;
+  isPro: boolean;
+}) {
+  const pf = report.propertyFacts;
+  const est = report.estimate;
+
+  // Build the compact key-fact pills — only show confirmed facts
+  const factPills: { icon: React.ReactNode; text: string }[] = [];
+  if (pf.propertyType) factPills.push({ icon: <Home className="h-3.5 w-3.5" />, text: pf.propertyType });
+  if (pf.tenure) factPills.push({ icon: <Layers className="h-3.5 w-3.5" />, text: pf.tenure });
+  if (pf.floorAreaM2) factPills.push({ icon: <Ruler className="h-3.5 w-3.5" />, text: `${pf.floorAreaM2} m²` });
+  if (pf.epcBand) factPills.push({ icon: <Leaf className="h-3.5 w-3.5" />, text: `EPC ${pf.epcBand}` });
+  if (pf.bedroomsEst) factPills.push({ icon: <Building className="h-3.5 w-3.5" />, text: pf.bedroomsEst });
+
+  const hasLastSale = !!(report.lastSoldPrice && report.lastSoldDate);
+  const sinceLastSale = report.sinceLastSale;
+  const isUp = sinceLastSale ? sinceLastSale.changeAmount >= 0 : null;
+
+  const confidenceColour =
+    report.valuationState === "strong" && report.confidence === "High"
+      ? "border-green-500/50 text-green-700 dark:text-green-400 bg-green-50/80 dark:bg-green-950/20"
+      : report.valuationState === "strong" && report.confidence === "Medium"
+      ? "border-primary/40 text-primary bg-primary/5"
+      : report.valuationState === "indicative"
+      ? "border-amber-400/50 text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/20"
+      : "border-border text-muted-foreground bg-muted";
+
+  return (
+    <section aria-labelledby="val-hero-address" className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+      {/* ── Property identity strip ─────────────────────────────────────────── */}
+      <div className="px-6 sm:px-8 pt-7 pb-5 border-b border-border/40">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary mb-2">
+          Property profile
+        </p>
+        <h1 id="val-hero-address" className="font-serif text-2xl sm:text-3xl text-foreground leading-tight tracking-tight">
+          {report.queryPostcode}
+        </h1>
+        {report.localAuthority && (
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            {report.localAuthority}
+          </p>
+        )}
+
+        {/* Confirmed property fact pills */}
+        {factPills.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {factPills.map((p) => (
+              <span
+                key={p.text}
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground border border-border/50 bg-background rounded-full px-3 py-1"
+              >
+                {p.icon}
+                {p.text}
+              </span>
+            ))}
+            {pf.tenureConfidence === "inferred" && pf.tenure && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-amber-600/80 dark:text-amber-400/70 border border-amber-300/40 bg-amber-50/40 dark:bg-amber-950/10 rounded-full px-2.5 py-0.5">
+                Tenure inferred
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Main hero body ──────────────────────────────────────────────────── */}
+      <div className="grid sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-border/40">
+
+        {/* Left: property identity / map placeholder */}
+        <div className="relative min-h-[180px] sm:min-h-[220px] bg-muted/20 flex flex-col items-center justify-center p-6 sm:p-8 overflow-hidden">
+          {/* Map-style decorative pattern as tasteful fallback */}
+          <svg
+            className="absolute inset-0 w-full h-full opacity-[0.04] pointer-events-none"
+            viewBox="0 0 400 260"
+            fill="none"
+          >
+            {/* Street grid pattern */}
+            {[40, 80, 120, 160, 200, 240, 280, 320, 360].map(x => (
+              <line key={`v${x}`} x1={x} y1="0" x2={x} y2="260" stroke="currentColor" strokeWidth="1" />
+            ))}
+            {[40, 80, 120, 160, 200, 240].map(y => (
+              <line key={`h${y}`} x1="0" y1={y} x2="400" y2={y} stroke="currentColor" strokeWidth="1" />
+            ))}
+            <circle cx="200" cy="130" r="20" fill="currentColor" opacity="0.6" />
+          </svg>
+
+          {/* House icon and postcode */}
+          <div className="relative flex flex-col items-center text-center">
+            <div className="w-14 h-14 rounded-2xl border border-border/60 bg-background flex items-center justify-center mb-3 shadow-sm">
+              <Home className="h-7 w-7 text-primary/60" />
+            </div>
+            <p className="font-serif text-base font-semibold text-foreground">{report.queryPostcode}</p>
+            {report.localAuthority && (
+              <p className="text-xs text-muted-foreground mt-0.5">{report.localAuthority}</p>
+            )}
+            {hasLastSale && (
+              <p className="text-[11px] text-muted-foreground/70 mt-2">
+                Last sold {fmt(report.lastSoldPrice!)} · {fmtDate(report.lastSoldDate!)}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Right: estimate panel */}
+        <div className="p-6 sm:p-8 flex flex-col justify-between gap-5">
+          <div>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                Estimated value
+              </p>
+              <span className={`text-[10px] font-semibold border rounded-full px-2.5 py-0.5 ${confidenceColour}`}>
+                {report.valuationState === "unavailable"
+                  ? "Insufficient data"
+                  : report.valuationState === "indicative"
+                  ? "Indicative"
+                  : `${report.confidence} confidence`}
+              </span>
+            </div>
+
+            {est ? (
+              <>
+                {/* Main estimate — mid prominent, low/high flanking */}
+                <div className="flex items-end gap-3 mb-1">
+                  <div className="flex-1 text-center">
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Low</p>
+                    <p className="font-serif text-lg text-muted-foreground">{fmt(est.low)}</p>
+                  </div>
+                  <div className="flex-[1.6] text-center">
+                    <p className="text-[9px] uppercase tracking-wider text-primary mb-0.5">Mid estimate</p>
+                    <p className="font-serif text-3xl sm:text-4xl font-semibold text-foreground leading-none">{fmt(est.mid)}</p>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">High</p>
+                    <p className="font-serif text-lg text-muted-foreground">{fmt(est.high)}</p>
+                  </div>
+                </div>
+
+                {/* Since-last-sale one-liner */}
+                {sinceLastSale && (
+                  <p className={`text-xs font-semibold text-center mt-2 ${isUp ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
+                    {isUp ? "▲" : "▼"} {isUp ? "+" : ""}{fmt(Math.abs(sinceLastSale.changeAmount))} ({isUp ? "+" : ""}{sinceLastSale.changePercent}%) since last recorded sale
+                  </p>
+                )}
+
+                <p className="text-[10px] text-muted-foreground/70 text-center mt-2 leading-relaxed">
+                  {report.confidenceNote}
+                </p>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm font-medium text-foreground mb-1">Valuation unavailable</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{report.confidenceNote}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Freshness + search radius metadata */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 border-t border-border/30">
+            <FreshnessBadge status={report.meta.comparables.freshnessStatus} />
+            {report.comparableCount > 0 && (
+              <span className="text-[10px] text-muted-foreground">
+                {report.comparableCount} comparable{report.comparableCount !== 1 ? "s" : ""}
+                {report.searchRadiusUsed > 0 ? ` · ${report.searchRadiusUsed} mi radius` : ""}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Sold nearby card grid ────────────────────────────────────────────────────
+// Card-first presentation of comparables. On desktop: 3-col grid.
+// On mobile: horizontal scroll strip.
+
+function SoldNearbyCardGrid({
+  comparables,
+  estimate,
+  isSignedIn,
+  onUnlock,
+}: {
+  comparables: ComparableSale[];
+  estimate: { low: number; mid: number; high: number } | null;
+  isSignedIn: boolean;
+  onUnlock: () => void;
+}) {
+  const limit = isSignedIn ? comparables.length : Math.min(comparables.length, 4);
+  const visible = comparables.slice(0, limit);
+  const hidden  = comparables.length - limit;
+
+  if (!visible.length) return null;
+
+  function propTypeIcon(type: string) {
+    if (type === "Flat") return <Building className="h-3.5 w-3.5" />;
+    return <Home className="h-3.5 w-3.5" />;
+  }
+
+  function deltaLabel(delta: number | null): React.ReactNode | null {
+    if (delta === null) return null;
+    const isAbove = delta > 0;
+    return (
+      <span className={`text-[9px] font-semibold uppercase tracking-wide ${isAbove ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
+        {isAbove ? "+" : ""}{delta}% vs mid
+      </span>
+    );
+  }
+
+  return (
+    <div>
+      {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
+      <div className="flex sm:grid sm:grid-cols-3 gap-3 overflow-x-auto pb-1 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0 snap-x snap-mandatory sm:snap-none">
+        {visible.map((c, i) => (
+          <div
+            key={i}
+            className="snap-start shrink-0 w-[240px] sm:w-auto rounded-xl border border-border/60 bg-card p-4 flex flex-col gap-2 hover:border-primary/30 transition-colors"
+          >
+            {/* Top: icon + price */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center text-primary/60 shrink-0">
+                {propTypeIcon(c.propertyType)}
+              </div>
+              <div className="text-right">
+                <p className="font-serif text-base font-semibold text-foreground leading-none">{fmt(c.soldPrice)}</p>
+                {estimate && deltaLabel(c.deltaVsMid)}
+              </div>
+            </div>
+
+            {/* Address */}
+            <p className="text-[11px] font-medium text-foreground leading-snug line-clamp-2">
+              {c.address}
+              {c.isNewBuild && (
+                <span className="ml-1.5 text-[9px] font-semibold uppercase tracking-wider text-primary/70 border border-primary/30 rounded px-1">New build</span>
+              )}
+            </p>
+
+            {/* Facts row */}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-auto">
+              <span className="text-[10px] text-muted-foreground">{c.propertyType}</span>
+              <span className="text-[10px] text-muted-foreground">{c.tenure}</span>
+              {c.distanceMiles === 0
+                ? <span className="text-[10px] text-primary/70 font-medium">Same postcode</span>
+                : <span className="text-[10px] text-muted-foreground">{c.distanceMiles} mi</span>
+              }
+            </div>
+
+            {/* Date */}
+            <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {fmtDate(c.soldDate)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Unlock gate for non-signed-in users */}
+      {!isSignedIn && hidden > 0 && (
+        <div className="mt-3 rounded-xl border border-border/50 bg-card/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {hidden} more comparable sale{hidden !== 1 ? "s" : ""} available
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Create a free account to see all recorded sales in this postcode.
+            </p>
+          </div>
+          <button
+            onClick={onUnlock}
+            className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/40 rounded-lg px-4 py-2 hover:bg-primary/5 transition-colors"
+          >
+            Unlock free <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Property timeline ────────────────────────────────────────────────────────
+// Evidence-led history strip. Shows known sale events in reverse chronological
+// order. Handles 1-event minimal state gracefully.
+
+function PropertyTimeline({ history }: { history: PropertyHistory }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (history.totalEvents === 0) return null;
+
+  const COLLAPSE_THRESHOLD = 5;
+  const showAll = expanded || history.totalEvents <= COLLAPSE_THRESHOLD;
+  const visible = showAll ? history.events : history.events.slice(0, COLLAPSE_THRESHOLD);
+  const hiddenCount = history.totalEvents - COLLAPSE_THRESHOLD;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+      {history.totalEvents === 1 ? (
+        // Minimal single-event version
+        <div className="flex items-center gap-4">
+          <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center text-primary/60 shrink-0">
+            <History className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {history.events[0].priceGBP ? fmt(history.events[0].priceGBP) : "—"}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Sold {fmtDate(history.events[0].date)}
+              {history.events[0].detail ? ` · ${history.events[0].detail}` : ""}
+            </p>
+          </div>
+        </div>
+      ) : (
+        // Full timeline
+        <div className="relative">
+          {/* Vertical connector line */}
+          <div className="absolute left-[15px] top-4 bottom-4 w-px bg-border/50 sm:left-[19px]" />
+
+          <ol className="space-y-0">
+            {visible.map((ev, i) => {
+              const isFirst = i === 0;
+              return (
+                <li key={i} className={`relative flex gap-4 sm:gap-5 ${i > 0 ? "pt-5" : ""}`}>
+                  {/* Timeline dot */}
+                  <div className={`relative z-10 w-8 h-8 rounded-full border flex items-center justify-center shrink-0 ${
+                    ev.isSubject
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : isFirst
+                      ? "border-border bg-card text-muted-foreground"
+                      : "border-border/50 bg-background text-muted-foreground/60"
+                  }`}>
+                    <Calendar className="h-3.5 w-3.5" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 pb-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${ev.isSubject ? "text-primary" : "text-muted-foreground"}`}>
+                        {ev.label}
+                        {ev.isSubject && <span className="ml-1.5 text-[9px] border border-primary/30 rounded px-1.5 py-0.5 normal-case tracking-normal">This postcode</span>}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground/60 shrink-0">{fmtDate(ev.date)}</span>
+                    </div>
+                    <p className="font-serif text-base font-semibold text-foreground mt-0.5">
+                      {ev.priceGBP ? fmt(ev.priceGBP) : "—"}
+                    </p>
+                    {ev.address && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{ev.address}</p>
+                    )}
+                    {ev.detail && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">{ev.detail}</p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          {/* Expand / collapse */}
+          {history.totalEvents > COLLAPSE_THRESHOLD && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="mt-4 ml-12 sm:ml-14 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {expanded ? (
+                <><ChevronUp className="h-3.5 w-3.5" /> Show fewer</>
+              ) : (
+                <><ChevronDown className="h-3.5 w-3.5" /> Show {hiddenCount} more sale{hiddenCount !== 1 ? "s" : ""}</>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
+      <p className="text-[10px] text-muted-foreground/60 mt-4 pt-3 border-t border-border/30 flex items-center gap-1.5">
+        <Info className="h-3 w-3 shrink-0" />
+        Sale events from HM Land Registry Price Paid Data. Does not include off-market transactions or sales not yet registered.
+      </p>
+    </div>
+  );
+}
+
+// ─── Property map panel ───────────────────────────────────────────────────────
+// Lightweight location context strip. Uses OpenStreetMap static tile as a
+// fallback visual — not an interactive map product.
+
+function PropertyMapPanel({ postcode, localAuthority }: { postcode: string; localAuthority: string | null }) {
+  const mapUrl = `https://www.openstreetmap.org/search?query=${encodeURIComponent(postcode)}#map=15`;
+  return (
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      {/* Map placeholder with street-grid decoration */}
+      <div className="relative h-[120px] sm:h-[140px] bg-muted/30 flex items-center justify-center overflow-hidden">
+        <svg
+          className="absolute inset-0 w-full h-full opacity-[0.06] pointer-events-none"
+          viewBox="0 0 600 160"
+          fill="none"
+        >
+          {[30, 90, 150, 210, 270, 330, 390, 450, 510, 570].map(x => (
+            <line key={`v${x}`} x1={x} y1="0" x2={x} y2="160" stroke="currentColor" strokeWidth="1" />
+          ))}
+          {[30, 70, 110, 150].map(y => (
+            <line key={`h${y}`} x1="0" y1={y} x2="600" y2={y} stroke="currentColor" strokeWidth="1" />
+          ))}
+          <circle cx="300" cy="80" r="14" fill="currentColor" opacity="0.7" />
+          <circle cx="300" cy="80" r="28" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+        </svg>
+        {/* Location pin */}
+        <div className="relative flex flex-col items-center gap-1.5 text-center">
+          <div className="w-10 h-10 rounded-full border-2 border-primary/60 bg-background flex items-center justify-center shadow-md">
+            <MapPin className="h-5 w-5 text-primary" />
+          </div>
+          <p className="text-xs font-semibold text-foreground bg-background/90 rounded-full px-3 py-0.5 border border-border/40">
+            {postcode}
+          </p>
+        </div>
+      </div>
+
+      {/* Footer strip */}
+      <div className="px-5 py-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium text-foreground">{postcode}</p>
+          {localAuthority && (
+            <p className="text-[11px] text-muted-foreground">{localAuthority}</p>
+          )}
+        </div>
+        <a
+          href={mapUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors shrink-0"
+        >
+          <Navigation className="h-3.5 w-3.5" />
+          View on map
+        </a>
+      </div>
+    </div>
+  );
+}
+
+
 
 function PriceTrendChart({
   data,
@@ -532,283 +991,66 @@ export default function ValuationPage() {
 
         {/* ── RESULTS ───────────────────────────────────────────────────────── */}
         {report && (
-          <div ref={resultRef} className="mx-auto max-w-5xl px-4 sm:px-6 py-10 space-y-10">
+          <div ref={resultRef} className="mx-auto max-w-5xl px-4 sm:px-6 py-8 space-y-8">
 
-            {/* ── Estimate card ──────────────────────────────────────────── */}
-            <section aria-labelledby="val-estimate-heading">
-              <div className="rounded-xl border border-border/60 bg-card p-6 sm:p-8">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1">
-                      Estimated value
-                    </p>
-                    <h2 id="val-estimate-heading" className="font-serif text-2xl sm:text-3xl text-foreground">
-                      {report.queryPostcode}
-                    </h2>
-                    {report.localAuthority && (
-                      <p className="text-sm text-muted-foreground mt-0.5">{report.localAuthority}</p>
-                    )}
-                    {report.lastSoldPrice && report.lastSoldDate && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Last recorded sale: {fmt(report.lastSoldPrice)} on {fmtDate(report.lastSoldDate)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className={`shrink-0 text-xs font-semibold px-2.5 py-1 ${
-                        report.valuationState === "strong" && report.confidence === "High"
-                          ? "border-green-500/40 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30"
-                          : report.valuationState === "strong" && report.confidence === "Medium"
-                          ? "border-primary/40 text-primary bg-primary/5"
-                          : report.valuationState === "strong"
-                          ? "border-orange-400/40 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30"
-                          : report.valuationState === "indicative"
-                          ? "border-amber-400/50 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
-                          : "border-border text-muted-foreground bg-muted"
-                      }`}
-                    >
-                      {report.valuationState === "unavailable"
-                        ? "Insufficient data"
-                        : report.valuationState === "indicative"
-                        ? "Indicative estimate"
-                        : `${report.confidence} confidence`}
-                    </Badge>
-                    <FreshnessBadge status={report.meta.comparables.freshnessStatus} />
-                  </div>
-                </div>
+            {/* ════════════════════════════════════════════════════════════════
+                1. ADDRESS HERO — property identity + estimate integrated
+            ════════════════════════════════════════════════════════════════ */}
+            <PropertyHero report={report} isPro={isPro} />
 
-                {report.estimate ? (
-                  <>
-                    {/* Indicative caveat banner */}
-                    {report.valuationState === "indicative" && (
-                      <div className="rounded-md border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-500/30 px-3.5 py-2.5 mb-4 flex gap-2.5 items-start">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
-                          <span className="font-semibold">Indicative estimate — limited sold-price evidence.</span>{" "}
-                          This estimate is based on limited sold-price evidence within {report.searchRadiusUsed > 0 ? `${report.searchRadiusUsed} mile${report.searchRadiusUsed === 1 ? "" : "s"} of this postcode` : "this postcode"} and should be treated as directional only, not a formal valuation.
-                          {report.fallbacksUsed?.includes("last_sold_anchor") && " The last recorded sale price at this address was used as a supporting signal."}
-                          {report.fallbacksUsed?.includes("ukhpi_anchor") && " Local authority average price data was used as a supporting signal."}
-                        </p>
-                      </div>
-                    )}
-                    {/* Radius search note for strong estimates that needed to expand */}
-                    {report.valuationState === "strong" && report.searchRadiusUsed > 0 && (
-                      <div className="rounded-md border border-blue-200/60 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-500/20 px-3.5 py-2 mb-4 flex gap-2 items-start">
-                        <Info className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                          Comparable sales were drawn from within {report.searchRadiusUsed} mile{report.searchRadiusUsed === 1 ? "" : "s"} of this postcode and weighted by proximity, recency, and property type.
-                        </p>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-3 gap-3 mb-5">
-                      {[
-                        { label: "Low", value: report.estimate.low, highlight: false },
-                        { label: "Mid estimate", value: report.estimate.mid, highlight: true },
-                        { label: "High", value: report.estimate.high, highlight: false },
-                      ].map(({ label, value, highlight }) => (
-                        <div
-                          key={label}
-                          className={`rounded-lg p-4 text-center border ${
-                            highlight
-                              ? report.valuationState === "indicative"
-                                ? "border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20"
-                                : "border-primary/50 bg-primary/5"
-                              : "border-border/50 bg-background"
-                          }`}
-                        >
-                          <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${
-                            highlight
-                              ? report.valuationState === "indicative" ? "text-amber-600 dark:text-amber-400" : "text-primary"
-                              : "text-muted-foreground"
-                          }`}>
-                            {label}
-                          </p>
-                          <p className={`font-serif text-xl sm:text-2xl font-semibold ${highlight ? "text-foreground" : "text-muted-foreground"}`}>
-                            {fmt(value)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed flex gap-2">
-                      <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
-                      {report.confidenceNote}
-                    </p>
-                    {report.searchRadiusUsed > 0 && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-1 leading-relaxed">
-                        Search radius: {report.searchRadiusUsed} mile{report.searchRadiusUsed === 1 ? "" : "s"} &middot; {report.comparableCount} comparable{report.comparableCount !== 1 ? "s" : ""} used
-                      </p>
-                    )}
-                    <SourceLine meta={report.meta.comparables} />
-                  </>
-                ) : (
-                  <div className="rounded-lg border border-border/40 bg-background/60 p-5">
-                    <p className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      Valuation unavailable for this postcode
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-2">{report.confidenceNote}</p>
-                    <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-                      The search covered up to {report.searchRadiusUsed > 0 ? `${report.searchRadiusUsed} mile${report.searchRadiusUsed === 1 ? "" : "s"} from this postcode` : "the immediate postcode area"}. No sold-price evidence was found in HM Land Registry records for this area in the last 24 months.
-                    </p>
-                    <SourceLine meta={report.meta.comparables} />
-                  </div>
-                )}
+            {/* Indicative / radius caveats — shown directly under hero */}
+            {report.valuationState === "indicative" && (
+              <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-500/30 px-4 py-3 flex gap-2.5 items-start">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                  <span className="font-semibold">Indicative estimate — limited sold-price evidence.</span>{" "}
+                  This estimate is based on limited sold-price evidence within {report.searchRadiusUsed > 0 ? `${report.searchRadiusUsed} mile${report.searchRadiusUsed === 1 ? "" : "s"} of this postcode` : "this postcode"} and should be treated as directional only.
+                  {report.fallbacksUsed?.includes("last_sold_anchor") && " The last recorded sale price was used as a supporting signal."}
+                  {report.fallbacksUsed?.includes("ukhpi_anchor") && " Local authority average price data was used as a supporting signal."}
+                </p>
               </div>
-            </section>
+            )}
+            {report.valuationState === "strong" && report.searchRadiusUsed > 0 && (
+              <div className="rounded-xl border border-blue-200/60 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-500/20 px-4 py-3 flex gap-2 items-start">
+                <Info className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                  Comparable sales were drawn from within {report.searchRadiusUsed} mile{report.searchRadiusUsed === 1 ? "" : "s"} of this postcode and weighted by proximity, recency, and property type.
+                </p>
+              </div>
+            )}
 
-            {/* ── Since last sale ──────────────────────────────────────── */}
-            {report.sinceLastSale && report.estimate && (
-              <section aria-labelledby="val-since-heading">
-                <h2 id="val-since-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                  Since last recorded sale
-                </h2>
-                <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
-                  {(() => {
-                    const s = report.sinceLastSale!;
-                    const isUp = s.changeAmount >= 0;
-                    return (
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                        {/* Left — last sold */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Last recorded sale</p>
-                          <p className="font-serif text-xl font-semibold text-foreground">{fmt(s.lastSoldPrice)}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{fmtDate(s.lastSoldDate)}{s.yearsHeld !== null ? ` · ${s.yearsHeld} year${s.yearsHeld !== 1 ? "s" : ""} ago` : ""}</p>
-                        </div>
-
-                        {/* Arrow */}
-                        <div className="hidden sm:flex items-center justify-center text-muted-foreground/30">
-                          <ArrowRight className="h-5 w-5" />
-                        </div>
-
-                        {/* Right — estimated now */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Mid estimate now</p>
-                          <p className="font-serif text-xl font-semibold text-foreground">{fmt(s.currentMidEstimate)}</p>
-                          <p className={`text-xs mt-0.5 font-semibold ${
-                            isUp ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
-                          }`}>
-                            {isUp ? "+" : ""}{fmt(Math.abs(s.changeAmount))} ({isUp ? "+" : ""}{s.changePercent}%)
-                          </p>
-                        </div>
-
-                        {/* Change badge */}
-                        <div className={`shrink-0 rounded-lg border px-4 py-3 text-center ${
-                          isUp
-                            ? "border-green-500/40 bg-green-50/70 dark:bg-green-950/20"
-                            : "text-red-600 dark:text-red-400 border-red-400/40 bg-red-50/60 dark:bg-red-950/20"
-                        }`}>
-                          {isUp
-                            ? <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                            : <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400 mx-auto mb-1" />}
-                          <p className={`text-sm font-semibold ${
-                            isUp ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                          }`}>
-                            {isUp ? "+" : ""}{s.changePercent}%
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">estimated change</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  <p className="text-[10px] text-muted-foreground/70 mt-4 leading-relaxed flex gap-1.5 items-start">
-                    <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                    Comparison between last recorded Land Registry sale price and the current mid estimate. Not a confirmed resale — the current figure is a model estimate, not a completed transaction.
-                  </p>
-                </div>
+            {/* ════════════════════════════════════════════════════════════════
+                2. NEARBY SOLD EVIDENCE CARDS
+            ════════════════════════════════════════════════════════════════ */}
+            {report.comparables.length > 0 && (
+              <section aria-labelledby="val-comps-heading">
+                <SectionHeading
+                  id="val-comps-heading"
+                  label="Nearby sold evidence"
+                  provenance="Confirmed from Land Registry"
+                  badge={
+                    !isSignedIn && report.comparables.length > 4 ? (
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Lock className="h-3 w-3" /> Full list free
+                      </span>
+                    ) : undefined
+                  }
+                />
+                <SoldNearbyCardGrid
+                  comparables={report.comparables}
+                  estimate={report.estimate}
+                  isSignedIn={isSignedIn}
+                  onUnlock={() => setSignupOpen(true)}
+                />
               </section>
             )}
 
-            {/* ── Comparables ─────────────────────────────────────────────── */}
-            <section aria-labelledby="val-comps-heading">
-              <div className="flex items-center justify-between mb-4">
-                <h2 id="val-comps-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-                  Recent comparable sales
-                </h2>
-                {!isSignedIn && report.comparables.length > 4 && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Lock className="h-3 w-3" /> Full list with free account
-                  </span>
-                )}
-              </div>
-
-              {report.meta.comparables.freshnessStatus === "unavailable" || report.comparables.length === 0 ? (
-                <UnavailableModule meta={report.meta.comparables} label="Comparable sales" />
-              ) : (
-                <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/40 bg-background/60">
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">Address</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Type</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden sm:table-cell">Tenure</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3">Sold</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3 hidden md:table-cell">Distance</th>
-                        <th className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-5 py-3">Price</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/30">
-                      {report.comparables
-                        .slice(0, isSignedIn ? report.comparables.length : 4)
-                        .map((c, i) => (
-                          <tr key={i} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-5 py-3 font-medium text-foreground">
-                              {c.address}
-                              {c.isNewBuild && (
-                                <span className="ml-2 text-[9px] font-semibold uppercase tracking-wider text-primary/70 border border-primary/30 rounded px-1">
-                                  New build
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-3 text-muted-foreground hidden sm:table-cell">{c.propertyType}</td>
-                            <td className="px-3 py-3 text-muted-foreground hidden sm:table-cell">{c.tenure}</td>
-                            <td className="px-3 py-3 text-muted-foreground">{fmtDate(c.soldDate)}</td>
-                            <td className="px-3 py-3 text-muted-foreground hidden md:table-cell text-[11px]">
-                              {c.distanceMiles === 0 ? "Same postcode" : `${c.distanceMiles} mi`}
-                            </td>
-                            <td className="px-5 py-3 text-right">
-                              <span className="font-semibold text-foreground">{fmt(c.soldPrice)}</span>
-                              {c.deltaVsMid !== null && report.estimate && (
-                                <span className={`block text-[10px] ${c.deltaVsMid >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
-                                  {c.deltaVsMid >= 0 ? "+" : ""}{c.deltaVsMid}% vs mid
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-
-                  {!isSignedIn && report.comparables.length > 4 && (
-                    <div className="border-t border-border/40 bg-card/80 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {report.comparables.length - 4} more comparable{report.comparables.length - 4 !== 1 ? "s" : ""} available
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Create a free account to see all recorded sales in this postcode.
-                        </p>
-                      </div>
-                      <Button size="sm" className="shrink-0" onClick={() => setSignupOpen(true)}>
-                        Unlock free <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                      </Button>
-                    </div>
-                  )}
-
-                  <div className="border-t border-border/30 px-5 py-3">
-                    <SourceLine meta={report.meta.comparables} />
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* ── Comparable selection explainer ───────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                3. COMPARABLE SELECTION EXPLAINER (analytical layer)
+            ════════════════════════════════════════════════════════════════ */}
             {report.comparableSelectionMeta && (
               <section aria-labelledby="val-comp-meta-heading">
-                <h2 id="val-comp-meta-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                  How comparables were selected
-                </h2>
+                <SectionHeading id="val-comp-meta-heading" label="How comparables were selected" />
                 <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                   {(() => {
                     const m = report.comparableSelectionMeta;
@@ -860,49 +1102,31 @@ export default function ValuationPage() {
               </section>
             )}
 
-            {/* ── Methodology ─────────────────────────────────────────────── */}
-            <section aria-labelledby="val-method-heading">
-              <h2 id="val-method-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                How this estimate is built
-              </h2>
-              <div className="grid sm:grid-cols-3 gap-4">
-                {[
-                  {
-                    icon: <BarChart3 className="h-4 w-4" />,
-                    title: "HM Land Registry",
-                    body: "Every registered sale in England and Wales. The most authoritative UK residential price dataset — 28M+ transactions since 1995.",
-                    url: DATA_SOURCES.hmlr_ppd.url,
-                  },
-                  {
-                    icon: <Home className="h-4 w-4" />,
-                    title: "Comparable matching",
-                    body: "We find recent transactions in the same postcode outcode. Median of valid comparables becomes the mid estimate. Range widens when data is thin.",
-                    url: null,
-                  },
-                  {
-                    icon: <TrendingUp className="h-4 w-4" />,
-                    title: "UK House Price Index",
-                    body: "Local authority average prices from the UKHPI — published jointly by HMLR, ONS, RoS, and NISRA. Used for the area trend chart.",
-                    url: DATA_SOURCES.hmlr_ukhpi.url,
-                  },
-                ].map((m) => (
-                  <div key={m.title} className="rounded-xl border border-border/60 bg-card p-5">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">
-                      {m.icon}
-                    </div>
-                    <h3 className="text-sm font-semibold text-foreground mb-1.5">{m.title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-2">{m.body}</p>
-                    {m.url && (
-                      <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline inline-flex items-center gap-0.5">
-                        View source <ExternalLink className="h-2.5 w-2.5" />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
+            {/* ════════════════════════════════════════════════════════════════
+                4. PROPERTY HISTORY TIMELINE
+            ════════════════════════════════════════════════════════════════ */}
+            {report.propertyHistory.totalEvents > 0 && (
+              <section aria-labelledby="val-timeline-heading">
+                <SectionHeading
+                  id="val-timeline-heading"
+                  label="Property history"
+                  provenance="Confirmed from Land Registry"
+                />
+                <PropertyTimeline history={report.propertyHistory} />
+              </section>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                5. LOCATION CONTEXT / MAP PANEL
+            ════════════════════════════════════════════════════════════════ */}
+            <section aria-labelledby="val-map-heading">
+              <SectionHeading id="val-map-heading" label="Location" />
+              <PropertyMapPanel postcode={report.queryPostcode} localAuthority={report.localAuthority} />
             </section>
 
-            {/* ── Property facts ───────────────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                6. PROPERTY FACTS (moved up — belongs near identity)
+            ════════════════════════════════════════════════════════════════ */}
             {(() => {
               const pfDecision = getPropertyFactsDecision(report.propertyFacts);
               if (pfDecision.state === "hidden") return null;
@@ -911,72 +1135,57 @@ export default function ValuationPage() {
                 <section aria-labelledby="val-facts-heading">
                   <SectionHeading
                     id="val-facts-heading"
-                    label="Property facts"
+                    label="Property details"
                     provenance={pfDecision.provenanceLabel}
                   />
                   <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                     {pfDecision.isMinimal ? (
-                      /* 1–2 fields only: minimal card — no grid, just the facts + prompt */
                       <div className="space-y-3">
                         {visibleRows.map((r) => (
                           <div key={r.label} className="flex items-baseline justify-between">
                             <span className="text-xs text-muted-foreground shrink-0 mr-4">{r.label}</span>
                             <div className="text-right">
                               <span className="text-xs font-medium text-foreground">{r.value}</span>
-                              {r.caveat && (
-                                <span className="block text-[10px] font-normal text-muted-foreground/60">{r.caveat}</span>
-                              )}
-                              {r.provenance === "inferred" && (
-                                <span className="block text-[9px] font-normal text-amber-600/70 dark:text-amber-400/60 uppercase tracking-wide">Estimated</span>
-                              )}
+                              {r.caveat && <span className="block text-[10px] font-normal text-muted-foreground/60">{r.caveat}</span>}
+                              {r.provenance === "inferred" && <span className="block text-[9px] font-normal text-amber-600/70 dark:text-amber-400/60 uppercase tracking-wide">Estimated</span>}
                             </div>
                           </div>
                         ))}
                         <div className="pt-2 border-t border-border/30 flex items-start gap-2">
                           <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                            Most property details are not available from current public records for this address.
-                            Verify type, tenure, and floor area directly with the seller or your solicitor.
+                            Most property details are not available from current public records for this address. Verify type, tenure, and floor area directly with the seller or your solicitor.
                           </p>
                         </div>
                       </div>
                     ) : (
-                      /* 3+ fields: normal grid, confirmed + inferred, no blank rows */
                       <>
                         <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
-                          {/* Confirmed fields first */}
                           {pfDecision.confirmedRows.map((r) => (
                             <div key={r.label} className="flex items-baseline justify-between py-2.5 border-b border-border/30 last:border-0">
                               <span className="text-xs text-muted-foreground shrink-0 mr-4">{r.label}</span>
                               <span className="text-xs font-medium text-foreground text-right">
                                 {r.value}
-                                {r.caveat && (
-                                  <span className="block text-[10px] font-normal text-muted-foreground/60">{r.caveat}</span>
-                                )}
+                                {r.caveat && <span className="block text-[10px] font-normal text-muted-foreground/60">{r.caveat}</span>}
                               </span>
                             </div>
                           ))}
-                          {/* Inferred fields — labelled clearly */}
                           {pfDecision.inferredRows.map((r) => (
                             <div key={r.label} className="flex items-baseline justify-between py-2.5 border-b border-border/30 last:border-0">
                               <span className="text-xs text-muted-foreground shrink-0 mr-4">{r.label}</span>
                               <div className="text-right">
                                 <span className="text-xs font-medium text-foreground">{r.value}</span>
-                                {r.caveat && (
-                                  <span className="block text-[10px] font-normal text-muted-foreground/60">{r.caveat}</span>
-                                )}
+                                {r.caveat && <span className="block text-[10px] font-normal text-muted-foreground/60">{r.caveat}</span>}
                                 <span className="block text-[9px] font-normal text-amber-600/70 dark:text-amber-400/60 uppercase tracking-wide">Estimated</span>
                               </div>
                             </div>
                           ))}
                         </div>
-                        {/* Grouped missing note — one line, never repeated per field */}
                         {pfDecision.missingCount > 0 && (
                           <div className="mt-4 pt-3 border-t border-border/30 flex items-start gap-2">
                             <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
                             <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
                               {pfDecision.missingCount} detail{pfDecision.missingCount !== 1 ? "s" : ""} (floor area, council tax band, construction era) not available from current public records.
-                              Have we got this right?{" "}
                               Always verify tenure and floor area with your solicitor.
                               Source: {report.propertyFacts.source}
                             </p>
@@ -989,7 +1198,9 @@ export default function ValuationPage() {
               );
             })()}
 
-            {/* ── Price trend ──────────────────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                7. AREA PRICE TREND
+            ════════════════════════════════════════════════════════════════ */}
             <section aria-labelledby="val-trend-heading">
               <h2 id="val-trend-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
                 Area price trend — {report.localAuthority ?? report.outcode}
@@ -1007,13 +1218,13 @@ export default function ValuationPage() {
               )}
             </section>
 
-            {/* ── Leasehold summary ────────────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                8. LEASEHOLD SUMMARY
+            ════════════════════════════════════════════════════════════════ */}
             {(() => {
               const l        = report.leaseholdSummary;
               const lhDecision = getLeaseholdModuleDecision(l);
               if (lhDecision.state === "hidden") return null;
-
-              /* tenure uncertain — small warning only */
               if (lhDecision.state === "warning") {
                 return (
                   <section aria-labelledby="val-leasehold-heading">
@@ -1022,8 +1233,6 @@ export default function ValuationPage() {
                   </section>
                 );
               }
-
-              /* leasehold confirmed/inferred but all terms missing — compact card */
               if (lhDecision.state === "compact") {
                 return (
                   <section aria-labelledby="val-leasehold-heading">
@@ -1043,23 +1252,15 @@ export default function ValuationPage() {
                   </section>
                 );
               }
-
-              /* full: leasehold confirmed + at least lease years known */
               const borderClass = l.leaseWarning === "critical"
                 ? "border-red-400/60 bg-red-50/40 dark:bg-red-950/20"
                 : l.leaseWarning === "caution"
                 ? "border-amber-400/50 bg-amber-50/40 dark:bg-amber-950/20"
                 : "border-border/60 bg-card";
-
               return (
                 <section aria-labelledby="val-leasehold-heading">
-                  <SectionHeading
-                    id="val-leasehold-heading"
-                    label="Leasehold summary"
-                    provenance={lhDecision.provenanceLabel}
-                  />
+                  <SectionHeading id="val-leasehold-heading" label="Leasehold summary" provenance={lhDecision.provenanceLabel} />
                   <div className={`rounded-xl border p-5 sm:p-6 ${borderClass}`}>
-                    {/* Critical / caution alerts */}
                     {l.leaseWarning === "critical" && (
                       <div className="flex items-start gap-2.5 mb-4 rounded-md border border-red-400/50 bg-red-100/60 dark:bg-red-950/30 px-3.5 py-2.5">
                         <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
@@ -1076,8 +1277,6 @@ export default function ValuationPage() {
                         </p>
                       </div>
                     )}
-
-                    {/* Only render confirmed fields — no "Awaiting" or "Not on record" rows */}
                     <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
                       <div className="flex items-baseline justify-between py-2.5 border-b border-border/30">
                         <span className="text-xs text-muted-foreground shrink-0 mr-4">Tenure</span>
@@ -1091,11 +1290,7 @@ export default function ValuationPage() {
                       {l.leaseYearsRemaining !== null && (
                         <div className="flex items-baseline justify-between py-2.5 border-b border-border/30 last:border-0">
                           <span className="text-xs text-muted-foreground shrink-0 mr-4">Years remaining</span>
-                          <span className={`text-xs font-semibold text-right ${
-                            l.leaseWarning === "critical" ? "text-red-600 dark:text-red-400"
-                            : l.leaseWarning === "caution" ? "text-amber-600 dark:text-amber-400"
-                            : "text-foreground"
-                          }`}>
+                          <span className={`text-xs font-semibold text-right ${l.leaseWarning === "critical" ? "text-red-600 dark:text-red-400" : l.leaseWarning === "caution" ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>
                             ~{l.leaseYearsRemaining} years
                           </span>
                         </div>
@@ -1117,20 +1312,14 @@ export default function ValuationPage() {
                         </div>
                       )}
                     </div>
-
-                    {/* Grouped unknown fields note */}
                     {l.leaseYearsRemaining === null && (
-                      <WarningCard
-                        level="amber"
-                        message="Lease length, service charge, and ground rent are not available from public records. Request the lease pack from the seller or their solicitor before proceeding."
-                      />
+                      <WarningCard level="amber" message="Lease length, service charge, and ground rent are not available from public records. Request the lease pack from the seller or their solicitor before proceeding." />
                     )}
                     {l.leaseYearsRemaining !== null && (l.serviceChargeEstGBP === null && !l.serviceChargeNote) && (
                       <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed">
                         Service charge and ground rent are not held in Land Registry or EPC records. Request from the seller or managing agent.
                       </p>
                     )}
-
                     <p className="text-[11px] text-muted-foreground/80 mt-3 leading-relaxed flex gap-1.5 items-start">
                       <Info className="h-3 w-3 shrink-0 mt-0.5 flex-shrink-0" />
                       {l.valuationImpactNote}
@@ -1140,69 +1329,36 @@ export default function ValuationPage() {
               );
             })()}
 
-            {/* ── EPC ──────────────────────────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                9. EPC
+            ════════════════════════════════════════════════════════════════ */}
             {(() => {
               const epcDecision = getEpcModuleDecision(report.epc, report.meta.epc);
-
-              /* warning tier: no EPC found — compact advisory, never a big empty card */
               if (epcDecision.state === "warning") {
                 return (
                   <section aria-labelledby="val-epc-heading">
-                    <SectionHeading
-                      id="val-epc-heading"
-                      label="Energy performance"
-                      provenance={epcDecision.provenanceLabel}
-                    />
-                    <WarningCard
-                      message={epcDecision.copy!}
-                      ctaText={epcDecision.ctaText}
-                      ctaUrl={epcDecision.ctaUrl}
-                    />
+                    <SectionHeading id="val-epc-heading" label="Energy performance" provenance={epcDecision.provenanceLabel} />
+                    <WarningCard message={epcDecision.copy!} ctaText={epcDecision.ctaText} ctaUrl={epcDecision.ctaUrl} />
                   </section>
                 );
               }
-
-              /* full tier: EPC record found */
               const epc = report.epc!;
               return (
                 <section aria-labelledby="val-epc-heading">
-                  <SectionHeading
-                    id="val-epc-heading"
-                    label="Energy performance"
-                    provenance={epcDecision.provenanceLabel}
-                  />
+                  <SectionHeading id="val-epc-heading" label="Energy performance" provenance={epcDecision.provenanceLabel} />
                   <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                      {/* EPC Band badge */}
-                      <div
-                        className={`w-16 h-16 rounded-xl flex items-center justify-center font-serif text-3xl font-bold shrink-0 ${
-                          ["A","B","C"].includes(epc.band) ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300"
-                          : epc.band === "D" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-                          : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300"
-                        }`}
-                      >
+                      <div className={`w-16 h-16 rounded-xl flex items-center justify-center font-serif text-3xl font-bold shrink-0 ${["A","B","C"].includes(epc.band) ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300" : epc.band === "D" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300" : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300"}`}>
                         {epc.band}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-foreground">
-                          EPC Band {epc.band} — score {epc.score}/100
-                        </p>
-                        {epc.floorAreaM2 && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Floor area: {epc.floorAreaM2} m²
-                          </p>
-                        )}
+                        <p className="text-sm font-semibold text-foreground">EPC Band {epc.band} — score {epc.score}/100</p>
+                        {epc.floorAreaM2 && <p className="text-xs text-muted-foreground mt-0.5">Floor area: {epc.floorAreaM2} m²</p>}
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Lodged: {fmtDate(epc.lodgementDate)} · Expires: {fmtDate(epc.expiryDate)}
-                          {epc.isExpired && (
-                            <span className="ml-2 text-amber-600 dark:text-amber-400 font-semibold">(expired)</span>
-                          )}
+                          {epc.isExpired && <span className="ml-2 text-amber-600 dark:text-amber-400 font-semibold">(expired)</span>}
                         </p>
-                        {epc.isExpired && (
-                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                            This EPC has expired. Current energy performance may differ — ask the seller for an updated certificate.
-                          </p>
-                        )}
+                        {epc.isExpired && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">This EPC has expired. Current energy performance may differ — ask the seller for an updated certificate.</p>}
                       </div>
                     </div>
                     <SourceLine meta={report.meta.epc} />
@@ -1211,18 +1367,18 @@ export default function ValuationPage() {
               );
             })()}
 
-            {/* ── What could change the value? ─────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                10. WHAT COULD CHANGE THE VALUE
+            ════════════════════════════════════════════════════════════════ */}
             {(() => {
               const vd       = report.valueDrivers;
               const vdComp   = getValueDriversCompleteness(vd);
               if (vdComp.state === "unavailable") return null;
-
               return (
                 <section aria-labelledby="val-drivers-heading">
                   <SectionHeading id="val-drivers-heading" label="What could change the value?" provenance={vdComp.provenanceLabel} />
                   <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                     <div className="grid sm:grid-cols-2 gap-6">
-                      {/* Upside factors */}
                       <div>
                         <div className="flex items-center gap-2 mb-3">
                           <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -1234,9 +1390,7 @@ export default function ValuationPage() {
                           <ul className="space-y-3">
                             {vd.increases.map((d, i) => (
                               <li key={i} className="flex gap-2.5 items-start">
-                                <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${
-                                  d.strength === "strong" ? "bg-green-500" : d.strength === "moderate" ? "bg-green-400" : "bg-green-300"
-                                }`} />
+                                <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${d.strength === "strong" ? "bg-green-500" : d.strength === "moderate" ? "bg-green-400" : "bg-green-300"}`} />
                                 <div>
                                   <p className="text-xs font-semibold text-foreground">{d.label}</p>
                                   <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{d.detail}</p>
@@ -1246,8 +1400,6 @@ export default function ValuationPage() {
                           </ul>
                         )}
                       </div>
-
-                      {/* Downside factors */}
                       <div>
                         <div className="flex items-center gap-2 mb-3">
                           <TrendingDown className="h-4 w-4 text-red-500 dark:text-red-400" />
@@ -1259,9 +1411,7 @@ export default function ValuationPage() {
                           <ul className="space-y-3">
                             {vd.decreases.map((d, i) => (
                               <li key={i} className="flex gap-2.5 items-start">
-                                <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${
-                                  d.strength === "strong" ? "bg-red-500" : d.strength === "moderate" ? "bg-red-400" : "bg-red-300"
-                                }`} />
+                                <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${d.strength === "strong" ? "bg-red-500" : d.strength === "moderate" ? "bg-red-400" : "bg-red-300"}`} />
                                 <div>
                                   <p className="text-xs font-semibold text-foreground">{d.label}</p>
                                   <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{d.detail}</p>
@@ -1275,22 +1425,21 @@ export default function ValuationPage() {
                     <PartialNote result={vdComp} />
                     <p className="text-[10px] text-muted-foreground/60 mt-4 leading-relaxed flex gap-1.5 items-start">
                       <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                      Signals derived from official public data for this postcode. These are indicative factors, not a formal assessment. A qualified surveyor or estate agent can provide a fuller picture.
+                      Signals derived from official public data for this postcode. These are indicative factors, not a formal assessment.
                     </p>
                   </div>
                 </section>
               );
             })()}
 
-            {/* ── Ownership costs summary ───────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                11. OWNERSHIP COSTS
+            ════════════════════════════════════════════════════════════════ */}
             {(() => {
               const oc      = report.ownershipCosts;
               const ocComp  = getOwnershipCostsCompleteness(oc, report.leaseholdSummary.isLeasehold);
-
               if (ocComp.state === "unavailable") return null;
-
               if (ocComp.state === "sparse") {
-                // Stamp duty only — show as a compact inline card, not a full section
                 return (
                   <section aria-labelledby="val-costs-heading">
                     <SectionHeading id="val-costs-heading" label="Ownership costs" provenance={ocComp.provenanceLabel} />
@@ -1307,48 +1456,17 @@ export default function ValuationPage() {
                   </section>
                 );
               }
-
               const costRows: FieldRow[] = [
-                {
-                  label: "Council tax band",
-                  value: oc.councilTaxBand
-                    ? `Band ${oc.councilTaxBand}${oc.councilTaxAnnualEst ? ` — approx. ${fmt(oc.councilTaxAnnualEst)}/yr` : ""}`
-                    : null,
-                  provenance: "confirmed",
-                },
-                {
-                  label: "Energy efficiency",
-                  value: oc.energyEfficiencyNote ?? (oc.epcBand ? `EPC Band ${oc.epcBand}` : null),
-                  provenance: "confirmed",
-                },
+                { label: "Council tax band", value: oc.councilTaxBand ? `Band ${oc.councilTaxBand}${oc.councilTaxAnnualEst ? ` — approx. ${fmt(oc.councilTaxAnnualEst)}/yr` : ""}` : null, provenance: "confirmed" },
+                { label: "Energy efficiency", value: oc.energyEfficiencyNote ?? (oc.epcBand ? `EPC Band ${oc.epcBand}` : null), provenance: "confirmed" },
                 ...(report.leaseholdSummary.isLeasehold ? [
-                  {
-                    label: "Service charge",
-                    value: oc.serviceChargeNote,
-                    note: "Request from seller or managing agent",
-                    provenance: "confirmed" as const,
-                  },
-                  {
-                    label: "Ground rent",
-                    value: oc.groundRentNote,
-                    note: "Request from seller or managing agent",
-                    provenance: "confirmed" as const,
-                  },
+                  { label: "Service charge", value: oc.serviceChargeNote, note: "Request from seller or managing agent", provenance: "confirmed" as const },
+                  { label: "Ground rent", value: oc.groundRentNote, note: "Request from seller or managing agent", provenance: "confirmed" as const },
                 ] : []),
-                {
-                  label: "Stamp duty (standard buyer)",
-                  value: oc.sdltMid !== null ? (oc.sdltMid === 0 ? "£0" : fmt(oc.sdltMid)) : null,
-                  note: "Based on mid estimate — verify on GOV.UK",
-                  provenance: "confirmed" as const,
-                },
-                {
-                  label: "Flood risk",
-                  value: oc.floodRiskNote,
-                  provenance: "confirmed" as const,
-                },
+                { label: "Stamp duty (standard buyer)", value: oc.sdltMid !== null ? (oc.sdltMid === 0 ? "£0" : fmt(oc.sdltMid)) : null, note: "Based on mid estimate — verify on GOV.UK", provenance: "confirmed" as const },
+                { label: "Flood risk", value: oc.floodRiskNote, provenance: "confirmed" as const },
               ];
               const { populated: costPopulated } = filterEmptyFields(costRows);
-
               return (
                 <section aria-labelledby="val-costs-heading">
                   <SectionHeading id="val-costs-heading" label="Ownership costs" provenance={ocComp.provenanceLabel} />
@@ -1359,9 +1477,7 @@ export default function ValuationPage() {
                           <span className="text-xs text-muted-foreground shrink-0">{r.label}</span>
                           <span className="text-xs font-medium text-foreground text-right">
                             {r.value}
-                            {r.note && (
-                              <span className="block text-[10px] font-normal text-muted-foreground/60">{r.note}</span>
-                            )}
+                            {r.note && <span className="block text-[10px] font-normal text-muted-foreground/60">{r.note}</span>}
                           </span>
                         </div>
                       ))}
@@ -1376,11 +1492,11 @@ export default function ValuationPage() {
               );
             })()}
 
-            {/* ── Planning ─────────────────────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                12. PLANNING
+            ════════════════════════════════════════════════════════════════ */}
             {(() => {
               const planComp = getPlanningCompleteness(report.planning, report.meta.planning);
-
-              // sparse = no results OR unavailable source — show compact explanation, not empty table
               if (planComp.state === "sparse") {
                 return (
                   <section aria-labelledby="val-planning-heading">
@@ -1389,7 +1505,6 @@ export default function ValuationPage() {
                   </section>
                 );
               }
-
               return (
                 <section aria-labelledby="val-planning-heading">
                   <SectionHeading id="val-planning-heading" label="Nearby planning activity" provenance={planComp.provenanceLabel} />
@@ -1422,7 +1537,9 @@ export default function ValuationPage() {
               );
             })()}
 
-            {/* ── SDLT ─────────────────────────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                13. STAMP DUTY + ADVANCED ANALYSIS
+            ════════════════════════════════════════════════════════════════ */}
             {report.estimate && (
               <section aria-labelledby="val-sdlt-heading">
                 <h2 id="val-sdlt-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
@@ -1432,35 +1549,24 @@ export default function ValuationPage() {
               </section>
             )}
 
-            {/* ── Advanced analysis — unlocked for Pro/Investor ────────────── */}
+            {/* Advanced analysis — Pro/Investor gated */}
             <section aria-labelledby="val-premium-heading">
               <div className="flex items-center justify-between mb-4">
                 <h2 id="val-premium-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                   Advanced analysis
                 </h2>
                 {isPro ? (
-                  <Badge variant="outline" className="text-[10px] font-semibold border-green-500/40 text-green-600 dark:text-green-400">
-                    Included in your plan
-                  </Badge>
+                  <Badge variant="outline" className="text-[10px] font-semibold border-green-500/40 text-green-600 dark:text-green-400">Included in your plan</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[10px] font-semibold border-primary/30 text-primary">
-                    Professional
-                  </Badge>
+                  <Badge variant="outline" className="text-[10px] font-semibold border-primary/30 text-primary">Professional</Badge>
                 )}
               </div>
-
               {isPro ? (
-                // ── UNLOCKED: real advanced analysis cards ─────────────────────
                 <div className="grid sm:grid-cols-3 gap-4">
-                  {/* Risk factors */}
                   <div className="rounded-lg border border-border/60 bg-card p-4">
-                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">
-                      <AlertTriangle className="h-4 w-4" />
-                    </div>
+                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5"><AlertTriangle className="h-4 w-4" /></div>
                     <h3 className="text-sm font-semibold text-foreground mb-1">Risk factors</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                      Key risk signals for this postcode based on official data sources.
-                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">Key risk signals for this postcode based on official data sources.</p>
                     <ul className="space-y-1.5">
                       {[
                         report.meta.planning.freshnessStatus !== "unavailable" && report.planning.length > 0
@@ -1474,97 +1580,62 @@ export default function ValuationPage() {
                           : `${report.comparables.length} transactions in the last 24 months`,
                       ].map((item, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0" />
-                          {item}
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0" />{item}
                         </li>
                       ))}
                     </ul>
                   </div>
-
-                  {/* Rental yield context */}
                   {(() => {
                     const rc         = report.rentalContext;
                     const rentalDec  = getRentalModuleDecision(rc, report.estimate);
-
-                    // hidden — no valuation or no useful rental basis at all
                     if (rentalDec.state === "hidden") return null;
-
-                    // compact — benchmark only, never show as 3 identical rows
                     if (rentalDec.state === "compact") {
                       return (
                         <div className="rounded-lg border border-border/60 bg-card p-4">
-                          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">
-                            <Building className="h-4 w-4" />
-                          </div>
+                          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5"><Building className="h-4 w-4" /></div>
                           <h3 className="text-sm font-semibold text-foreground mb-1">Rental yield context</h3>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            {rentalDec.copy}
-                          </p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{rentalDec.copy}</p>
                         </div>
                       );
                     }
-
-                    // full — real local rent data available
                     const est = report.estimate!;
                     const rent = rc.estimatedMonthlyRentGBP!;
                     return (
                       <div className="rounded-lg border border-border/60 bg-card p-4">
-                        <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">
-                          <Building className="h-4 w-4" />
-                        </div>
+                        <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5"><Building className="h-4 w-4" /></div>
                         <h3 className="text-sm font-semibold text-foreground mb-1">Rental yield context</h3>
                         <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                          Gross yield at each valuation estimate. Based on {rc.rentEvidenceLevel ?? "local rental market data"}.
-                          {rc.propertyTypeBasis && ` · ${rc.propertyTypeBasis}`}
-                          {rc.dataYear && ` (${rc.dataYear})`}
+                          Gross yield at each valuation estimate. Based on {rc.rentEvidenceLevel ?? "local rental market data"}.{rc.propertyTypeBasis && ` · ${rc.propertyTypeBasis}`}{rc.dataYear && ` (${rc.dataYear})`}
                         </p>
                         <div className="space-y-2">
-                          {[
-                            { label: "At mid estimate", price: est.mid },
-                            { label: "At low estimate", price: est.low },
-                            { label: "At high estimate", price: est.high },
-                          ].map(({ label, price }) => (
+                          {[{ label: "At mid estimate", price: est.mid }, { label: "At low estimate", price: est.low }, { label: "At high estimate", price: est.high }].map(({ label, price }) => (
                             <div key={label} className="flex justify-between items-baseline">
                               <span className="text-[11px] text-muted-foreground">{label}</span>
-                              <span className="text-xs font-semibold text-foreground">
-                                {calcGrossYield(rent, price)}% gross
-                              </span>
+                              <span className="text-xs font-semibold text-foreground">{calcGrossYield(rent, price)}% gross</span>
                             </div>
                           ))}
                           <div className="flex justify-between items-baseline pt-1 border-t border-border/20">
                             <span className="text-[11px] text-muted-foreground">Est. monthly rent</span>
                             <span className="text-xs font-semibold text-foreground">
                               £{rc.rentRangeLow?.toLocaleString("en-GB") ?? rent.toLocaleString("en-GB")}
-                              {rc.rentRangeHigh && rc.rentRangeHigh !== rent
-                                ? `–£${rc.rentRangeHigh.toLocaleString("en-GB")} /month`
-                                : " /month"}
+                              {rc.rentRangeHigh && rc.rentRangeHigh !== rent ? `–£${rc.rentRangeHigh.toLocaleString("en-GB")} /month` : " /month"}
                             </span>
                           </div>
                         </div>
-                        <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed">
-                          Source: {rc.rentEvidenceLevel}. Gross yield only — does not account for void periods, management fees, or maintenance. Always verify against current local listings before making investment decisions.
-                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed">Source: {rc.rentEvidenceLevel}. Gross yield only — does not account for void periods, management fees, or maintenance.</p>
                       </div>
                     );
                   })()}
-
-                  {/* Extended price trend */}
                   <div className="rounded-lg border border-border/60 bg-card p-4">
-                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5">
-                      <Zap className="h-4 w-4" />
-                    </div>
+                    <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-2.5"><Zap className="h-4 w-4" /></div>
                     <h3 className="text-sm font-semibold text-foreground mb-1">Price trend summary</h3>
                     {report.priceTrend.length > 0 ? (
                       <>
-                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                          {report.localAuthority} — last {report.priceTrend.length} months from UKHPI.
-                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">{report.localAuthority} — last {report.priceTrend.length} months from UKHPI.</p>
                         {(() => {
                           const first = report.priceTrend[0];
                           const last  = report.priceTrend[report.priceTrend.length - 1];
-                          const pct = last && first
-                            ? Math.round((last.averagePrice - first.averagePrice) / first.averagePrice * 1000) / 10
-                            : null;
+                          const pct = last && first ? Math.round((last.averagePrice - first.averagePrice) / first.averagePrice * 1000) / 10 : null;
                           const isUp = pct !== null && pct >= 0;
                           return (
                             <div className="space-y-2">
@@ -1575,31 +1646,21 @@ export default function ValuationPage() {
                               {pct !== null && (
                                 <div className="flex justify-between items-baseline">
                                   <span className="text-[11px] text-muted-foreground">{report.priceTrend.length}‑month change</span>
-                                  <span className={`text-xs font-semibold ${
-                                    isUp ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
-                                  }`}>
-                                    {isUp ? "+" : ""}{pct}%
-                                  </span>
+                                  <span className={`text-xs font-semibold ${isUp ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>{isUp ? "+" : ""}{pct}%</span>
                                 </div>
                               )}
                             </div>
                           );
                         })()}
-                        <p className="text-[10px] text-muted-foreground/60 mt-3">
-                          Source: HM Land Registry UKHPI — local authority level, not postcode level.
-                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-3">Source: HM Land Registry UKHPI — local authority level, not postcode level.</p>
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Price trend unavailable for this area. UKHPI data is sourced from HM Land Registry and typically covers major local authorities.
-                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">Price trend unavailable for this area.</p>
                     )}
                   </div>
                 </div>
               ) : (
-                // ── LOCKED: gate for free/unsigned users ──────────────────────
                 <div className="relative rounded-xl border border-border/60 overflow-hidden">
-                  {/* Blurred placeholder — structure only, no real content */}
                   <div className="grid sm:grid-cols-3 gap-4 p-5 sm:p-6 select-none pointer-events-none" aria-hidden="true">
                     {[
                       { icon: <AlertTriangle className="h-4 w-4" />, title: "Risk factors", body: "Flood zone classification, planning constraints, leasehold terms, and structural risk indicators." },
@@ -1619,13 +1680,9 @@ export default function ValuationPage() {
                         <Lock className="h-4 w-4 text-primary" />
                       </div>
                       <p className="text-sm font-semibold text-foreground mb-1">Unlock advanced analysis</p>
-                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                        Risk signals, yield context, and price trend summary are included in the Professional plan.
-                      </p>
+                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Risk signals, yield context, and price trend summary are included in the Professional plan.</p>
                       <Link href="/pricing">
-                        <Button size="sm" className="font-semibold">
-                          View plans <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-                        </Button>
+                        <Button size="sm" className="font-semibold">View plans <ArrowRight className="h-3.5 w-3.5 ml-1.5" /></Button>
                       </Link>
                     </div>
                   </div>
@@ -1633,7 +1690,36 @@ export default function ValuationPage() {
               )}
             </section>
 
-            {/* ── Data accuracy notice ─────────────────────────────────────── */}
+            {/* ════════════════════════════════════════════════════════════════
+                14. HOW THIS ESTIMATE IS BUILT
+            ════════════════════════════════════════════════════════════════ */}
+            <section aria-labelledby="val-method-heading">
+              <h2 id="val-method-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+                How this estimate is built
+              </h2>
+              <div className="grid sm:grid-cols-3 gap-4">
+                {[
+                  { icon: <BarChart3 className="h-4 w-4" />, title: "HM Land Registry", body: "Every registered sale in England and Wales. The most authoritative UK residential price dataset — 28M+ transactions since 1995.", url: DATA_SOURCES.hmlr_ppd.url },
+                  { icon: <Home className="h-4 w-4" />, title: "Comparable matching", body: "We find recent transactions in the same postcode outcode. Median of valid comparables becomes the mid estimate. Range widens when data is thin.", url: null },
+                  { icon: <TrendingUp className="h-4 w-4" />, title: "UK House Price Index", body: "Local authority average prices from the UKHPI — published jointly by HMLR, ONS, RoS, and NISRA. Used for the area trend chart.", url: DATA_SOURCES.hmlr_ukhpi.url },
+                ].map((m) => (
+                  <div key={m.title} className="rounded-xl border border-border/60 bg-card p-5">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">{m.icon}</div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1.5">{m.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-2">{m.body}</p>
+                    {m.url && (
+                      <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline inline-flex items-center gap-0.5">
+                        View source <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ════════════════════════════════════════════════════════════════
+                15. DATA ACCURACY NOTICE + CROSS-LINK
+            ════════════════════════════════════════════════════════════════ */}
             <section>
               <div className="rounded-xl border border-border/40 bg-muted/20 p-5">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -1642,24 +1728,15 @@ export default function ValuationPage() {
               </div>
             </section>
 
-            {/* ── Cross-link to Postcode Brief ─────────────────────────────── */}
             <section className="rounded-xl border border-border/60 bg-card p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1.5">
-                    Also useful
-                  </p>
-                  <h3 className="text-base font-semibold text-foreground mb-1">
-                    Want to understand the neighbourhood too?
-                  </h3>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1.5">Also useful</p>
+                  <h3 className="text-base font-semibold text-foreground mb-1">Want to understand the neighbourhood too?</h3>
                   {isPro ? (
-                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                      Professional valuation features are included with your Brief for {postcodeToOutcode(report.queryPostcode)}. The Brief also covers schools, transport, crime, flood risk, broadband, and planning activity.
-                    </p>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">Professional valuation features are included with your Brief for {postcodeToOutcode(report.queryPostcode)}. The Brief also covers schools, transport, crime, flood risk, broadband, and planning activity.</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                      The Postcode Brief covers the neighbourhood around this postcode: schools, transport, crime, planning activity, flood risk, and broadband. Separate from the property valuation.
-                    </p>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">The Postcode Brief covers the neighbourhood around this postcode: schools, transport, crime, planning activity, flood risk, and broadband. Separate from the property valuation.</p>
                   )}
                 </div>
                 <Link href={`/?q=${encodeURIComponent(report.queryPostcode)}`}>
