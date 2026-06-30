@@ -13,6 +13,14 @@ const DEFAULT_DESCRIPTION =
  * The canonical is derived from window.location.pathname so every page
  * gets its own unique canonical URL — fixing the #1 SEO issue where all
  * pages pointed to https://www.luxproperty.ai/ in the static index.html.
+ *
+ * Cleanup strategy:
+ * - Title/description: restore on unmount so navigating away doesn't leave
+ *   a stale value momentarily before the next page mounts.
+ * - Canonical / og:url: DO NOT restore on unmount. These are URL-based
+ *   singletons that the incoming page's effect will immediately own.
+ *   Restoring would race-condition them back to "/" before the next
+ *   component's effect sets the correct value.
  */
 export function useDocumentTitle(title: string, description?: string) {
   useEffect(() => {
@@ -25,17 +33,16 @@ export function useDocumentTitle(title: string, description?: string) {
 
     // ── Description ────────────────────────────────────────────────────────
     const metaDesc = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const prevDesc = metaDesc?.getAttribute("content") ?? "";
+    const prevDesc = metaDesc?.getAttribute("content") ?? DEFAULT_DESCRIPTION;
     const activeDesc = description || DEFAULT_DESCRIPTION;
     if (metaDesc) metaDesc.setAttribute("content", activeDesc);
 
     // ── Canonical ──────────────────────────────────────────────────────────
-    // Build canonical from current pathname (no hash, no query)
-    const canonicalPath = window.location.pathname.replace(/\/$/, "") || "/";
+    // Build canonical from current pathname (strip trailing slash, keep root)
+    const canonicalPath = window.location.pathname.replace(/\/+$/, "") || "/";
     const canonicalUrl = `${BASE_URL}${canonicalPath}`;
 
     let canonicalEl = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    const prevCanonical = canonicalEl?.getAttribute("href") ?? "";
     if (!canonicalEl) {
       canonicalEl = document.createElement("link");
       canonicalEl.setAttribute("rel", "canonical");
@@ -44,29 +51,36 @@ export function useDocumentTitle(title: string, description?: string) {
     canonicalEl.setAttribute("href", canonicalUrl);
 
     // ── Open Graph ─────────────────────────────────────────────────────────
-    function setMeta(selector: string, value: string): string {
-      const el = document.querySelector<HTMLMetaElement>(selector);
-      const prev = el?.getAttribute("content") ?? "";
-      if (el) el.setAttribute("content", value);
-      return prev;
+    function getMeta(selector: string): HTMLMetaElement | null {
+      return document.querySelector<HTMLMetaElement>(selector);
     }
 
-    const prevOgTitle    = setMeta('meta[property="og:title"]',       fullTitle);
-    const prevOgDesc     = setMeta('meta[property="og:description"]',  activeDesc);
-    const prevOgUrl      = setMeta('meta[property="og:url"]',          canonicalUrl);
-    const prevTwTitle    = setMeta('meta[name="twitter:title"]',       fullTitle);
-    const prevTwDesc     = setMeta('meta[name="twitter:description"]', activeDesc);
+    const ogTitleEl   = getMeta('meta[property="og:title"]');
+    const ogDescEl    = getMeta('meta[property="og:description"]');
+    const ogUrlEl     = getMeta('meta[property="og:url"]');
+    const twTitleEl   = getMeta('meta[name="twitter:title"]');
+    const twDescEl    = getMeta('meta[name="twitter:description"]');
+
+    const prevOgTitle  = ogTitleEl?.getAttribute("content")  ?? "";
+    const prevOgDesc   = ogDescEl?.getAttribute("content")   ?? "";
+    const prevTwTitle  = twTitleEl?.getAttribute("content")  ?? "";
+    const prevTwDesc   = twDescEl?.getAttribute("content")   ?? "";
+
+    ogTitleEl?.setAttribute("content", fullTitle);
+    ogDescEl?.setAttribute("content", activeDesc);
+    ogUrlEl?.setAttribute("content", canonicalUrl);   // url: no cleanup needed
+    twTitleEl?.setAttribute("content", fullTitle);
+    twDescEl?.setAttribute("content", activeDesc);
 
     return () => {
-      // Restore previous values on unmount so navigating back works correctly
+      // Restore text-based values so navigating away doesn't flash stale text
       document.title = prevTitle;
-      if (metaDesc) metaDesc.setAttribute("content", prevDesc || DEFAULT_DESCRIPTION);
-      if (canonicalEl) canonicalEl.setAttribute("href", prevCanonical || `${BASE_URL}/`);
-      setMeta('meta[property="og:title"]',       prevOgTitle);
-      setMeta('meta[property="og:description"]',  prevOgDesc);
-      setMeta('meta[property="og:url"]',          prevOgUrl);
-      setMeta('meta[name="twitter:title"]',       prevTwTitle);
-      setMeta('meta[name="twitter:description"]', prevTwDesc);
+      if (metaDesc) metaDesc.setAttribute("content", prevDesc);
+      ogTitleEl?.setAttribute("content", prevOgTitle);
+      ogDescEl?.setAttribute("content",  prevOgDesc);
+      twTitleEl?.setAttribute("content", prevTwTitle);
+      twDescEl?.setAttribute("content",  prevTwDesc);
+      // Canonical and og:url are NOT restored — the next route owns them.
     };
   }, [title, description]);
 }
