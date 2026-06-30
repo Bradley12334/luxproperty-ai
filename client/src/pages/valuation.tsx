@@ -48,6 +48,20 @@ import {
   Leaf,
   ChevronDown,
   ChevronUp,
+  Target,
+  Banknote,
+  FileText,
+  Receipt,
+  Users,
+  BadgeCheck,
+  ThumbsUp,
+  ThumbsDown,
+  Minus,
+  PoundSterling,
+  Hammer,
+  ShieldAlert,
+  Waves,
+  BatteryLow,
 } from "lucide-react";
 import {
   runValuation,
@@ -832,6 +846,630 @@ function SdltTable({ price }: { price: number }) {
   );
 }
 
+
+// ─── Deal Quality Verdict ─────────────────────────────────────────────────────
+// Derives a single plain-English verdict by comparing asking price vs the
+// fair value band. Displayed prominently in the PropertyHero section.
+
+type DealQuality = "well_priced" | "fairly_priced" | "above_comparables" | "insufficient_data";
+
+function getDealQuality(
+  askingPrice: number | null,
+  estimate: { low: number; mid: number; high: number } | null,
+  comparableCount: number,
+): DealQuality {
+  if (!estimate || comparableCount < 3) return "insufficient_data";
+  if (!askingPrice) return "insufficient_data";
+  if (askingPrice <= estimate.low) return "well_priced";
+  if (askingPrice <= estimate.high) return "fairly_priced";
+  return "above_comparables";
+}
+
+const DEAL_QUALITY_CONFIG: Record<DealQuality, {
+  label: string;
+  explanation: string;
+  chipClass: string;
+  icon: React.ReactNode;
+}> = {
+  well_priced: {
+    label: "Well priced",
+    explanation: "The asking price is at or below the range supported by recent comparable sales.",
+    chipClass: "bg-green-50 border-green-400/50 text-green-800 dark:bg-green-950/30 dark:border-green-500/40 dark:text-green-300",
+    icon: <ThumbsUp className="h-3.5 w-3.5" />,
+  },
+  fairly_priced: {
+    label: "Fairly priced",
+    explanation: "The asking price is in line with what similar properties have sold for nearby.",
+    chipClass: "bg-blue-50 border-blue-400/50 text-blue-800 dark:bg-blue-950/30 dark:border-blue-500/40 dark:text-blue-300",
+    icon: <BadgeCheck className="h-3.5 w-3.5" />,
+  },
+  above_comparables: {
+    label: "Priced above comparables",
+    explanation: "The asking price is higher than recent comparable sales suggest. Condition or demand may justify a premium — but go in informed.",
+    chipClass: "bg-amber-50 border-amber-400/50 text-amber-800 dark:bg-amber-950/30 dark:border-amber-500/40 dark:text-amber-300",
+    icon: <ThumbsDown className="h-3.5 w-3.5" />,
+  },
+  insufficient_data: {
+    label: "Insufficient data",
+    explanation: "We don't have enough recent comparable sales to make a reliable assessment. Treat this range as indicative only.",
+    chipClass: "bg-muted border-border text-muted-foreground",
+    icon: <Minus className="h-3.5 w-3.5" />,
+  },
+};
+
+function DealQualityBadge({ quality }: { quality: DealQuality }) {
+  const cfg = DEAL_QUALITY_CONFIG[quality];
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold ${cfg.chipClass}`}>
+      {cfg.icon}
+      {cfg.label}
+    </div>
+  );
+}
+
+// ─── Asking Price Bar ─────────────────────────────────────────────────────────
+// Visual fair value band with the asking price plotted as a marker.
+// If the asking price is outside the band, the bar extends to show the gap.
+
+function AskingPriceBar({
+  estimate,
+  askingPrice,
+}: {
+  estimate: { low: number; mid: number; high: number };
+  askingPrice: number | null;
+}) {
+  if (!askingPrice) return null;
+
+  // Determine the full range to render including asking price
+  const barMin = Math.min(estimate.low, askingPrice) * 0.995;
+  const barMax = Math.max(estimate.high, askingPrice) * 1.005;
+  const totalSpan = barMax - barMin;
+
+  const bandLeft  = ((estimate.low  - barMin) / totalSpan) * 100;
+  const bandWidth = ((estimate.high - estimate.low) / totalSpan) * 100;
+  const midPct    = ((estimate.mid  - barMin) / totalSpan) * 100;
+  const askPct    = ((askingPrice   - barMin) / totalSpan) * 100;
+
+  const askingAbove = askingPrice > estimate.high;
+  const askingBelow = askingPrice < estimate.low;
+
+  return (
+    <div className="mt-4 mb-2">
+      <div className="relative h-5 rounded-full bg-muted/50 overflow-visible">
+        {/* Fair value band — the green/teal zone */}
+        <div
+          className="absolute top-0 h-full rounded-full bg-primary/20 border border-primary/30"
+          style={{ left: `${bandLeft}%`, width: `${bandWidth}%` }}
+        />
+        {/* Mid marker — thin vertical line */}
+        <div
+          className="absolute top-[-3px] bottom-[-3px] w-0.5 bg-primary/60 rounded-full"
+          style={{ left: `${midPct}%`, transform: "translateX(-50%)" }}
+        />
+        {/* Asking price marker */}
+        <div
+          className={`absolute top-[-4px] bottom-[-4px] w-1 rounded-full shadow-sm ${
+            askingAbove ? "bg-amber-500" : askingBelow ? "bg-green-500" : "bg-foreground"
+          }`}
+          style={{ left: `${askPct}%`, transform: "translateX(-50%)" }}
+        />
+      </div>
+      {/* Legend */}
+      <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+        <span>Conservative <span className="font-semibold text-foreground">£{estimate.low.toLocaleString("en-GB")}</span></span>
+        <span className="hidden sm:inline">Likely <span className="font-semibold text-foreground">£{estimate.mid.toLocaleString("en-GB")}</span></span>
+        <span>Optimistic <span className="font-semibold text-foreground">£{estimate.high.toLocaleString("en-GB")}</span></span>
+      </div>
+      {askingPrice && (
+        <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className={`h-2.5 w-2.5 rounded-full ${askingAbove ? "bg-amber-500" : askingBelow ? "bg-green-500" : "bg-foreground"}`} />
+          Asking price: <span className="font-semibold text-foreground">£{askingPrice.toLocaleString("en-GB")}</span>
+          {askingAbove && (
+            <span className="text-amber-600 dark:text-amber-400 font-medium">
+              — £{(askingPrice - estimate.high).toLocaleString("en-GB")} above the comparable range
+            </span>
+          )}
+          {askingBelow && (
+            <span className="text-green-700 dark:text-green-400 font-medium">
+              — £{(estimate.low - askingPrice).toLocaleString("en-GB")} below the comparable range
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Honest Confidence Signal ─────────────────────────────────────────────────
+// Plain-English, cites actual numbers. Replaces vague "High/Medium/Low" label.
+
+function ConfidenceSignal({
+  comparableCount,
+  searchRadiusMiles,
+  valuationState,
+}: {
+  comparableCount: number;
+  searchRadiusMiles: number;
+  valuationState: string;
+}) {
+  const radiusText = searchRadiusMiles === 0
+    ? "same postcode"
+    : `${searchRadiusMiles} mile${searchRadiusMiles === 1 ? "" : "s"} of this postcode`;
+
+  const quality =
+    valuationState === "unavailable"
+      ? null
+      : comparableCount >= 8
+      ? "solid"
+      : comparableCount >= 4
+      ? "moderate"
+      : "thin";
+
+  if (!quality) return null;
+
+  const qualityText =
+    quality === "solid"
+      ? "solid data"
+      : quality === "moderate"
+      ? "reasonable data"
+      : "treat this range as indicative";
+
+  const qualityColour =
+    quality === "solid"
+      ? "text-green-700 dark:text-green-400"
+      : quality === "moderate"
+      ? "text-blue-600 dark:text-blue-400"
+      : "text-amber-600 dark:text-amber-400";
+
+  return (
+    <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+      Based on{" "}
+      <span className="font-semibold text-foreground">{comparableCount} comparable sale{comparableCount === 1 ? "" : "s"}</span>{" "}
+      within the {radiusText} —{" "}
+      <span className={`font-medium ${qualityColour}`}>{qualityText}</span>.
+    </p>
+  );
+}
+
+// ─── Risk Alert Strip ─────────────────────────────────────────────────────────
+// Surfaces deal-breaker signals before the user reads the full sections.
+// Shown only when Flag conditions exist. Each alert is one sentence max.
+
+interface RiskAlert {
+  id: string;
+  icon: React.ReactNode;
+  message: string;
+  level: "critical" | "warning";
+}
+
+function buildRiskAlerts(report: ValuationReport): RiskAlert[] {
+  const alerts: RiskAlert[] = [];
+  const ls = report.leaseholdSummary;
+  const epc = report.epc;
+  const pf = report.propertyFacts;
+
+  // Leasehold — short lease
+  if (ls.isLeasehold && ls.leaseYearsRemaining !== null) {
+    if (ls.leaseWarning === "critical") {
+      alerts.push({
+        id: "leasehold_critical",
+        level: "critical",
+        icon: <ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />,
+        message: `This property has a ${ls.leaseYearsRemaining}-year lease. Leases under 80 years can be expensive to extend and may affect mortgage eligibility. Ask the vendor's solicitor for full lease terms before proceeding.`,
+      });
+    } else if (ls.leaseWarning === "caution") {
+      alerts.push({
+        id: "leasehold_caution",
+        level: "warning",
+        icon: <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />,
+        message: `This property has a ${ls.leaseYearsRemaining}-year lease. As the lease shortens below 80 years, extension costs rise and mortgageability may be affected.`,
+      });
+    }
+  }
+
+  // EPC F/G
+  if (epc && (epc.band === "F" || epc.band === "G")) {
+    alerts.push({
+      id: "epc_low",
+      level: "warning",
+      icon: <BatteryLow className="h-3.5 w-3.5 shrink-0 mt-0.5" />,
+      message: `This property has an EPC rating of ${epc.band}. This is below average and will cost more to heat. It may be unmortgageable for buy-to-let purposes. Factor in retrofit costs before making an offer.`,
+    });
+  }
+
+  // Flood risk — from ownershipCosts floodRiskNote (present if zone 2/3)
+  const floodNote = report.ownershipCosts?.floodRiskNote;
+  if (floodNote && floodNote.toLowerCase().includes("zone 3")) {
+    alerts.push({
+      id: "flood_3",
+      level: "critical",
+      icon: <Waves className="h-3.5 w-3.5 shrink-0 mt-0.5" />,
+      message: "This postcode is in Flood Zone 3 (high probability of flooding). This is a material risk. Review the Environment Agency flood maps and discuss with your conveyancer.",
+    });
+  } else if (floodNote && floodNote.toLowerCase().includes("zone 2")) {
+    alerts.push({
+      id: "flood_2",
+      level: "warning",
+      icon: <Waves className="h-3.5 w-3.5 shrink-0 mt-0.5" />,
+      message: "This postcode is in Flood Zone 2 (medium probability of flooding). Buildings insurance may be more expensive. Get a specific insurance quote before exchange.",
+    });
+  }
+
+  // Planning — more than 2 applications
+  if (report.planning.length > 2) {
+    alerts.push({
+      id: "planning",
+      level: "warning",
+      icon: <Hammer className="h-3.5 w-3.5 shrink-0 mt-0.5" />,
+      message: `There are ${report.planning.length} planning applications within the area in the past 3 years. Review these before committing — they could affect your enjoyment or the property's future value.`,
+    });
+  }
+
+  return alerts;
+}
+
+function RiskAlertStrip({ report }: { report: ValuationReport }) {
+  const alerts = buildRiskAlerts(report);
+  if (alerts.length === 0) return null;
+
+  return (
+    <section aria-label="Risk alerts" className="space-y-2">
+      {alerts.map((a) => (
+        <div
+          key={a.id}
+          className={`flex gap-2.5 items-start rounded-xl border px-4 py-3 ${
+            a.level === "critical"
+              ? "border-red-300/60 bg-red-50/70 dark:bg-red-950/20 dark:border-red-500/30 text-red-800 dark:text-red-300"
+              : "border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-500/30 text-amber-800 dark:text-amber-300"
+          }`}
+        >
+          <span className={a.level === "critical" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}>
+            {a.icon}
+          </span>
+          <p className="text-[11px] leading-relaxed">{a.message}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ─── Recommended Opening Offer ────────────────────────────────────────────────
+// Derives a single £ figure and a short rationale. No asking price input required
+// on the page — the block adapts based on where asking price sits vs the band.
+// (If no asking price is known, it anchors to the 40th percentile of the band.)
+
+function RecommendedOpeningOffer({
+  estimate,
+  askingPrice,
+  comparableCount,
+}: {
+  estimate: { low: number; mid: number; high: number };
+  askingPrice: number | null;
+  comparableCount: number;
+}) {
+  if (comparableCount < 3) return null;
+
+  // Calculate opening offer
+  let openingOffer: number;
+  let rationale: string;
+  let headroomNote: string;
+
+  if (!askingPrice) {
+    // No asking price — anchor to 40th percentile of the band
+    openingOffer = Math.round((estimate.low + (estimate.mid - estimate.low) * 0.4) / 1000) * 1000;
+    rationale = "Based on the comparable range, a reasonable opening offer would be:";
+    headroomNote = `This leaves approx. £${(estimate.mid - openingOffer).toLocaleString("en-GB")} of negotiation room to the midpoint of the fair value band.`;
+  } else if (askingPrice > estimate.high) {
+    openingOffer = Math.round(estimate.low * 1.01 / 1000) * 1000;
+    rationale = `The asking price of £${askingPrice.toLocaleString("en-GB")} sits above the comparable range. An opening offer consistent with what similar properties have actually sold for would be:`;
+    headroomNote = `This leaves approx. £${(estimate.mid - openingOffer).toLocaleString("en-GB")} of negotiation room to the midpoint of the fair value band.`;
+  } else if (askingPrice >= estimate.low && askingPrice <= estimate.high) {
+    openingOffer = Math.round(askingPrice * 0.94 / 1000) * 1000;
+    rationale = `The asking price of £${askingPrice.toLocaleString("en-GB")} sits within the comparable range. An opening offer that leaves negotiating room while remaining credible would be:`;
+    headroomNote = `This leaves approx. £${(askingPrice - openingOffer).toLocaleString("en-GB")} of room to the asking price, and £${(estimate.mid - openingOffer).toLocaleString("en-GB")} to the midpoint of the fair value band.`;
+  } else {
+    // Asking price below the band — competitive pricing
+    openingOffer = Math.round(askingPrice * 0.98 / 1000) * 1000;
+    rationale = `The asking price looks competitively set — below what similar properties have sold for. Similar properties have sold for up to £${estimate.high.toLocaleString("en-GB")}. You may face competition.`;
+    headroomNote = "Consider whether to offer close to or at asking price to remain competitive.";
+  }
+
+  return (
+    <section aria-labelledby="val-opening-offer-heading" className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7">
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <Target className="h-4 w-4" />
+        </div>
+        <div>
+          <h2 id="val-opening-offer-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-0.5">Recommended opening offer</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-lg">{rationale}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <p className="font-serif text-4xl font-semibold text-foreground tracking-tight">
+            £{openingOffer.toLocaleString("en-GB")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed max-w-sm">{headroomNote}</p>
+        </div>
+        <div className="rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-[10px] text-muted-foreground leading-relaxed max-w-xs">
+          <strong className="text-foreground font-medium block mb-0.5">Starting point only.</strong>
+          Always instruct a RICS-accredited surveyor before exchanging contracts. A surveyor may identify issues that affect the value.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Market Pulse Strip ───────────────────────────────────────────────────────
+// Three compact data points: comparable sales activity, radius used, data recency.
+// Replaces vague confidence label with specific, actionable signals.
+
+function MarketPulseStrip({
+  report,
+}: {
+  report: ValuationReport;
+}) {
+  const { comparableCount, searchRadiusUsed, meta, comparableSelectionMeta: csm } = report;
+
+  // Most recent comparable date
+  const sortedComps = [...report.comparables].sort(
+    (a, b) => new Date(b.soldDate).getTime() - new Date(a.soldDate).getTime()
+  );
+  const mostRecentSale = sortedComps[0]?.soldDate ?? null;
+  const mostRecentLabel = mostRecentSale
+    ? new Date(mostRecentSale).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
+    : null;
+
+  // Months since oldest comparable
+  const oldestSale = sortedComps[sortedComps.length - 1]?.soldDate ?? null;
+  const monthsWindow = oldestSale
+    ? Math.round((Date.now() - new Date(oldestSale).getTime()) / (1000 * 60 * 60 * 24 * 30))
+    : null;
+
+  const dataItems: { label: string; value: string; sub?: string; colour?: string }[] = [
+    {
+      label: "Comparable sales used",
+      value: String(comparableCount),
+      sub: monthsWindow ? `past ${monthsWindow} months` : undefined,
+      colour: comparableCount >= 6 ? "text-green-600 dark:text-green-400" : comparableCount >= 3 ? "text-foreground" : "text-amber-600 dark:text-amber-400",
+    },
+    {
+      label: "Search radius",
+      value: searchRadiusUsed === 0 ? "Same postcode" : `${searchRadiusUsed} mile${searchRadiusUsed === 1 ? "" : "s"}`,
+      sub: searchRadiusUsed > 0.5 ? "radius expanded" : "tight radius",
+      colour: searchRadiusUsed > 1 ? "text-amber-600 dark:text-amber-400" : "text-foreground",
+    },
+    {
+      label: "Most recent sale",
+      value: mostRecentLabel ?? "Unknown",
+      sub: "in the data",
+      colour: "text-foreground",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-3 rounded-xl border border-border/50 bg-card/60 overflow-hidden">
+      {dataItems.map((item, i) => (
+        <div key={i} className={`px-4 py-3 ${i < dataItems.length - 1 ? "border-r border-border/40" : ""}`}>
+          <p className={`text-lg font-semibold font-serif ${item.colour ?? "text-foreground"}`}>{item.value}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider leading-tight">{item.label}</p>
+          {item.sub && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{item.sub}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Cost to Buy Summary ──────────────────────────────────────────────────────
+// SDLT + indicative solicitor fees + survey types + mortgage arrangement fee.
+// First-time buyers consistently underestimate total purchase costs.
+
+function CostToBuySummary({
+  report,
+}: {
+  report: ValuationReport;
+}) {
+  const sdlt = report.sdlt;
+  const purchasePrice = sdlt?.purchasePrice ?? report.estimate?.mid ?? null;
+
+  if (!purchasePrice) return null;
+
+  const isFirstTimeBuyer = sdlt?.firstTimeBuyer !== null && sdlt?.firstTimeBuyer !== undefined;
+  const sdltStandard = sdlt?.standardBuyer ?? null;
+  const sdltFTB = sdlt?.firstTimeBuyer ?? null;
+
+  // Indicative cost ranges
+  const solicitorLow = 1500;
+  const solicitorHigh = 3000;
+  const surveyConditionLow = 400;
+  const surveyConditionHigh = 600;
+  const surveyHomebuyerLow = 500;
+  const surveyHomebuyerHigh = 1000;
+  const surveyStructuralLow = 800;
+  const surveyStructuralHigh = 1500;
+  const mortgageFeeNote = "£0–£1,500 (many lenders offer fee-free options)";
+
+  // Total indicative range (using HomeBuyer survey as default)
+  const totalLow = (sdltFTB ?? sdltStandard ?? 0) + solicitorLow + surveyHomebuyerLow + 0;
+  const totalHigh = (sdltFTB ?? sdltStandard ?? 0) + solicitorHigh + surveyHomebuyerHigh + 1500;
+
+  return (
+    <section aria-labelledby="val-cost-heading" className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7">
+      <div className="flex items-start gap-3 mb-5">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <PoundSterling className="h-4 w-4" />
+        </div>
+        <div>
+          <h2 id="val-cost-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-0.5">Estimated cost to buy</h2>
+          <p className="text-xs text-muted-foreground">Based on a purchase price of £{purchasePrice.toLocaleString("en-GB")}. These are indicative figures — get quotes before committing.</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {/* SDLT */}
+        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border/40">
+          <div>
+            <p className="text-sm font-medium text-foreground">Stamp Duty (SDLT)</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Source: HMRC rates effective 1 April 2025.{" "}
+              <a href="https://www.gov.uk/stamp-duty-land-tax" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">gov.uk</a>
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            {sdltFTB !== null && sdltFTB !== undefined && (
+              <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+                £{sdltFTB.toLocaleString("en-GB")} <span className="text-[10px] font-normal text-muted-foreground">(FTB rate)</span>
+              </p>
+            )}
+            {sdltStandard !== null && (
+              <p className={`text-sm font-semibold ${sdltFTB !== null ? "text-muted-foreground text-xs line-through" : "text-foreground"}`}>
+                £{sdltStandard.toLocaleString("en-GB")}
+                {sdltFTB !== null && <span className="ml-1 text-[10px] font-normal no-underline">(standard)</span>}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Solicitor */}
+        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border/40">
+          <div>
+            <p className="text-sm font-medium text-foreground">Solicitor / conveyancing fees</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Indicative range for a residential purchase. Get quotes from at least two regulated firms.</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-semibold text-foreground">£{solicitorLow.toLocaleString("en-GB")}–£{solicitorHigh.toLocaleString("en-GB")}</p>
+          </div>
+        </div>
+
+        {/* Survey */}
+        <div className="pb-3 border-b border-border/40">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Survey</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Always recommended before exchange. Three levels:</p>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {[
+              { type: "Condition Report", range: `£${surveyConditionLow}–£${surveyConditionHigh}`, note: "Basic. For newer properties in good condition." },
+              { type: "HomeBuyer Report", range: `£${surveyHomebuyerLow}–£${surveyHomebuyerHigh}`, note: "Most common. Recommended for most purchases." },
+              { type: "Full Structural Survey", range: `£${surveyStructuralLow}–£${surveyStructuralHigh}`, note: "For older, unusual, or high-value properties." },
+            ].map((s) => (
+              <div key={s.type} className="flex items-baseline justify-between gap-3 text-[11px]">
+                <div>
+                  <span className="font-medium text-foreground">{s.type}</span>
+                  <span className="text-muted-foreground ml-1.5">— {s.note}</span>
+                </div>
+                <span className="font-semibold text-foreground shrink-0">{s.range}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Mortgage arrangement fee */}
+        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border/40">
+          <div>
+            <p className="text-sm font-medium text-foreground">Mortgage arrangement fee</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Many lenders offer fee-free products. Compare total cost of borrowing, not just the rate.</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-semibold text-foreground">{mortgageFeeNote}</p>
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="flex items-start justify-between gap-4 pt-1">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Total indicative cost to complete</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Excluding deposit and mortgage. Based on HomeBuyer Survey + FTB SDLT where eligible.</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-base font-bold text-foreground">£{totalLow.toLocaleString("en-GB")}–£{totalHigh.toLocaleString("en-GB")}</p>
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-4 text-[10px] text-muted-foreground/70 leading-relaxed border-t border-border/30 pt-3">
+        These are indicative figures only. Get quotes from a regulated solicitor, chartered surveyor, and mortgage adviser before committing. Additional costs may include search fees (£250–£500), land registration (varies), and any leasehold-specific fees.
+      </p>
+    </section>
+  );
+}
+
+// ─── Three-Step Action Panel ──────────────────────────────────────────────────
+// The only element of its kind in the market. Tells buyers exactly what to do
+// with the data they've just read.
+
+function ThreeStepActionPanel({
+  report,
+  onSave,
+}: {
+  report: ValuationReport;
+  onSave: () => void;
+}) {
+  const steps = [
+    {
+      number: "01",
+      title: "Decide whether to view",
+      icon: <Home className="h-4 w-4" />,
+      body: "If the asking price sits above the comparable range and there are risk flags, it may not be worth your time. If it's fairly priced and the risk profile is clean, it's worth a look.",
+    },
+    {
+      number: "02",
+      title: "Set your maximum before you view",
+      icon: <Target className="h-4 w-4" />,
+      body: "Decide your walk-away price before you walk through the door. Use the Optimistic figure as your absolute ceiling — not the asking price. Write it down. Buyers who set a number in advance are less likely to overbid.",
+    },
+    {
+      number: "03",
+      title: "Use this data in negotiation",
+      icon: <FileText className="h-4 w-4" />,
+      body: "When you make an offer, you can reference the comparable sales directly. Agents expect buyers to negotiate. Citing specific sold prices in the same postcode is more persuasive than saying 'I think it's overpriced.'",
+    },
+  ];
+
+  return (
+    <section aria-labelledby="val-action-heading" className="rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:p-8">
+      <div className="flex items-start gap-3 mb-6">
+        <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-primary shrink-0">
+          <Users className="h-4 w-4" />
+        </div>
+        <div>
+          <h2 id="val-action-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-0.5">What to do with this information</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">Three steps to turn this data into a decision.</p>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-5">
+        {steps.map((s) => (
+          <div key={s.number} className="flex gap-4">
+            <span className="font-serif text-3xl font-semibold text-primary/25 shrink-0 leading-none mt-0.5 select-none">{s.number}</span>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-primary/60">{s.icon}</span>
+                <h3 className="text-sm font-semibold text-foreground">{s.title}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 pt-5 border-t border-primary/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <p className="text-[11px] text-muted-foreground max-w-md leading-relaxed">
+          <strong className="text-foreground font-medium">Remember:</strong> This is a starting point based on official Land Registry data, not a formal valuation. Always instruct a RICS-accredited surveyor before exchanging contracts.
+        </p>
+        <Button size="sm" variant="outline" className="shrink-0 font-medium" onClick={onSave}>
+          <Receipt className="h-3.5 w-3.5 mr-1.5" />
+          Save this valuation
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ValuationPage() {
@@ -850,6 +1488,9 @@ export default function ValuationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signupOpen, setSignupOpen] = useState(false);
+  // Optional asking price — user can enter to get deal quality verdict and opening offer
+  const [askingPrice, setAskingPrice] = useState<number | null>(null);
+  const [askingPriceInput, setAskingPriceInput] = useState("");
   // Effective valuation tier resolved server-side from both Brief and Valuation entitlements
   const [effectiveTier, setEffectiveTier] = useState<PlanTier>("free");
   const resultRef = useRef<HTMLDivElement>(null);
@@ -1018,6 +1659,117 @@ export default function ValuationPage() {
                 </p>
               </div>
             )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                NEW: ASKING PRICE INPUT + DEAL QUALITY VERDICT + OPENING OFFER
+            ════════════════════════════════════════════════════════════════ */}
+            {report.estimate && (
+              <section className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 space-y-4">
+                {/* Header */}
+                <div>
+                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-3">Fair value band</h2>
+
+                  {/* Three-figure band */}
+                  <div className="grid grid-cols-3 gap-3 mb-2">
+                    {[
+                      { label: "Conservative", tooltip: "The lower end of what comparable sales in this area support. Properties needing work or with less kerb appeal tend to sell here.", val: report.estimate.low },
+                      { label: "Likely", tooltip: "The midpoint of recent comparable sales for this type of property. Your most reliable anchor point.", val: report.estimate.mid },
+                      { label: "Optimistic", tooltip: "The upper end — well-presented, well-located examples that sold quickly.", val: report.estimate.high },
+                    ].map((f) => (
+                      <div key={f.label} className="rounded-xl border border-border/50 bg-background p-3 sm:p-4 text-center" title={f.tooltip}>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{f.label}</p>
+                        <p className="font-serif text-xl sm:text-2xl font-semibold text-foreground">£{f.val.toLocaleString("en-GB")}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Confidence signal */}
+                  <ConfidenceSignal
+                    comparableCount={report.comparableCount}
+                    searchRadiusMiles={report.searchRadiusUsed}
+                    valuationState={report.valuationState}
+                  />
+                </div>
+
+                {/* Asking price input */}
+                <div className="border-t border-border/40 pt-4">
+                  <p className="text-[11px] text-muted-foreground mb-2 font-medium">
+                    Enter the asking price to get a deal quality verdict and opening offer suggestion:
+                  </p>
+                  <div className="flex gap-2 max-w-xs">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">£</span>
+                      <Input
+                        className="pl-7 text-sm"
+                        placeholder="e.g. 350000"
+                        value={askingPriceInput}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9]/g, "");
+                          setAskingPriceInput(raw);
+                          const n = parseInt(raw);
+                          setAskingPrice(isNaN(n) || n < 10000 ? null : n);
+                        }}
+                        data-testid="input-asking-price"
+                      />
+                    </div>
+                    {askingPrice && (
+                      <Button size="sm" variant="ghost" className="text-muted-foreground px-2" onClick={() => { setAskingPrice(null); setAskingPriceInput(""); }}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Deal quality verdict — only when asking price is entered */}
+                {askingPrice && report.estimate && (() => {
+                  const quality = getDealQuality(askingPrice, report.estimate, report.comparableCount);
+                  const cfg = DEAL_QUALITY_CONFIG[quality];
+                  return (
+                    <div className="border-t border-border/40 pt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <DealQualityBadge quality={quality} />
+                      <p className="text-xs text-muted-foreground leading-relaxed max-w-md">{cfg.explanation}</p>
+                    </div>
+                  );
+                })()}
+
+                {/* Asking price bar — shown when estimate exists (optionally with asking price) */}
+                <AskingPriceBar estimate={report.estimate} askingPrice={askingPrice} />
+
+                {/* Methodology tooltip */}
+                <details className="text-[10px] text-muted-foreground/70 cursor-pointer">
+                  <summary className="flex items-center gap-1 hover:text-muted-foreground transition-colors list-none">
+                    <HelpCircle className="h-3 w-3" /> How was this calculated?
+                  </summary>
+                  <p className="mt-2 leading-relaxed max-w-lg pl-4 border-l border-border/40">
+                    We take every recorded sale within {report.searchRadiusUsed > 0 ? `${report.searchRadiusUsed} miles` : "the same postcode"} from HM Land Registry. We filter for the same property type, then take the median. No automated valuation models. No AI-generated estimates. Every figure traces back to an official Land Registry transaction record.
+                    {" "}<a href="https://landregistry.data.gov.uk" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground inline-flex items-center gap-0.5">Land Registry Price Paid Data (OGL v3.0) <ExternalLink className="h-2.5 w-2.5" /></a>. Typically lags 2–8 weeks after completion.
+                  </p>
+                </details>
+              </section>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                NEW: MARKET PULSE STRIP
+            ════════════════════════════════════════════════════════════════ */}
+            {report.comparables.length > 0 && (
+              <MarketPulseStrip report={report} />
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                NEW: RECOMMENDED OPENING OFFER
+            ════════════════════════════════════════════════════════════════ */}
+            {report.estimate && report.comparableCount >= 3 && (
+              <RecommendedOpeningOffer
+                estimate={report.estimate}
+                askingPrice={askingPrice}
+                comparableCount={report.comparableCount}
+              />
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                NEW: RISK ALERT STRIP
+            ════════════════════════════════════════════════════════════════ */}
+            <RiskAlertStrip report={report} />
 
             {/* ════════════════════════════════════════════════════════════════
                 2. NEARBY SOLD EVIDENCE CARDS
@@ -1716,6 +2468,16 @@ export default function ValuationPage() {
                 ))}
               </div>
             </section>
+
+            {/* ════════════════════════════════════════════════════════════════
+                NEW: COST TO BUY SUMMARY
+            ════════════════════════════════════════════════════════════════ */}
+            <CostToBuySummary report={report} />
+
+            {/* ════════════════════════════════════════════════════════════════
+                NEW: THREE-STEP ACTION PANEL
+            ════════════════════════════════════════════════════════════════ */}
+            <ThreeStepActionPanel report={report} onSave={() => setSignupOpen(true)} />
 
             {/* ════════════════════════════════════════════════════════════════
                 15. DATA ACCURACY NOTICE + CROSS-LINK
