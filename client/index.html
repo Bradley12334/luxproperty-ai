@@ -2,30 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- NOTE: maximum-scale removed — it blocked user zoom (accessibility fail + Google penalty) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Primary SEO -->
+    <!-- Primary SEO — per-page values are overridden by useDocumentTitle() in each route -->
     <title>LuxProperty.ai — UK Property Intelligence. Instantly.</title>
-    <meta name="description" content="AI-powered property intelligence for UK buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data." />
-    <meta name="keywords" content="UK property intelligence, property market analysis, house price data, land registry, buyer intelligence brief, property investment, postcode analysis" />
+    <meta name="description" content="AI-powered property intelligence for UK buyers. Enter any UK postcode and get a complete buyer intelligence brief in seconds — built on official HM Land Registry data, EPC Register, and more." />
+    <meta name="keywords" content="UK property intelligence, property market analysis, house price checker, land registry sold prices, buyer intelligence brief, postcode property data, first time buyer, property valuation" />
     <meta name="author" content="LuxProperty AI Ltd" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+
+    <!-- Canonical — updated per-route by useDocumentTitle() -->
     <link rel="canonical" href="https://www.luxproperty.ai/" />
 
-    <!-- Open Graph / Facebook -->
+    <!-- Open Graph / Facebook — updated per-route by useDocumentTitle() -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.luxproperty.ai/" />
     <meta property="og:title" content="LuxProperty.ai — UK Property Intelligence. Instantly." />
-    <meta property="og:description" content="Enter any UK postcode or address. Get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data." />
+    <meta property="og:description" content="Enter any UK postcode. Get a complete buyer intelligence brief in seconds — built on official HM Land Registry data, not estimates." />
     <meta property="og:site_name" content="LuxProperty.ai" />
     <meta property="og:locale" content="en_GB" />
+    <meta property="og:image" content="https://www.luxproperty.ai/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
-    <!-- Twitter Card -->
+    <!-- Twitter Card — updated per-route by useDocumentTitle() -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="LuxProperty.ai — UK Property Intelligence. Instantly." />
-    <meta name="twitter:description" content="Enter any UK postcode or address. Get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data." />
-
-    <!-- Robots -->
-    <meta name="robots" content="index, follow" />
+    <meta name="twitter:description" content="Enter any UK postcode. Get a complete buyer intelligence brief in seconds — built on official HM Land Registry data." />
+    <meta name="twitter:image" content="https://www.luxproperty.ai/og-image.png" />
 
     <!-- Favicon -->
     <link rel="shortcut icon" href="/favicon.ico" />
@@ -34,27 +39,51 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png?v=2" />
     <link rel="apple-touch-icon" href="/favicon.png?v=2" />
 
-    <!-- Instrument Serif from Google Fonts -->
+    <!-- Fonts: preconnect first (critical for LCP), then non-blocking load -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Switzer from Fontshare -->
-    <link
-      href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="preconnect" href="https://api.fontshare.com" />
 
-    <!-- Google Analytics GA4 — consent-gated -->
+    <!--
+      Instrument Serif — load non-blocking with media trick.
+      The onload swaps media to 'all' so it applies without blocking render.
+    -->
+    <link
+      rel="preload"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
+      as="style"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <!--
+      Switzer (body font) — same non-blocking pattern.
+    -->
+    <link
+      rel="preload"
+      href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap"
+      as="style"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link
+        href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <!-- Google Analytics GA4 — consent-gated (no analytics until cookie accepted) -->
     <script>
-      // Default to denied until user accepts cookie banner
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('consent', 'default', { analytics_storage: 'denied' });
       gtag('js', new Date());
-      gtag('config', 'G-H5Q3J0G6K8');
+      gtag('config', 'G-H5Q3J0G6K8', { send_page_view: false });
     </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-H5Q3J0G6K8"></script>
 
@@ -65,12 +94,33 @@
       "@type": "Organization",
       "name": "LuxProperty AI Ltd",
       "url": "https://www.luxproperty.ai",
+      "logo": "https://www.luxproperty.ai/favicon.png",
       "description": "AI-powered UK property intelligence platform. Instant buyer briefs built on HM Land Registry data.",
       "foundingDate": "2026",
       "legalName": "LuxProperty AI Ltd",
       "address": {
         "@type": "PostalAddress",
         "addressCountry": "GB"
+      },
+      "sameAs": []
+    }
+    </script>
+
+    <!-- Structured Data: WebSite with SearchAction (enables Google Sitelinks Search Box) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "LuxProperty.ai",
+      "url": "https://www.luxproperty.ai",
+      "description": "AI-powered property intelligence for UK buyers. Instant briefs built on official HM Land Registry data.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://www.luxproperty.ai/area/{search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
       }
     }
     </script>
@@ -84,28 +134,30 @@
       "url": "https://www.luxproperty.ai",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
-      "description": "Generate professional UK property intelligence briefs instantly from any postcode or address. Built on HM Land Registry data.",
+      "description": "Generate professional UK property intelligence briefs instantly from any postcode. Built on HM Land Registry Price Paid Data, EPC Register, Ofsted, and police.uk.",
       "offers": [
         {
           "@type": "Offer",
           "name": "Explorer",
           "price": "0",
           "priceCurrency": "GBP",
-          "description": "3 free briefs per month"
+          "description": "3 free briefs per month. Area overview, 1-year price trend, flood risk, council tax."
         },
         {
           "@type": "Offer",
           "name": "Professional",
           "price": "4.99",
           "priceCurrency": "GBP",
-          "description": "Unlimited briefs with deep dive analysis"
+          "billingPeriod": "P1M",
+          "description": "Unlimited briefs. Comparable sales, pre-offer strategy, 5-year price trend, PDF export."
         },
         {
           "@type": "Offer",
           "name": "Investor",
           "price": "39.99",
           "priceCurrency": "GBP",
-          "description": "Full portfolio management and advanced analytics"
+          "billingPeriod": "P1M",
+          "description": "10-year price trend, rental demand score, sold prices map, portfolio dashboard."
         }
       ]
     }

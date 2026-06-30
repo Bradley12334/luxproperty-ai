@@ -307,6 +307,29 @@ export default function AreaPage() {
       : "Before you make an offer, here is how to properly check a neighbourhood in the UK — crime, flood risk, schools, transport, planning and more."
   );
 
+  // Structured data — BreadcrumbList for area pages
+  useEffect(() => {
+    if (!area) return;
+    const scriptId = "ld-breadcrumb-area";
+    let el = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = scriptId;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.luxproperty.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Area Reports", "item": "https://www.luxproperty.ai/area/guide" },
+        { "@type": "ListItem", "position": 3, "name": `${area.name} (${postcode})`, "item": `https://www.luxproperty.ai/area/${postcode}` }
+      ]
+    });
+    return () => { el?.remove(); };
+  }, [postcode, area]);
+
   // Unknown postcode (including /area/guide) — render the editorial guide
   if (!area) {
     return <GuidePage navigate={navigate} />;

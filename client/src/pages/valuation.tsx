@@ -1478,6 +1478,45 @@ export default function ValuationPage() {
     "Get an instant valuation estimate for any UK property. Backed by HM Land Registry Price Paid Data and the UK House Price Index."
   );
 
+  // FAQ structured data for valuation page
+  useEffect(() => {
+    const scriptId = "ld-faq-valuation";
+    let el = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!el) {
+      el = document.createElement("script");
+      el.id = scriptId;
+      el.type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How accurate is LuxProperty.ai's property valuation?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Our valuation estimates are built on HM Land Registry Price Paid Data and the UK House Price Index — official government datasets covering millions of transactions. We show a valuation range, not a single number, to reflect genuine market uncertainty. Accuracy depends on comparable sales volume in your postcode." }
+        },
+        {
+          "@type": "Question",
+          "name": "What data does the UK property valuation use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "We use HM Land Registry Price Paid Data (updated monthly), the UK House Price Index, EPC energy ratings, and postcode-level market statistics from Postcodes.io. No invented or estimated figures — every metric is sourced from an official public dataset." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is the property valuation tool free to use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes, the Explorer plan is free and includes access to valuation data. Professional (\u00a34.99/month) and Investor (\u00a339.99/month) plans unlock deeper comparables, deal quality scoring, and full market analysis." }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use this for any UK postcode?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Enter any full UK postcode (e.g. SW3 4LX) or outcode (e.g. SW3) and we will pull comparable sold prices and market data for that area. Coverage depends on Land Registry transaction volume, which is higher in urban areas." }
+        }
+      ]
+    });
+    return () => { el?.remove(); };
+  }, []);
+
   const { isSignedIn, user } = useAuth();
   // Pre-fill postcode from ?q= query param (e.g. from Brief → Valuation cross-link)
   const initialQ = typeof window !== "undefined"

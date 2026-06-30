@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -245,6 +246,11 @@ export default function ComparePage() {
     ? new URLSearchParams(window.location.search).get("a") ??
       ""
     : "";
+
+  useDocumentTitle(
+    "Compare Two UK Postcodes",
+    "Side-by-side property comparison for any two UK postcodes. Compare average prices, flood risk, schools, transport, crime, and EPC ratings. Built on official HM Land Registry data."
+  );
 
   const [postcodeA, setPostcodeA] = useState(initialA);
   const [postcodeB, setPostcodeB] = useState("");

@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /account
+Disallow: /account/
+Disallow: /reset-password
+Disallow: /reset-password/
+Disallow: /api/
+Disallow: /api
 
 Sitemap: https://www.luxproperty.ai/sitemap.xml
