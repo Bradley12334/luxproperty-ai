@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+
+// Extend Window so TypeScript knows gtag exists (declared in index.html)
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+  }
+}
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Header } from "@/components/header";
@@ -18,6 +25,13 @@ export default function SuccessPage() {
     const params = new URLSearchParams(window.location.search);
     const p = params.get("plan");
     if (p === "professional" || p === "investor") setPlan(p);
+  }, []);
+
+  // Google Ads conversion — fires once on mount, only on this page
+  useEffect(() => {
+    if (typeof window.gtag === "function") {
+      window.gtag("event", "conversion_event_subscribe_paid");
+    }
   }, []);
 
   const planLabel = plan === "investor" ? "Investor" : "Professional";
