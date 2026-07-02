@@ -26,7 +26,7 @@ const tiers = [
     style: "professional",
     cta: "Start Professional",
     ctaVariant: "default" as const,
-    stripeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00",
+    stripeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional",
   },
   {
     name: "Investor",
@@ -37,7 +37,7 @@ const tiers = [
     style: "investor",
     cta: "Start Investor",
     ctaVariant: "default" as const,
-    stripeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01",
+    stripeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
   },
 ];
 
@@ -278,7 +278,7 @@ export default function PricingPage() {
               Comparable sales, a pre-offer strategy with fair value range and opening range, 5-year price history, crime and planning context, and a PDF you can keep or share. Any UK postcode. £4.99/month — cancel any time.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00`} target="_blank" rel="noopener noreferrer">
+              <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional`} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-professional">
                   Start Professional — £4.99/month
                 </Button>

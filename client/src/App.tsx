@@ -19,6 +19,7 @@ import AreaPage from "@/pages/area";
 import ComparePage from "@/pages/compare";
 import FeedbackPage from "@/pages/feedback";
 import ValuationPage from "@/pages/valuation";
+import SuccessPage from "@/pages/success";
 
 function AppRouter() {
   return (
@@ -36,6 +37,7 @@ function AppRouter() {
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/feedback" component={FeedbackPage} />
       <Route path="/valuation" component={ValuationPage} />
+      <Route path="/success" component={SuccessPage} />
       <Route component={NotFound} />
     </Switch>
   );

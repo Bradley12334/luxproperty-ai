@@ -749,7 +749,7 @@ export default function Home() {
                 <Button
                   className="w-full text-[13px] font-semibold"
                   data-testid="button-pricing-professional"
-                  onClick={() => window.open("https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00", "_blank", "noopener,noreferrer")}
+                  onClick={() => window.open("https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional", "_blank", "noopener,noreferrer")}
                 >
                   Start Professional
                 </Button>
@@ -787,7 +787,7 @@ export default function Home() {
                   variant="outline"
                   className="w-full text-[12px] font-semibold border-border/60 text-foreground/60 hover:text-foreground"
                   data-testid="button-pricing-investor"
-                  onClick={() => window.open("https://buy.stripe.com/8x200l2oKdP229WfJa6Na01", "_blank", "noopener,noreferrer")}
+                  onClick={() => window.open("https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor", "_blank", "noopener,noreferrer")}
                 >
                   Start Investor
                 </Button>
