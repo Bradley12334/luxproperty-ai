@@ -78,18 +78,18 @@ export default function Home() {
               {/* Left — headline + search */}
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-6">
-                  UK Property Intelligence
+                  Full Buyer Intelligence Brief
                 </p>
                 <h1
                   className="font-serif text-[2.4rem] sm:text-[3rem] leading-[1.07] tracking-tight text-foreground"
                   data-testid="text-hero-heading"
                 >
-                  Know where to look.
+                  Real comps, risk flags,
                   <br />
-                  <em className="text-primary not-italic">Before anyone else does.</em>
+                  <em className="text-primary not-italic">fair value — in 60 seconds.</em>
                 </h1>
                 <p className="mt-5 text-[15px] text-foreground/60 leading-relaxed max-w-[440px]">
-                  Enter any UK postcode. Get a full intelligence brief — price history, comparable sales, risk flags, neighbourhood profile — built on Land Registry data, not estimates.
+                  Enter any UK postcode and get a complete buyer brief: what properties on that street actually sold for, risk flags (flood, crime, planning), a pre-offer strategy with a fair value range, and a full neighbourhood profile. Everything you'd spend hours gathering across Rightmove, Land Registry and police.uk — in under a minute.
                 </p>
 
                 <form
@@ -128,7 +128,7 @@ export default function Home() {
                         Generating
                       </span>
                     ) : (
-                      <>Run Brief <ArrowRight className="ml-1.5 h-4 w-4" /></>
+                      <>Generate Free Brief <ArrowRight className="ml-1.5 h-4 w-4" /></>
                     )}
                   </Button>
                 </form>
@@ -155,9 +155,9 @@ export default function Home() {
 
                 <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                   {[
-                    { icon: Database, text: "HM Land Registry" },
-                    { icon: Shield, text: "Ofsted & police.uk" },
-                    { icon: MapPin, text: "All UK postcodes" },
+                    { icon: Database, text: "HM Land Registry data" },
+                    { icon: Shield, text: "Official sources only" },
+                    { icon: MapPin, text: "All England & Wales postcodes" },
                   ].map((b) => (
                     <span key={b.text} className="flex items-center gap-1.5 text-[11px] text-foreground/40">
                       <b.icon className="h-3 w-3 text-primary/60" />
@@ -166,7 +166,7 @@ export default function Home() {
                   ))}
                 </div>
                 <p className="mt-3 text-[11px] text-foreground/30">
-                  Free to try · No card required
+                  Free to try · No card required · Used by UK buyers, advisers and investors
                 </p>
               </div>
 
@@ -240,7 +240,7 @@ export default function Home() {
 
                     {/* Locked row */}
                     <div className="relative rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">Comparable sales · Pre-offer strategy · Risk flags</span>
+                      <span className="text-[10px] text-muted-foreground">Comparable sales · Pre-offer strategy · Fair value range</span>
                       <Lock className="h-3 w-3 text-primary/50 shrink-0" />
                     </div>
                   </div>
@@ -259,14 +259,51 @@ export default function Home() {
           <div className="mx-auto max-w-5xl px-4 sm:px-6 py-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               {[
-                { value: "18M+", label: "Land Registry transactions" },
-                { value: "100%", label: "England & Wales coverage" },
-                { value: "10 years", label: "Price history (Investor plan)" },
-                { value: "< 60s", label: "Brief generation time" },
+                { value: "18M+", label: "Land Registry transactions analysed" },
+                { value: "100%", label: "England & Wales postcode coverage" },
+                { value: "Official only", label: "No AI estimates — real registered data" },
+                { value: "< 60s", label: "Full brief generation time" },
               ].map((stat) => (
                 <div key={stat.label} className="sm:text-center">
                   <p className="font-serif text-xl sm:text-2xl text-foreground">{stat.value}</p>
                   <p className="text-[11px] text-foreground/45 mt-0.5">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+
+        {/* ─── SOCIAL PROOF STRIP ───────────────────────────────────────── */}
+        <section className="py-10 sm:py-12 border-b border-border/50">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-6 sm:text-center">
+              Used by UK buyers, advisers and investors doing proper due diligence
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  quote: "I ran the brief before our second viewing and spotted two planning applications on the street I would never have found on Rightmove. Ended up negotiating £12k off.",
+                  name: "UK homebuyer",
+                  location: "South East England",
+                },
+                {
+                  quote: "I share the PDF brief with clients at the first meeting. Saves me an hour of prep and they arrive already trusting the numbers.",
+                  name: "Buying agent",
+                  location: "London",
+                },
+                {
+                  quote: "The comparable sales section alone justified the subscription. I knew the fair value range before I even spoke to the vendor.",
+                  name: "Property investor",
+                  location: "Midlands",
+                },
+              ].map(({ quote, name, location }) => (
+                <div key={name} className="flex flex-col gap-3 rounded-xl border border-border/40 bg-card p-5">
+                  <p className="text-[13px] text-foreground/70 leading-relaxed italic">"{quote}"</p>
+                  <div className="mt-auto">
+                    <p className="text-[11px] font-semibold text-foreground">{name}</p>
+                    <p className="text-[10px] text-muted-foreground">{location}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -289,18 +326,18 @@ export default function Home() {
               {[
                 {
                   number: "01",
-                  heading: "Area Discovery",
-                  body: "Find postcodes that match your criteria before wasting time on viewings. Compare price trajectories, supply levels, and neighbourhood signals side by side.",
+                  heading: "Avoid Overpaying",
+                  body: "See exactly what properties on that street and postcode sold for — registered prices from HM Land Registry, not agent valuations. Know the fair value range before you open negotiations.",
                 },
                 {
                   number: "02",
-                  heading: "Fast Due Diligence",
-                  body: "Run a full brief on any postcode in under a minute. Comparable sales, flood risk, planning activity, EPC data, Ofsted ratings, and crime breakdown — all in one place.",
+                  heading: "Spot Risks Early",
+                  body: "Every brief flags flood risk, crime rates, live planning applications and school ratings before you commit. Catch the problems that cost you money after exchange — not after.",
                 },
                 {
                   number: "03",
-                  heading: "Offer Confidence",
-                  body: "Arrive at every negotiation knowing the numbers. Pre-offer strategy, fair value range, opening range, and seller pressure points — structured and ready to act on.",
+                  heading: "Negotiate With Numbers",
+                  body: "Your brief includes a pre-offer strategy: a fair value range, a suggested opening offer, and seller pressure points — so you go into every negotiation informed, not guessing.",
                 },
               ].map((item) => (
                 <div key={item.number} className="flex flex-col gap-4 p-7 bg-card">
@@ -325,22 +362,22 @@ export default function Home() {
               {/* Left */}
               <div className="lg:sticky lg:top-24">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-4">
-                  What you get
+                  Everything in one brief
                 </p>
                 <h2 className="font-serif text-[1.75rem] sm:text-[2rem] tracking-tight leading-[1.13] text-foreground mb-4">
-                  A clear picture of any area, instantly.
+                  Replace hours of research with one brief.
                 </h2>
                 <p className="text-[13px] text-foreground/55 leading-relaxed mb-7">
-                  Every section is drawn from a named official source. No AI-estimated numbers. No generic averages. The same data used by solicitors, surveyors, and planning authorities.
+                  Rightmove, Land Registry, police.uk, Ofsted, Ofcom, Environment Agency — your brief pulls from all of them automatically, cites every source, and presents the analysis you'd otherwise spend half a day assembling.
                 </p>
                 <ul className="space-y-2.5 mb-8">
                   {[
-                    "Real comparable sales on the same street",
-                    "5 or 10-year price trend by postcode",
-                    "Flood risk, planning flags, EPC data",
-                    "Pre-offer strategy with fair value range",
-                    "Neighbourhood profile — schools, transport, crime",
-                    "Export to PDF or share as a link",
+                    "What properties on that street actually sold for",
+                    "5 or 10-year registered price trend by postcode",
+                    "Flood risk, active planning applications, EPC ratings",
+                    "Pre-offer strategy — fair value range and opening offer",
+                    "Crime breakdown, school ratings, transport and broadband",
+                    "Export to PDF — client-ready in one click",
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-[13px]">
                       <Check className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -357,10 +394,10 @@ export default function Home() {
                   className="text-[13px] font-semibold"
                   data-testid="button-try-it"
                 >
-                  Generate your free brief
+                  Generate a free brief
                   <ArrowRight className="ml-2 h-3.5 w-3.5" />
                 </Button>
-                <p className="mt-2.5 text-[11px] text-foreground/35">No sign-up required</p>
+                <p className="mt-2.5 text-[11px] text-foreground/35">Free · No card · No account required</p>
               </div>
 
               {/* Right — full mock brief */}
@@ -486,15 +523,15 @@ export default function Home() {
                 {[
                   {
                     audience: "Investors",
-                    description: "Identify areas with momentum before prices move. 10-year trends, rental demand scores, and supply signals across multiple postcodes at once.",
+                    description: "Track which areas are gaining momentum, not just which ones have already moved. 10-year price trends, rental demand scores, and sold-price data across multiple postcodes at once.",
                   },
                   {
                     audience: "Deal Sourcers",
-                    description: "Build your area thesis with real data. Spot undervalued pockets, track planning activity, and present clean evidence to clients.",
+                    description: "Back your area thesis with real registered data. Spot pockets where prices are lagging comparable streets, track planning pipeline, and share a clean PDF brief with clients.",
                   },
                   {
                     audience: "Developers",
-                    description: "Check planning context, comparable sales, and EPC profile before committing to a site. Understand what's been built, sold, and approved nearby.",
+                    description: "Check planning context, EPC profile, and recent comps before committing to a site. Know what's been built, sold, and approved nearby — before you instruct solicitors.",
                   },
                 ].map((item) => (
                   <div
@@ -511,15 +548,15 @@ export default function Home() {
                 {[
                   {
                     audience: "Estate & Buying Agents",
-                    description: "Generate a structured PDF brief for every valuation or viewing. Pull up live data in front of a client. Share in one click.",
+                    description: "Walk into every valuation with a structured data brief. Pull up live comparables in front of a client. Share a professional PDF in one click — no manual research required.",
                   },
                   {
                     audience: "Mortgage Advisers",
-                    description: "Set accurate expectations before discussing loan amounts. Share a comparable sales snapshot and valuation range at the first meeting.",
+                    description: "Set accurate expectations before the loan discussion. Share a comparable sales snapshot and fair value range at the first meeting — grounded in registered data, not estimates.",
                   },
                   {
                     audience: "Serious Buyers",
-                    description: "Understand any area as well as an experienced investor would. Check prices, crime, schools, transport, and risk flags — before you offer.",
+                    description: "Know what comparable properties actually sold for, what risk flags exist, and what a fair opening offer looks like — before you commit to a viewing, let alone an offer.",
                   },
                 ].map((item) => (
                   <div
@@ -536,6 +573,45 @@ export default function Home() {
           </div>
         </section>
 
+
+        {/* ─── MID-PAGE CTA ──────────────────────────────────────────────── */}
+        <section className="py-12 sm:py-14 border-b border-border/50 bg-primary/5">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+            <div>
+              <h2 className="font-serif text-[1.4rem] sm:text-[1.6rem] tracking-tight text-foreground leading-[1.15]">
+                Your first brief takes 60 seconds.
+              </h2>
+              <p className="text-[13px] text-foreground/50 mt-1">
+                Free to try. No card. No account required to start.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+              <Button
+                size="lg"
+                className="text-[13px] font-semibold px-7"
+                data-testid="button-midpage-cta"
+                onClick={() => {
+                  const el = document.querySelector("[data-testid='input-search']") as HTMLInputElement | null;
+                  el?.focus();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Generate a free brief
+                <ArrowRight className="ml-2 h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-[13px] font-semibold px-7"
+                data-testid="button-midpage-professional"
+                onClick={() => window.open("https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional", "_blank", "noopener,noreferrer")}
+              >
+                Start Professional — £4.99/month
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* ─── DATA SOURCES ──────────────────────────────────────────────── */}
         <section className="py-20 sm:py-24 border-b border-border/50 bg-muted/20">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -546,16 +622,19 @@ export default function Home() {
                   Data sources
                 </p>
                 <h2 className="font-serif text-[1.75rem] sm:text-[2rem] tracking-tight text-foreground leading-[1.13] mb-5">
-                  Official sources only.
-                  <br />No estimates.
+                  Built on official data.
+                  <br />Not estimates.
                 </h2>
                 <p className="text-[13px] text-foreground/55 leading-relaxed mb-6">
-                  Every number in a LuxProperty brief is drawn from a named official dataset — the same data used by solicitors, surveyors, and planning authorities.
+                  Every figure in your brief is drawn from a named official register. We don't generate AI estimates or pull from portals. If a number appears in your brief, it came from a verifiable public dataset — and we cite it.
                 </p>
-                <div className="inline-flex items-center gap-2 text-[11px] text-foreground/50 border border-border/60 rounded-lg px-3.5 py-2.5 bg-card">
+                <div className="inline-flex items-center gap-2 text-[11px] text-foreground/50 border border-border/60 rounded-lg px-3.5 py-2.5 bg-card mb-5">
                   <Shield className="h-3 w-3 text-primary shrink-0" />
                   LuxProperty AI Ltd · Co. No. 17158079
                 </div>
+                <p className="text-[12px] text-foreground/45 leading-relaxed max-w-xs">
+                  Enter any UK postcode to see the full data brief for yourself.
+                </p>
               </div>
 
               <div className="divide-y divide-border/50">
@@ -593,11 +672,11 @@ export default function Home() {
                   Explore UK markets
                 </p>
                 <h2 className="font-serif text-[1.75rem] sm:text-[2.1rem] tracking-tight text-foreground leading-[1.13]">
-                  Deep-dive area guides
+                  Area market guides
                 </h2>
               </div>
               <p className="text-[13px] text-foreground/45 max-w-xs sm:text-right">
-                Each guide covers pricing, rental demand, planning activity, and local character for that postcode district.
+                Prices, rental demand, planning pipeline and local profile for key UK postcode districts. A faster starting point than a manual Rightmove search.
               </p>
             </div>
 
@@ -751,7 +830,7 @@ export default function Home() {
                   data-testid="button-pricing-professional"
                   onClick={() => window.open("https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional", "_blank", "noopener,noreferrer")}
                 >
-                  Start Professional
+                  Subscribe to Professional — £4.99/month
                 </Button>
               </div>
 
@@ -795,7 +874,7 @@ export default function Home() {
             </div>
 
             <p className="mt-6 text-center text-[11px] text-foreground/35">
-              No credit card required to start · Cancel anytime
+              No card required to start · Cancel anytime · No minimum term
             </p>
           </div>
         </section>
@@ -826,7 +905,7 @@ export default function Home() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <p className="mt-4 text-[11px] text-foreground/30">
-              England &amp; Wales · Built on official data · LuxProperty AI Ltd
+              England &amp; Wales · 18M+ Land Registry transactions · Built on official data only
             </p>
           </div>
         </section>
