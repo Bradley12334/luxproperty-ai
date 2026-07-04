@@ -1,7 +1,7 @@
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { Check, Minus, Star, ShieldCheck, Lock } from "lucide-react";
+import { Check, Minus, Star, Gift, Lock } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -163,10 +163,10 @@ export default function PricingPage() {
         {/* Intro incentive bar */}
         <div className="mx-auto max-w-5xl px-4 sm:px-6 mb-6">
           <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-            <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+            <Gift className="h-4 w-4 text-primary shrink-0" />
             <p className="text-sm text-foreground/80">
-              <span className="font-semibold text-primary">First month half price — £2.49.</span>{" "}
-              Start Professional today and your first month is billed at £2.49. Then £4.99/month. Cancel anytime.
+              <span className="font-semibold text-primary">First full Investor brief free.</span>{" "}
+              Subscribe to Professional and your very first postcode brief is automatically upgraded to Investor level — 10-year price history, rental demand, sold prices map and more. After that, your plan continues as Professional.
             </p>
           </div>
         </div>
@@ -221,11 +221,6 @@ export default function PricingPage() {
                         </span>
                       )}
                     </div>
-
-                    {/* Intro offer callout for Professional */}
-                    {isPro && (
-                      <p className="text-[11px] text-primary font-semibold mb-2">First month £2.49 — then £4.99/month</p>
-                    )}
 
                     <p className={`text-xs mb-6 leading-relaxed ${
                       isInvestor ? "text-amber-200/50" : "text-muted-foreground"
@@ -410,7 +405,7 @@ export default function PricingPage() {
               Comparable sales, pre-offer strategy, 5-year price history, crime and planning context, and a PDF you can keep or share. Any UK postcode. Unlimited briefs.
             </p>
             <p className="text-sm font-semibold text-primary mb-6">
-              First month £2.49 — then £4.99/month. Cancel anytime.
+              First full Investor brief free when you subscribe. Then £4.99/month. Cancel anytime.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <div className="flex flex-col items-center gap-1.5">

@@ -8,6 +8,7 @@ export interface User {
   name: string;
   email: string;
   plan: "explorer" | "professional" | "investor";
+  bonusInvestorBrief: boolean;
   joinedAt: string;
 }
 
@@ -62,7 +63,7 @@ export async function restoreSession(): Promise<void> {
 
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, plan, created_at")
+    .select("id, name, email, plan, bonus_investor_brief, created_at")
     .eq("id", cached.id)
     .maybeSingle();
 
@@ -121,6 +122,7 @@ export async function signUp(
     name: data.name,
     email: data.email,
     plan: data.plan as User["plan"],
+    bonusInvestorBrief: false,
     joinedAt: data.created_at,
   };
   saveSession(currentUser);
@@ -145,7 +147,7 @@ export async function signIn(
 
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, plan, password_hash, created_at")
+    .select("id, name, email, plan, bonus_investor_brief, password_hash, created_at")
     .eq("email", key)
     .maybeSingle();
 
@@ -161,11 +163,25 @@ export async function signIn(
     name: data.name,
     email: data.email,
     plan: data.plan as User["plan"],
+    bonusInvestorBrief: !!data.bonus_investor_brief,
     joinedAt: data.created_at,
   };
   saveSession(currentUser);
   notify();
   return { ok: true };
+}
+
+
+// ─── Clear bonus Investor brief (called after one use) ───────────────────────
+export async function clearBonusInvestorBrief(): Promise<void> {
+  if (!currentUser) return;
+  await supabase
+    .from("users")
+    .update({ bonus_investor_brief: false })
+    .eq("id", currentUser.id);
+  currentUser = { ...currentUser, bonusInvestorBrief: false };
+  saveSession(currentUser);
+  notify();
 }
 
 // ─── Sign Out ────────────────────────────────────────────────────────────────

@@ -104,6 +104,14 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Database update failed" });
     }
 
+    // Grant one free Investor brief to new Professional subscribers
+    if (plan === "professional" && data && data.length > 0) {
+      await supabase
+        .from("users")
+        .update({ bonus_investor_brief: true })
+        .eq("email", email);
+    }
+
     if (!data || data.length === 0) {
       // User doesn't have a LuxProperty account yet — log it
       console.warn(`No LuxProperty account found for ${email}. They need to sign up first.`);

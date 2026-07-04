@@ -63,6 +63,7 @@ import {
 import { SoldPricesMap, deriveMapInterpretation } from "@/components/sold-prices-map";
 import type { BriefReport } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { clearBonusInvestorBrief } from "@/lib/authStore";
 import { AuthModal } from "@/components/auth-modal";
 import { PostcodeMap } from "@/components/postcode-map";
 import { NeighbourhoodMap } from "@/components/neighbourhood-map";
@@ -2680,8 +2681,18 @@ export default function BriefPage() {
   const [savedToPortfolio, setSavedToPortfolio] = useState(false);
 
   const { user } = useAuth();
+  // bonusInvestorBrief: Professional subscribers get one free Investor-level brief
+  const hasBonusInvestorBrief = !!(user?.plan === "professional" && user?.bonusInvestorBrief);
   const isPaid = user?.plan === "professional" || user?.plan === "investor";
-  const isInvestor = user?.plan === "investor";
+  const isInvestor = user?.plan === "investor" || hasBonusInvestorBrief;
+
+  // Clear the bonus flag in Supabase once the user views this brief with it active
+  useEffect(() => {
+    if (hasBonusInvestorBrief) {
+      clearBonusInvestorBrief();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Email-captured visitors see Market Outlook without a paid plan
   const { captured: emailCaptured } = useEmailCaptured();
   const hasMarketOutlookAccess = isPaid || emailCaptured;

@@ -11,7 +11,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, ArrowRight, Home, FileText, BarChart2 } from "lucide-react";
+import { CheckCircle2, ArrowRight, Home, FileText, BarChart2, Gift } from "lucide-react";
 
 export default function SuccessPage() {
   useDocumentTitle(
@@ -86,6 +86,21 @@ export default function SuccessPage() {
             )}
           </ul>
         </div>
+
+        {/* Bonus Investor brief — only for new Professional subscribers */}
+        {plan === "professional" && (
+          <div className="w-full max-w-sm border border-primary/30 rounded-xl bg-primary/5 p-5 mb-2">
+            <div className="flex items-start gap-3">
+              <Gift className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-1">Your first brief is an Investor brief — on us.</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Run any postcode brief and you'll get full Investor-level data: 10-year price history, rental demand score, sold prices map, street price ranking and development tracker. After that first brief, your plan returns to Professional as normal.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
