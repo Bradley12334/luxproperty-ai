@@ -10,10 +10,10 @@ const tiers = [
     name: "Explorer",
     price: "Free",
     period: "",
-    description: "Run a quick area screen on any UK postcode. Is it worth looking at further? You'll know within seconds. 3 briefs a month, no card required.",
+    description: "For buyers who want a quick sense-check before committing to a viewing. Enter any UK postcode and get an instant area screen — is it worth looking at further? You'll know within seconds. No card required, no commitment.",
     badge: null,
     style: "default",
-    cta: "Start Free",
+    cta: "Try Free",
     ctaVariant: "outline" as const,
     stripeUrl: null,
   },
@@ -21,10 +21,10 @@ const tiers = [
     name: "Professional",
     price: "£4.99",
     period: "/month",
-    description: "Everything you need before you offer. Comparable sales, a pre-offer strategy with fair value range and opening range, 5-year price trend, crime breakdown, planning activity, air quality, and PDF export. Any UK postcode. Unlimited briefs.",
+    description: "For serious buyers who want the full picture before they make an offer. This is the plan most buyers need. You get comparable sold prices, a pre-offer strategy with a fair value range and opening offer, 5-year price trend, crime breakdown, planning activity, air quality and PDF export — for any UK postcode, with unlimited briefs. Most buyers use this to avoid overpaying and spot risks before they're committed.",
     badge: "Recommended",
     style: "professional",
-    cta: "Start Professional",
+    cta: "Start Professional — £4.99/month",
     ctaVariant: "default" as const,
     stripeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional",
   },
@@ -32,10 +32,10 @@ const tiers = [
     name: "Investor",
     price: "£39.99",
     period: "/month",
-    description: "For anyone evaluating multiple opportunities at once. Compare areas side by side, track rental demand and pricing across locations, and manage all your briefs in one place. Everything in Professional, plus deeper comparison tools.",
+    description: "For investors and advisers evaluating multiple properties at once. Everything in Professional, plus tools built for heavier use: side-by-side area comparison, rental demand and yield tracking across locations, and a portfolio dashboard to manage all your briefs in one place. If you're running due diligence across a shortlist — this is the plan for you.",
     badge: "Analyse More",
     style: "investor",
-    cta: "Start Investor",
+    cta: "Start Investor — £39.99/month",
     ctaVariant: "default" as const,
     stripeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
   },
@@ -122,10 +122,10 @@ export default function PricingPage() {
               Pricing
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-3">
-              Professional is the main plan. Start free.
+              Know what you're buying into. Before you offer.
             </h1>
-            <p className="text-muted-foreground text-base max-w-lg">
-              Professional is the buyer brief for serious homebuyers and advisers — comparable sales, a pre-offer strategy, 5-year price history, and everything you need before you offer. Explorer is free to try. Investor adds comparison tools for heavier use.
+            <p className="text-muted-foreground text-base max-w-xl">
+              LuxProperty.ai gives UK buyers, advisers and investors a full property intelligence brief for any postcode — comparable sales, risk flags, price history and a pre-offer strategy, all in under 60 seconds. Start free. Upgrade when you're ready to go deeper.
             </p>
           </div>
         </section>
@@ -220,11 +220,47 @@ export default function PricingPage() {
           </div>
         </section>
 
+
+        {/* Why buyers use LuxProperty.ai */}
+        <section className="pb-16 sm:pb-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <h2 className="font-serif text-2xl tracking-tight mb-6">Why buyers use LuxProperty.ai</h2>
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {[
+                {
+                  heading: "Avoid overpaying",
+                  body: "See what properties in that postcode have actually sold for, not what agents are asking.",
+                },
+                {
+                  heading: "Spot risks before you’re committed",
+                  body: "Crime rates, flood zone, school ratings and planning applications in one brief.",
+                },
+                {
+                  heading: "Compare two areas before you waste a viewing",
+                  body: "Run side-by-side postcode reports to decide where to focus.",
+                },
+                {
+                  heading: "Go into negotiations informed",
+                  body: "Get a fair value range and an opening offer figure backed by real sold data.",
+                },
+              ].map(({ heading, body }) => (
+                <li key={heading} className="flex gap-3">
+                  <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span className="text-sm text-foreground/90">
+                    <span className="font-semibold">{heading}</span>
+                    {" — "}{body}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
         {/* Feature Comparison Table */}
         <section className="py-16 sm:py-20 border-t border-border/40">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <h2 className="font-serif text-2xl tracking-tight mb-2">What’s included</h2>
-            <p className="text-sm text-muted-foreground mb-8 max-w-lg">Most buyers get everything they need with Professional. Investor adds comparison tools, longer trend data, and a portfolio dashboard for heavier use.</p>
+            <p className="text-sm text-muted-foreground mb-8 max-w-lg">Prefer to see exactly what’s included in each plan? The full breakdown is below.</p>
 
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="w-full text-sm min-w-[600px]" data-testid="table-feature-comparison">
@@ -277,12 +313,15 @@ export default function PricingPage() {
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
               Comparable sales, a pre-offer strategy with fair value range and opening range, 5-year price history, crime and planning context, and a PDF you can keep or share. Any UK postcode. £4.99/month — cancel any time.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional`} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-professional">
-                  Start Professional — £4.99/month
-                </Button>
-              </a>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-start sm:items-center">
+              <div className="flex flex-col gap-1">
+                <a href={`https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional`} target="_blank" rel="noopener noreferrer">
+                  <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-professional">
+                    Start Professional — £4.99/month
+                  </Button>
+                </a>
+                <p className="text-xs text-muted-foreground text-center">No card required to try. Less than a coffee a month.</p>
+              </div>
               <Link href="/">
                 <Button size="lg" variant="outline" className="text-sm px-8 w-full sm:w-auto" data-testid="button-get-started">
                   Try free first
