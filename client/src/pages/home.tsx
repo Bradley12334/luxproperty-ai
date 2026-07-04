@@ -84,12 +84,12 @@ export default function Home() {
                   className="font-serif text-[2.4rem] sm:text-[3rem] leading-[1.07] tracking-tight text-foreground"
                   data-testid="text-hero-heading"
                 >
-                  Real comps, risk flags,
+                  Know what you're buying into.
                   <br />
-                  <em className="text-primary not-italic">fair value — in 60 seconds.</em>
+                  <em className="text-primary not-italic">Before you offer.</em>
                 </h1>
                 <p className="mt-5 text-[15px] text-foreground/60 leading-relaxed max-w-[440px]">
-                  Enter any UK postcode and get a complete buyer brief: what properties on that street actually sold for, risk flags (flood, crime, planning), a pre-offer strategy with a fair value range, and a full neighbourhood profile. Everything you'd spend hours gathering across Rightmove, Land Registry and police.uk — in under a minute.
+                  Real comparable sales, risk flags, a fair value range, and a pre-offer strategy — for any UK postcode. Built on HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices.
                 </p>
 
                 <form
@@ -166,7 +166,7 @@ export default function Home() {
                   ))}
                 </div>
                 <p className="mt-3 text-[11px] text-foreground/30">
-                  Free to try · No card required · Used by UK buyers, advisers and investors
+                  Free to try · No card required · Official data only · Trusted by UK buyers, advisers &amp; investors
                 </p>
               </div>
 
@@ -283,17 +283,17 @@ export default function Home() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 {
-                  quote: "I ran the brief before our second viewing and spotted two planning applications on the street I would never have found on Rightmove. Ended up negotiating £12k off.",
+                  quote: "Spotted two live planning applications on the street I would never have caught on Rightmove. Used it to negotiate £12k off.",
                   name: "UK homebuyer",
                   location: "South East England",
                 },
                 {
-                  quote: "I share the PDF brief with clients at the first meeting. Saves me an hour of prep and they arrive already trusting the numbers.",
+                  quote: "I pull up the brief in front of clients at the first meeting. Saves me an hour of prep — and they trust the numbers before I say a word.",
                   name: "Buying agent",
                   location: "London",
                 },
                 {
-                  quote: "The comparable sales section alone justified the subscription. I knew the fair value range before I even spoke to the vendor.",
+                  quote: "The comparable sales section alone justified it. I knew exactly what fair value was before I spoke to the vendor.",
                   name: "Property investor",
                   location: "Midlands",
                 },
@@ -318,7 +318,7 @@ export default function Home() {
                 What it's for
               </p>
               <h2 className="font-serif text-[1.75rem] sm:text-[2.1rem] tracking-tight text-foreground leading-[1.13] max-w-lg">
-                Spot opportunity and risk in any area — before you commit.
+                Stop guessing. Start with the numbers.
               </h2>
             </div>
 
@@ -327,17 +327,17 @@ export default function Home() {
                 {
                   number: "01",
                   heading: "Avoid Overpaying",
-                  body: "See exactly what properties on that street and postcode sold for — registered prices from HM Land Registry, not agent valuations. Know the fair value range before you open negotiations.",
+                  body: "See what properties on that street actually sold for — registered prices from HM Land Registry, not what agents are asking. Know the fair value range before you negotiate.",
                 },
                 {
                   number: "02",
                   heading: "Spot Risks Early",
-                  body: "Every brief flags flood risk, crime rates, live planning applications and school ratings before you commit. Catch the problems that cost you money after exchange — not after.",
+                  body: "Every brief surfaces flood risk, active planning applications, crime rates and school ratings. Catch the issues that cost you money after exchange — not after you've committed.",
                 },
                 {
                   number: "03",
                   heading: "Negotiate With Numbers",
-                  body: "Your brief includes a pre-offer strategy: a fair value range, a suggested opening offer, and seller pressure points — so you go into every negotiation informed, not guessing.",
+                  body: "Your brief includes a pre-offer strategy: a fair value range, an opening offer figure, and seller pressure points. Walk into every negotiation with numbers, not instinct.",
                 },
               ].map((item) => (
                 <div key={item.number} className="flex flex-col gap-4 p-7 bg-card">
@@ -365,7 +365,7 @@ export default function Home() {
                   Everything in one brief
                 </p>
                 <h2 className="font-serif text-[1.75rem] sm:text-[2rem] tracking-tight leading-[1.13] text-foreground mb-4">
-                  Replace hours of research with one brief.
+                  Everything you'd spend half a day finding — in 60 seconds.
                 </h2>
                 <p className="text-[13px] text-foreground/55 leading-relaxed mb-7">
                   Rightmove, Land Registry, police.uk, Ofsted, Ofcom, Environment Agency — your brief pulls from all of them automatically, cites every source, and presents the analysis you'd otherwise spend half a day assembling.
@@ -513,7 +513,7 @@ export default function Home() {
                 Who uses it
               </p>
               <h2 className="font-serif text-[1.75rem] sm:text-[2.1rem] tracking-tight text-foreground leading-[1.13] max-w-lg">
-                Built for people making serious property decisions.
+                For anyone who can't afford to get it wrong.
               </h2>
             </div>
 
@@ -579,10 +579,10 @@ export default function Home() {
           <div className="mx-auto max-w-5xl px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
             <div>
               <h2 className="font-serif text-[1.4rem] sm:text-[1.6rem] tracking-tight text-foreground leading-[1.15]">
-                Your first brief takes 60 seconds.
+                Run your first brief. It takes 60 seconds.
               </h2>
               <p className="text-[13px] text-foreground/50 mt-1">
-                Free to try. No card. No account required to start.
+                Free to try. No card. No account required.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 shrink-0">
@@ -749,9 +749,13 @@ export default function Home() {
             <h2 className="font-serif text-[1.75rem] sm:text-[2.1rem] tracking-tight text-foreground leading-[1.13] mb-2">
               Professional is what most buyers need.
             </h2>
-            <p className="text-[13px] text-foreground/50 mb-14 max-w-md">
-              Start free. Upgrade when you need comparable sales, pre-offer strategy, and PDF export.
+            <p className="text-[13px] text-foreground/50 mb-6 max-w-md">
+              Start free. Upgrade for comparable sales, pre-offer strategy and PDF export.
             </p>
+            <div className="flex items-center gap-2 text-[12px] text-primary font-semibold mb-10 bg-primary/5 border border-primary/20 rounded-lg px-3.5 py-2.5 max-w-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a4 4 0 00-4-4H5.45M12 8V6a4 4 0 014-4h2.55M4 12h16" /></svg>
+              First full Investor brief free when you subscribe to Professional
+            </div>
 
             {/* Cards: Explorer and Investor sit slightly lower visually */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:items-end">
@@ -764,7 +768,7 @@ export default function Home() {
                 <div className="mb-1">
                   <span className="font-serif text-2xl tracking-tight text-foreground">Free</span>
                 </div>
-                <p className="text-[11px] text-foreground/40 mb-5 leading-relaxed">3 briefs per month. Area overview and 1-year trend.</p>
+                <p className="text-[11px] text-foreground/40 mb-5 leading-relaxed">3 briefs/month. Good for a quick sense-check before you book a viewing.</p>
                 <ul className="space-y-1.5 mb-6 flex-1">
                   {[
                     "3 briefs per month",
@@ -807,7 +811,7 @@ export default function Home() {
                   <span className="text-sm text-foreground/40 ml-0.5">/month</span>
                 </div>
                 <p className="text-[12px] text-foreground/50 mb-5 leading-relaxed">
-                  Unlimited briefs, comparable sales, pre-offer strategy, and PDF export.
+                  The full brief before you make an offer. Comparable sales, pre-offer strategy, 5-year price history, and PDF export.
                 </p>
                 <ul className="space-y-2 mb-7 flex-1">
                   {[
@@ -830,8 +834,9 @@ export default function Home() {
                   data-testid="button-pricing-professional"
                   onClick={() => window.open("https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional", "_blank", "noopener,noreferrer")}
                 >
-                  Subscribe to Professional — £4.99/month
+                  Get Professional — £4.99/month
                 </Button>
+                <p className="mt-2 text-[10px] text-foreground/30 text-center">Cancel anytime · No minimum term</p>
               </div>
 
               {/* Investor */}
@@ -845,7 +850,7 @@ export default function Home() {
                   <span className="text-[11px] text-foreground/40 ml-0.5">/month</span>
                 </div>
                 <p className="text-[11px] text-foreground/40 mb-5 leading-relaxed">
-                  10-year trends, rental scores, sold prices map, portfolio dashboard.
+                  For investors running due diligence across a shortlist. 10-year trends, rental demand scores, sold prices map, portfolio dashboard.
                 </p>
                 <ul className="space-y-1.5 mb-6 flex-1">
                   {[
@@ -886,7 +891,7 @@ export default function Home() {
               Start now
             </p>
             <h2 className="font-serif text-[2rem] sm:text-[2.4rem] tracking-tight text-foreground leading-[1.1] mb-4 max-w-lg mx-auto">
-              Run your first brief in under a minute.
+              Know what you're buying into. Before you offer.
             </h2>
             <p className="text-[14px] text-foreground/45 mb-9 max-w-xs mx-auto leading-relaxed">
               Free to try. Any UK postcode. No account required.

@@ -49,15 +49,15 @@ export default function SuccessPage() {
 
         {/* Headline */}
         <h1 className="font-display text-2xl sm:text-3xl text-foreground text-center mb-3">
-          You're all set.
+          You're in. Let's find you something worth buying.
         </h1>
         <p className="text-sm text-muted-foreground text-center max-w-sm mb-2">
           {plan
-            ? `Your ${planLabel} plan (${planPrice}) is now active.`
+            ? `${planLabel} plan (${planPrice}) — now active.`
             : "Your subscription is now active."}
         </p>
         <p className="text-xs text-muted-foreground/60 text-center max-w-xs mb-10">
-          A confirmation receipt has been sent to your email by Stripe. You can manage or cancel your subscription at any time from your account page.
+          Stripe has emailed your receipt. You can manage or cancel from your account page at any time.
         </p>
 
         {/* What's unlocked */}
@@ -107,7 +107,7 @@ export default function SuccessPage() {
           <Link href="/" className="flex-1">
             <Button className="w-full gap-2" data-testid="button-run-brief">
               <FileText className="h-4 w-4" />
-              Run a postcode brief
+              Run your first brief
             </Button>
           </Link>
           <Link href="/account" className="flex-1">
@@ -127,6 +127,11 @@ export default function SuccessPage() {
             </Button>
           </Link>
         )}
+
+        {/* Postcode prompt */}
+        <p className="mt-8 text-xs text-muted-foreground/50 text-center max-w-xs">
+          Try any UK postcode — e.g. <span className="font-mono text-foreground/60">SW3 1AA</span>, <span className="font-mono text-foreground/60">LS6 2EX</span>, or <span className="font-mono text-foreground/60">M21 9WQ</span>. Your brief is ready in under 60 seconds.
+        </p>
       </main>
 
       <Footer />

@@ -2369,7 +2369,7 @@ function ResidentSentimentTeaser({ ai }: { ai: BriefReport["areaIntelligence"] }
       </div>
       <p className="text-xs text-muted-foreground/50 pt-1">
         Full resident sentiment — 3–5 categorised bullets — available in{" "}
-        <Link href="/pricing"><span className="text-primary underline underline-offset-2">Professional ↗</span></Link>
+        <Link href="/pricing"><span className="text-primary underline underline-offset-2">Unlock with Professional ↗</span></Link>
       </p>
     </div>
   );
@@ -2826,10 +2826,10 @@ export default function BriefPage() {
                     className="text-base font-semibold mb-1.5"
                     style={{ color: "#FAF8F4", fontFamily: "'Instrument Serif', Georgia, serif" }}
                   >
-                    Sign in to view this report
+                    Your brief is ready — sign in to view it
                   </h3>
                   <p className="text-xs leading-relaxed mb-4" style={{ color: "#9A9490" }}>
-                    Create a free account or sign in to access property reports. Explorer is free — Professional and Investor unlock deeper analysis.
+                    Create a free account to access this report instantly. Explorer is always free — no card required. Professional unlocks comparable sales, a fair value range, and your pre-offer strategy.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2.5">
                     <button
@@ -2841,7 +2841,7 @@ export default function BriefPage() {
                       onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "#B8860B")}
                       data-testid="button-signup-gate"
                     >
-                      Create free account
+                      Create free account — no card needed
                     </button>
                     <button
                       type="button"
@@ -2856,7 +2856,7 @@ export default function BriefPage() {
                     </button>
                   </div>
                   <p className="mt-3 text-[11px]" style={{ color: "#5A5450" }}>
-                    Free — no payment required to view reports
+                    Explorer is free. No card. No commitment.
                   </p>
                 </div>
               </div>
@@ -3203,7 +3203,7 @@ export default function BriefPage() {
                   </SectionHeading>
                   {!isPaid && (
                     <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                      Most recent Land Registry price data for this postcode. Professional unlocks the full 5-year history; Investor unlocks 10 years.
+                      Showing the most recent Land Registry data. Professional unlocks 5-year history; Investor unlocks 10 years of registered price trends.
                     </p>
                   )}
                   <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
@@ -3232,7 +3232,7 @@ export default function BriefPage() {
                   </div>
                   {!isPaid && (
                     <Link href="/pricing">
-                      <p className="text-xs text-primary underline underline-offset-2 mt-3">Unlock 5-year history with Professional, or 10 years with Investor →</p>
+                      <p className="text-xs text-primary underline underline-offset-2 mt-3">See 5 years of price history with Professional — or 10 years with Investor. £4.99/month. →</p>
                     </Link>
                   )}
                   <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
@@ -3483,9 +3483,9 @@ export default function BriefPage() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                         <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                        <p className="text-xs font-semibold text-foreground">Rental market — Professional</p>
+                        <p className="text-xs font-semibold text-foreground">Rental market — Professional feature</p>
                         <p className="text-[11px] text-muted-foreground mt-1 mb-2">Asking rents by property size and local letting demand.</p>
-                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock →</span></Link>
                       </div>
                     </div>
                   </div>
@@ -3718,8 +3718,8 @@ export default function BriefPage() {
                         <ResidentSentimentTeaser ai={ai} />
                       </div>
                       <p className="text-xs text-muted-foreground/60 border-t border-border/40 pt-3">
-                        Full neighbourhood detail available in Professional.{" "}
-                        <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                        Full neighbourhood detail — schools, transport and lifestyle fit — unlocks with Professional at £4.99/month.{" "}
+                        <Link href="/pricing"><span className="text-primary underline underline-offset-2">See pricing →</span></Link>
                       </p>
                     </div>
                   )}
@@ -3777,8 +3777,8 @@ export default function BriefPage() {
                         </div>
                       )}
                       <p className="text-xs text-muted-foreground/60">
-                        Full commute calculator available in Professional.{" "}
-                        <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                        Full commute calculator — travel times to multiple destinations — unlocks with Professional.{" "}
+                        <Link href="/pricing"><span className="text-primary underline underline-offset-2">See pricing →</span></Link>
                       </p>
                     </div>
                   </CollapsibleSection>
@@ -3884,7 +3884,7 @@ export default function BriefPage() {
                         })}
                         {!isPaid && ai.nearbyStations.length > 3 && (
                           <p className="text-xs text-muted-foreground/60 pt-2">
-                            {ai.nearbyStations.length - 3} more station{ai.nearbyStations.length - 3 > 1 ? "s" : ""} — unlock with Professional. <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                            {ai.nearbyStations.length - 3} more station{ai.nearbyStations.length - 3 > 1 ? "s" : ""} — unlocked with Professional. <Link href="/pricing"><span className="text-primary underline underline-offset-2">See all with Professional →</span></Link>
                           </p>
                         )}
                       </div>
@@ -3963,7 +3963,7 @@ export default function BriefPage() {
                         })}
                         {!isPaid && ai.nearbySchools.length > 3 && (
                           <p className="text-xs text-muted-foreground/60 pt-2">
-                            {ai.nearbySchools.length - 3} more school{ai.nearbySchools.length - 3 > 1 ? "s" : ""} — unlock with Professional. <Link href="/pricing"><span className="text-primary underline underline-offset-2">Upgrade →</span></Link>
+                            {ai.nearbySchools.length - 3} more school{ai.nearbySchools.length - 3 > 1 ? "s" : ""} — unlocked with Professional. <Link href="/pricing"><span className="text-primary underline underline-offset-2">See all with Professional →</span></Link>
                           </p>
                         )}
                       </div>
@@ -4177,9 +4177,9 @@ export default function BriefPage() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                         <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                        <p className="text-xs font-semibold text-foreground">Broadband — Professional</p>
+                        <p className="text-xs font-semibold text-foreground">Broadband speeds — Professional feature</p>
                         <p className="text-[11px] text-muted-foreground mt-1 mb-2">Download/upload speeds and full fibre availability.</p>
-                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock →</span></Link>
                       </div>
                     </div>
                   </div>
@@ -4225,9 +4225,9 @@ export default function BriefPage() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                         <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                        <p className="text-xs font-semibold text-foreground">Air Quality — Professional</p>
+                        <p className="text-xs font-semibold text-foreground">Air Quality index — Professional feature</p>
                         <p className="text-[11px] text-muted-foreground mt-1 mb-2">NO₂ and PM2.5 levels with rating.</p>
-                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock →</span></Link>
                       </div>
                     </div>
                   </div>
@@ -4277,15 +4277,15 @@ export default function BriefPage() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="bg-background/95 border border-border rounded-lg px-4 py-3 text-center shadow-lg max-w-[220px]">
                         <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
-                        <p className="text-xs font-semibold text-foreground">Planning activity — Professional</p>
+                        <p className="text-xs font-semibold text-foreground">Planning activity — Professional feature</p>
                         <p className="text-[11px] text-muted-foreground mt-1 mb-2">Applications, major developments, and the council portal link.</p>
-                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock →</span></Link>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Rental Demand — Investor */}
+                {/* Rental Demand score — Investor feature */}
                 {user?.plan === "investor" ? (
                   <CollapsibleSection title="Rental Demand" testId="section-rental-demand" defaultOpen={false}>
                     <div className="space-y-4">
@@ -4326,13 +4326,13 @@ export default function BriefPage() {
                         <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
                         <p className="text-xs font-semibold text-foreground">Rental Demand — Investor</p>
                         <p className="text-[11px] text-muted-foreground mt-1 mb-2">Void risk, tenant profile, supply trend.</p>
-                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock →</span></Link>
                       </div>
                     </div>
                   </div>
                 ) : null}
 
-                {/* Nearby Development Tracker — Investor */}
+                {/* Nearby Development Tracker — Investor feature */}
                 {user?.plan === "investor" ? (
                   <CollapsibleSection title="Nearby Development Tracker" testId="section-developments" defaultOpen={false}>
                     <NearbyDevelopmentTracker developments={ai.nearbyDevelopments ?? []} />
@@ -4353,13 +4353,13 @@ export default function BriefPage() {
                         <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
                         <p className="text-xs font-semibold text-foreground">Development Tracker — Investor</p>
                         <p className="text-[11px] text-muted-foreground mt-1 mb-2">Nearby planning applications with impact scores.</p>
-                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock →</span></Link>
                       </div>
                     </div>
                   </div>
                 ) : null}
 
-                {/* Nearby Sold Prices Map — Professional+ */}
+                {/* Nearby Sold Prices Map — Professional feature+ */}
                 {isPaid && (ai.recentSoldPrices ?? []).length > 0 ? (
                   <CollapsibleSection title="Nearby Sold Prices" testId="section-sold-prices-map" defaultOpen={false}>
                     <SoldPricesMap
@@ -4421,7 +4421,7 @@ export default function BriefPage() {
                         <Lock className="h-4 w-4 text-primary mx-auto mb-1.5" />
                         <p className="text-xs font-semibold text-foreground">Sold Prices Map — Professional</p>
                         <p className="text-[11px] text-muted-foreground mt-1 mb-2">Map of recent sold prices within 500m.</p>
-                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock</span></Link>
+                        <Link href="/pricing"><span className="text-xs text-primary underline underline-offset-2">Upgrade to unlock →</span></Link>
                       </div>
                     </div>
                   </div>
@@ -4439,6 +4439,41 @@ export default function BriefPage() {
             </Tabs>
 
           </div>{/* end space-y-0 outer wrapper */}
+
+          {/* ── Explorer Upgrade Banner — shown to free users below brief content ——— */}
+          {!isPaid && (
+            <div
+              className="mt-8 rounded-xl border border-primary/25 bg-primary/5 px-5 py-5"
+              data-testid="section-explorer-upgrade-banner"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary mb-1">
+                    Professional — £4.99/month
+                  </p>
+                  <p className="text-sm font-semibold text-foreground mb-1">
+                    You’re seeing a fraction of this brief.
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
+                    Professional unlocks comparable sold prices, a fair value range, pre-offer strategy, crime breakdown, planning activity, broadband, air quality and PDF export — for any UK postcode, unlimited briefs. First full Investor brief free when you subscribe.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <a
+                    href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="link-explorer-upgrade-professional"
+                  >
+                    <button className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+                      Get Professional — £4.99/month
+                    </button>
+                  </a>
+                  <p className="text-[10px] text-muted-foreground text-center">Cancel anytime · No minimum term</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Bottom CTA */}
           <div className="mt-10 pt-8 border-t border-border/40">

@@ -125,7 +125,7 @@ export function LockedPreview({
                 className="inline-block mt-2 text-xs font-semibold underline underline-offset-2"
                 style={{ color: "#B8860B" }}
               >
-                Upgrade to unlock →
+                Unlock with {planLabel} →
               </span>
             </Link>
           </div>
