@@ -334,7 +334,7 @@ function PropertyHero({
       {/* ── Property identity strip ─────────────────────────────────────────── */}
       <div className="px-6 sm:px-8 pt-7 pb-5 border-b border-border/40">
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary mb-2">
-          Property profile
+          Valuation result
         </p>
         <h1 id="val-hero-address" className="font-serif text-2xl sm:text-3xl text-foreground leading-tight tracking-tight">
           {report.queryPostcode}
@@ -410,7 +410,7 @@ function PropertyHero({
           <div>
             <div className="flex items-start justify-between gap-3 mb-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                Estimated value
+                Likely value
               </p>
               <span className={`text-[10px] font-semibold border rounded-full px-2.5 py-0.5 ${confidenceColour}`}>
                 {report.valuationState === "unavailable"
@@ -426,15 +426,15 @@ function PropertyHero({
                 {/* Main estimate — mid prominent, low/high flanking */}
                 <div className="flex items-end gap-3 mb-1">
                   <div className="flex-1 text-center">
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Low</p>
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Conservative</p>
                     <p className="font-serif text-lg text-muted-foreground">{fmt(est.low)}</p>
                   </div>
                   <div className="flex-[1.6] text-center">
-                    <p className="text-[9px] uppercase tracking-wider text-primary mb-0.5">Mid estimate</p>
+                    <p className="text-[9px] uppercase tracking-wider text-primary mb-0.5">Likely value</p>
                     <p className="font-serif text-3xl sm:text-4xl font-semibold text-foreground leading-none">{fmt(est.mid)}</p>
                   </div>
                   <div className="flex-1 text-center">
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">High</p>
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Optimistic</p>
                     <p className="font-serif text-lg text-muted-foreground">{fmt(est.high)}</p>
                   </div>
                 </div>
@@ -449,6 +449,16 @@ function PropertyHero({
                 <p className="text-[10px] text-muted-foreground/70 text-center mt-2 leading-relaxed">
                   {report.confidenceNote}
                 </p>
+
+                {/* Plain-English verdict sentence */}
+                {report.comparableCount >= 3 && (
+                  <p className="text-[11px] text-center mt-3 text-muted-foreground leading-relaxed border-t border-border/30 pt-3">
+                    Likely value <span className="font-semibold text-foreground">£{est.mid.toLocaleString("en-GB")}</span> — based on{" "}
+                    <span className="font-semibold text-foreground">{report.comparableCount} nearby sold price{report.comparableCount !== 1 ? "s" : ""}</span>
+                    {report.searchRadiusUsed > 0 ? ` within ${report.searchRadiusUsed} mile${report.searchRadiusUsed === 1 ? "" : "s"}` : " in the same postcode"}.
+                    {" "}Range: £{est.low.toLocaleString("en-GB")} – £{est.high.toLocaleString("en-GB")}.
+                  </p>
+                )}
               </>
             ) : (
               <div className="text-center py-4">
@@ -464,8 +474,8 @@ function PropertyHero({
             <FreshnessBadge status={report.meta.comparables.freshnessStatus} />
             {report.comparableCount > 0 && (
               <span className="text-[10px] text-muted-foreground">
-                {report.comparableCount} comparable{report.comparableCount !== 1 ? "s" : ""}
-                {report.searchRadiusUsed > 0 ? ` · ${report.searchRadiusUsed} mi radius` : ""}
+                {report.comparableCount} comparable sale{report.comparableCount !== 1 ? "s" : ""} used
+                {report.searchRadiusUsed > 0 ? ` · within ${report.searchRadiusUsed} mi` : " · same postcode"}
               </span>
             )}
           </div>
@@ -563,17 +573,17 @@ function SoldNearbyCardGrid({
         <div className="mt-3 rounded-xl border border-border/50 bg-card/60 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-foreground">
-              {hidden} more comparable sale{hidden !== 1 ? "s" : ""} available
+              {hidden} more sold price{hidden !== 1 ? "s" : ""} in this area
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Create a free account to see all recorded sales in this postcode.
+              Create a free account to see the full list — it only takes 30 seconds.
             </p>
           </div>
           <button
             onClick={onUnlock}
             className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/40 rounded-lg px-4 py-2 hover:bg-primary/5 transition-colors"
           >
-            Unlock free <ChevronRight className="h-3.5 w-3.5" />
+            See all — free <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
@@ -960,6 +970,12 @@ function AskingPriceBar({
         <span className="hidden sm:inline">Likely <span className="font-semibold text-foreground">£{estimate.mid.toLocaleString("en-GB")}</span></span>
         <span>Optimistic <span className="font-semibold text-foreground">£{estimate.high.toLocaleString("en-GB")}</span></span>
       </div>
+      {!askingPrice && (
+        <p className="mt-2 text-[10px] text-muted-foreground/70 leading-relaxed">
+          <span className="font-medium text-foreground">Start your offer at or below the Likely figure.</span>{" "}
+          The Optimistic end is your absolute ceiling — not your opening bid.
+        </p>
+      )}
       {askingPrice && (
         <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <div className={`h-2.5 w-2.5 rounded-full ${askingAbove ? "bg-amber-500" : askingBelow ? "bg-green-500" : "bg-foreground"}`} />
@@ -1009,10 +1025,10 @@ function ConfidenceSignal({
 
   const qualityText =
     quality === "solid"
-      ? "solid data"
+      ? "strong evidence"
       : quality === "moderate"
-      ? "reasonable data"
-      : "treat this range as indicative";
+      ? "reasonable evidence"
+      : "treat as indicative — limited local data";
 
   const qualityColour =
     quality === "solid"
@@ -1302,8 +1318,8 @@ function CostToBuySummary({
           <PoundSterling className="h-4 w-4" />
         </div>
         <div>
-          <h2 id="val-cost-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-0.5">Estimated cost to buy</h2>
-          <p className="text-xs text-muted-foreground">Based on a purchase price of £{purchasePrice.toLocaleString("en-GB")}. These are indicative figures — get quotes before committing.</p>
+          <h2 id="val-cost-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-0.5">Total cost to buy — beyond the asking price</h2>
+          <p className="text-xs text-muted-foreground">Most buyers underestimate the full cost to buy. Based on a purchase price of £{purchasePrice.toLocaleString("en-GB")}. Indicative — get quotes from a solicitor and surveyor before committing.</p>
         </div>
       </div>
 
@@ -1412,21 +1428,21 @@ function ThreeStepActionPanel({
   const steps = [
     {
       number: "01",
-      title: "Decide whether to view",
+      title: "Decide whether to proceed",
       icon: <Home className="h-4 w-4" />,
-      body: "If the asking price sits above the comparable range and there are risk flags, it may not be worth your time. If it's fairly priced and the risk profile is clean, it's worth a look.",
+      body: "If the asking price sits above the comparable range and there are risk flags, think carefully before viewing. If it's within the band and the risk profile is clean, it's worth pursuing.",
     },
     {
       number: "02",
       title: "Set your maximum before you view",
       icon: <Target className="h-4 w-4" />,
-      body: "Decide your walk-away price before you walk through the door. Use the Optimistic figure as your absolute ceiling — not the asking price. Write it down. Buyers who set a number in advance are less likely to overbid.",
+      body: "Decide your walk-away price before you walk through the door. Use the Optimistic figure as your ceiling — not the asking price. Buyers who set a number before viewing are far less likely to overpay.",
     },
     {
       number: "03",
-      title: "Use this data in negotiation",
+      title: "Use this in negotiation",
       icon: <FileText className="h-4 w-4" />,
-      body: "When you make an offer, you can reference the comparable sales directly. Agents expect buyers to negotiate. Citing specific sold prices in the same postcode is more persuasive than saying 'I think it's overpriced.'",
+      body: "When you make an offer, cite the comparable sales directly. Agents respect evidence-backed offers. 'Properties nearby sold for £X' is more persuasive than 'I think it's overpriced' — and harder to dismiss.",
     },
   ];
 
@@ -1437,8 +1453,8 @@ function ThreeStepActionPanel({
           <Users className="h-4 w-4" />
         </div>
         <div>
-          <h2 id="val-action-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-0.5">What to do with this information</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">Three steps to turn this data into a decision.</p>
+          <h2 id="val-action-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-0.5">What to do next</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">Three steps to turn this data into a confident decision.</p>
         </div>
       </div>
 
@@ -1459,11 +1475,11 @@ function ThreeStepActionPanel({
 
       <div className="mt-6 pt-5 border-t border-primary/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-[11px] text-muted-foreground max-w-md leading-relaxed">
-          <strong className="text-foreground font-medium">Remember:</strong> This is a starting point based on official Land Registry data, not a formal valuation. Always instruct a RICS-accredited surveyor before exchanging contracts.
+          <strong className="text-foreground font-medium">Important:</strong> This is an evidence-based estimate — not a formal RICS valuation. Always instruct a qualified surveyor before exchanging contracts or taking financial decisions.
         </p>
         <Button size="sm" variant="outline" className="shrink-0 font-medium" onClick={onSave}>
           <Receipt className="h-3.5 w-3.5 mr-1.5" />
-          Save this valuation
+          Save valuation
         </Button>
       </div>
     </section>
@@ -1616,20 +1632,20 @@ export default function ValuationPage() {
           <div className="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-20">
             <div className="max-w-2xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-5">
-                Property Valuation
+                Property Valuation — UK House Price Check
               </p>
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-[2.6rem] leading-tight tracking-tight text-foreground mb-4">
-                What is your property actually worth?
+                What is this property actually worth?
               </h1>
               <p className="text-base text-muted-foreground leading-relaxed mb-8 max-w-xl">
-                Enter any UK postcode to get a valuation range backed by real HM Land Registry sold prices and the UK House Price Index. No agents, no appointments.
+                Enter any UK postcode to see a valuation range built on real HM Land Registry sold prices — comparable sales, a fair value band, and a suggested opening offer. No agents. No appointments. No AI-generated guesses.
               </p>
 
               <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 max-w-xl">
                 <div className="relative flex-1">
                   <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Property address or postcode"
+                    placeholder="Enter a UK postcode — e.g. SW3 4LX"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="pl-9 h-11 text-sm bg-background border-border/70 focus-visible:ring-primary/40"
@@ -1649,7 +1665,7 @@ export default function ValuationPage() {
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
-                      Get Valuation <ArrowRight className="h-4 w-4" />
+                      Check Value <ArrowRight className="h-4 w-4" />
                     </span>
                   )}
                 </Button>
@@ -1662,8 +1678,8 @@ export default function ValuationPage() {
               )}
 
               <p className="mt-4 text-[11px] text-muted-foreground">
-                Works for any active UK postcode.&nbsp;&nbsp;
-                <span className="text-primary font-medium">Based on real HM Land Registry data.</span>
+                Any UK postcode. Free to use. No account needed.&nbsp;&nbsp;
+                <span className="text-primary font-medium">Powered by HM Land Registry — not portal estimates.</span>
               </p>
             </div>
           </div>
@@ -1706,14 +1722,15 @@ export default function ValuationPage() {
               <section className="rounded-2xl border border-border/60 bg-card p-6 sm:p-7 space-y-4">
                 {/* Header */}
                 <div>
-                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-3">Fair value band</h2>
+                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1">Fair value band</h2>
+                  <p className="text-xs text-muted-foreground mb-3 leading-relaxed">The range of what properties like this have recently sold for nearby, based on HM Land Registry records. Use the <span className="font-medium text-foreground">Likely</span> figure as your anchor when deciding whether to offer.</p>
 
                   {/* Three-figure band */}
                   <div className="grid grid-cols-3 gap-3 mb-2">
                     {[
-                      { label: "Conservative", tooltip: "The lower end of what comparable sales in this area support. Properties needing work or with less kerb appeal tend to sell here.", val: report.estimate.low },
-                      { label: "Likely", tooltip: "The midpoint of recent comparable sales for this type of property. Your most reliable anchor point.", val: report.estimate.mid },
-                      { label: "Optimistic", tooltip: "The upper end — well-presented, well-located examples that sold quickly.", val: report.estimate.high },
+                      { label: "Conservative", tooltip: "Lower end of the range. Properties needing work, or those that take longer to sell, tend to register here. Use this as your maximum if there are risk flags.", val: report.estimate.low },
+                      { label: "Likely", tooltip: "The midpoint of recent comparable sales — your most reliable anchor. Start here when deciding what to offer.", val: report.estimate.mid },
+                      { label: "Optimistic", tooltip: "Upper end of the range — well-presented properties that sold quickly. Treat this as your absolute ceiling, not your starting point.", val: report.estimate.high },
                     ].map((f) => (
                       <div key={f.label} className="rounded-xl border border-border/50 bg-background p-3 sm:p-4 text-center" title={f.tooltip}>
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{f.label}</p>
@@ -1733,7 +1750,7 @@ export default function ValuationPage() {
                 {/* Asking price input */}
                 <div className="border-t border-border/40 pt-4">
                   <p className="text-[11px] text-muted-foreground mb-2 font-medium">
-                    Enter the asking price to get a deal quality verdict and opening offer suggestion:
+                    Have a listing price in mind? Enter it to see how it compares to comparable sales:
                   </p>
                   <div className="flex gap-2 max-w-xs">
                     <div className="relative flex-1">
@@ -1817,8 +1834,8 @@ export default function ValuationPage() {
               <section aria-labelledby="val-comps-heading">
                 <SectionHeading
                   id="val-comps-heading"
-                  label="Nearby sold evidence"
-                  provenance="Confirmed from Land Registry"
+                  label="What comparable properties sold for"
+                  provenance="HM Land Registry — registered prices"
                   badge={
                     !isSignedIn && report.comparables.length > 4 ? (
                       <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -1841,7 +1858,7 @@ export default function ValuationPage() {
             ════════════════════════════════════════════════════════════════ */}
             {report.comparableSelectionMeta && (
               <section aria-labelledby="val-comp-meta-heading">
-                <SectionHeading id="val-comp-meta-heading" label="How comparables were selected" />
+                <SectionHeading id="val-comp-meta-heading" label="How we calculated this range" />
                 <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                   {(() => {
                     const m = report.comparableSelectionMeta;
@@ -1900,8 +1917,8 @@ export default function ValuationPage() {
               <section aria-labelledby="val-timeline-heading">
                 <SectionHeading
                   id="val-timeline-heading"
-                  label="Property history"
-                  provenance="Confirmed from Land Registry"
+                  label="This property's sales history"
+                  provenance="HM Land Registry — registered prices"
                 />
                 <PropertyTimeline history={report.propertyHistory} />
               </section>
@@ -1993,9 +2010,10 @@ export default function ValuationPage() {
                 7. AREA PRICE TREND
             ════════════════════════════════════════════════════════════════ */}
             <section aria-labelledby="val-trend-heading">
-              <h2 id="val-trend-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+              <h2 id="val-trend-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1">
                 Area price trend — {report.localAuthority ?? report.outcode}
               </h2>
+              <p className="text-xs text-muted-foreground mb-4">How average prices in this local authority have moved. Gives context on whether values are rising, flat, or falling.</p>
               {report.meta.priceTrend.freshnessStatus === "unavailable" || report.priceTrend.length === 0 ? (
                 <UnavailableModule meta={report.meta.priceTrend} label="Area price trend" />
               ) : (
@@ -2003,7 +2021,7 @@ export default function ValuationPage() {
                   <PriceTrendChart data={report.priceTrend} />
                   <SourceLine meta={report.meta.priceTrend} />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Local authority average prices. Postcode-district granularity is not available from the UKHPI — this chart shows the broader local authority area. Source: HM Land Registry UK House Price Index (OGL v3.0).
+                    Local authority average sold prices from the UK House Price Index (HM Land Registry). District-level data is not available — this covers the broader council area. Source: HM Land Registry UKHPI (OGL v3.0).
                   </p>
                 </div>
               )}
@@ -2167,7 +2185,7 @@ export default function ValuationPage() {
               if (vdComp.state === "unavailable") return null;
               return (
                 <section aria-labelledby="val-drivers-heading">
-                  <SectionHeading id="val-drivers-heading" label="What could change the value?" provenance={vdComp.provenanceLabel} />
+                  <SectionHeading id="val-drivers-heading" label="What could push the price up or down?" provenance={vdComp.provenanceLabel} />
                   <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
@@ -2216,7 +2234,7 @@ export default function ValuationPage() {
                     <PartialNote result={vdComp} />
                     <p className="text-[10px] text-muted-foreground/60 mt-4 leading-relaxed flex gap-1.5 items-start">
                       <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                      Signals derived from official public data for this postcode. These are indicative factors, not a formal assessment.
+                      These signals are derived from official public records for this postcode. They are indicative — not a formal survey or legal assessment. Always instruct a RICS-accredited surveyor before exchanging contracts.
                     </p>
                   </div>
                 </section>
@@ -2333,9 +2351,10 @@ export default function ValuationPage() {
             ════════════════════════════════════════════════════════════════ */}
             {report.estimate && (
               <section aria-labelledby="val-sdlt-heading">
-                <h2 id="val-sdlt-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
-                  Stamp duty estimate — mid price {fmt(report.estimate.mid)}
+                <h2 id="val-sdlt-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1">
+                  Stamp duty (SDLT) — based on mid estimate {fmt(report.estimate.mid)}
                 </h2>
+                <p className="text-xs text-muted-foreground mb-4">How much stamp duty you'd owe at this price. Rates vary by buyer type — check your category below.</p>
                 <SdltTable price={report.estimate.mid} />
               </section>
             )}
@@ -2470,8 +2489,8 @@ export default function ValuationPage() {
                       <div className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center mx-auto mb-3">
                         <Lock className="h-4 w-4 text-primary" />
                       </div>
-                      <p className="text-sm font-semibold text-foreground mb-1">Unlock advanced analysis</p>
-                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Risk signals, yield context, and price trend summary are included in the Professional plan.</p>
+                      <p className="text-sm font-semibold text-foreground mb-1">Unlock deeper analysis</p>
+                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Risk signals, rental yield context, and 5-year price trend are included in the Professional plan — £4.99/month.</p>
                       <Link href="/pricing">
                         <Button size="sm" className="font-semibold">View plans <ArrowRight className="h-3.5 w-3.5 ml-1.5" /></Button>
                       </Link>
@@ -2485,14 +2504,15 @@ export default function ValuationPage() {
                 14. HOW THIS ESTIMATE IS BUILT
             ════════════════════════════════════════════════════════════════ */}
             <section aria-labelledby="val-method-heading">
-              <h2 id="val-method-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+              <h2 id="val-method-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1">
                 How this estimate is built
               </h2>
+              <p className="text-xs text-muted-foreground mb-4">Unlike portal estimates, every figure here traces back to a real registered transaction — no algorithms, no smoothed guesses.</p>
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
-                  { icon: <BarChart3 className="h-4 w-4" />, title: "HM Land Registry", body: "Every registered sale in England and Wales. The most authoritative UK residential price dataset — 28M+ transactions since 1995.", url: DATA_SOURCES.hmlr_ppd.url },
-                  { icon: <Home className="h-4 w-4" />, title: "Comparable matching", body: "We find recent transactions in the same postcode outcode. Median of valid comparables becomes the mid estimate. Range widens when data is thin.", url: null },
-                  { icon: <TrendingUp className="h-4 w-4" />, title: "UK House Price Index", body: "Local authority average prices from the UKHPI — published jointly by HMLR, ONS, RoS, and NISRA. Used for the area trend chart.", url: DATA_SOURCES.hmlr_ukhpi.url },
+                  { icon: <BarChart3 className="h-4 w-4" />, title: "HM Land Registry — Price Paid", body: "Every registered residential sale in England and Wales. 28M+ transactions since 1995. The same data used by banks, surveyors, and conveyancers.", url: DATA_SOURCES.hmlr_ppd.url },
+                  { icon: <Home className="h-4 w-4" />, title: "Comparable matching", body: "We find recent registered sales of similar properties nearby. The median becomes the 'Likely' figure. The range reflects how much variation exists in the local market.", url: null },
+                  { icon: <TrendingUp className="h-4 w-4" />, title: "UK House Price Index", body: "Monthly average prices by local authority, published jointly by HMLR, ONS and NISRA. Tells you whether prices in the wider area are rising or falling.", url: DATA_SOURCES.hmlr_ukhpi.url },
                 ].map((m) => (
                   <div key={m.title} className="rounded-xl border border-border/60 bg-card p-5">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">{m.icon}</div>
@@ -2524,7 +2544,7 @@ export default function ValuationPage() {
             <section>
               <div className="rounded-xl border border-border/40 bg-muted/20 p-5">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground font-medium">Accuracy notice.</strong> This is a model estimate based on comparable Land Registry transactions — not a formal RICS or BVAS valuation. HM Land Registry Price Paid Data typically lags 2 weeks to 2 months after completion; new builds may take longer. The most recent 2 months of data are always incomplete. Use this as an informed starting point, not a definitive market appraisal. Always instruct a qualified surveyor before making an offer or taking financial decisions.
+                  <strong className="text-foreground font-medium">Accuracy notice.</strong> This is an evidence-based estimate built on registered Land Registry transactions — not a formal RICS or BVAS valuation. Price Paid Data typically lags 2 weeks to 2 months after completion; new builds may take longer. The most recent 2 months of data are always incomplete. Always treat this as an informed starting point, and instruct a qualified RICS-accredited surveyor before making an offer or taking financial decisions.
                 </p>
               </div>
             </section>
@@ -2532,17 +2552,35 @@ export default function ValuationPage() {
             <section className="rounded-xl border border-border/60 bg-card p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1.5">Also useful</p>
-                  <h3 className="text-base font-semibold text-foreground mb-1">Want to understand the neighbourhood too?</h3>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-1.5">Before you offer</p>
+                  <h3 className="text-base font-semibold text-foreground mb-2">The valuation is only part of the picture.</h3>
                   {isPro ? (
-                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">Professional valuation features are included with your Brief for {postcodeToOutcode(report.queryPostcode)}. The Brief also covers schools, transport, crime, flood risk, broadband, and planning activity.</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">Your Professional plan includes the full postcode brief for {postcodeToOutcode(report.queryPostcode)}: schools, transport, crime rates, flood risk, broadband speeds, air quality, and live planning applications — all from official sources.</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">The Postcode Brief covers the neighbourhood around this postcode: schools, transport, crime, planning activity, flood risk, and broadband. Separate from the property valuation.</p>
+                    <>
+                      <p className="text-sm text-muted-foreground leading-relaxed max-w-md mb-3">Before making an offer, serious buyers also check the postcode brief — it tells you everything a valuation can't:</p>
+                      <ul className="text-sm text-muted-foreground space-y-1 mb-3 max-w-md">
+                        {[
+                          "School ratings and catchment areas",
+                          "Crime rates by category",
+                          "Flood risk zone",
+                          "Transport links and travel times",
+                          "Active planning applications nearby",
+                          "Pre-offer negotiation strategy",
+                        ].map((item) => (
+                          <li key={item} className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-muted-foreground/70">Free to try. No account required.</p>
+                    </>
                   )}
                 </div>
                 <Link href={`/?q=${encodeURIComponent(report.queryPostcode)}`}>
                   <Button variant="outline" size="sm" className="shrink-0 font-medium">
-                    {isPro ? "Open Postcode Brief" : "Try Postcode Brief"}
+                    {isPro ? "Open Full Brief" : "Run Postcode Brief — free"}
                     <ChevronRight className="h-3.5 w-3.5 ml-1" />
                   </Button>
                 </Link>
@@ -2557,9 +2595,9 @@ export default function ValuationPage() {
           <section className="mx-auto max-w-5xl px-4 sm:px-6 py-14">
             <div className="grid sm:grid-cols-3 gap-6">
               {[
-                { step: "01", title: "Enter a UK postcode", body: "We look up recent Land Registry transactions in the same outcode area." },
-                { step: "02", title: "Get a data-backed range", body: "Low, mid, and high estimate derived from real comparable sales — not automated assumptions." },
-                { step: "03", title: "Understand the context", body: "Area price trend, EPC band, planning activity, and SDLT — all from official sources." },
+{ step: "01", title: "Enter any UK postcode", body: "We search HM Land Registry for recent comparable sales in the same area — the same data your solicitor uses." },
+{ step: "02", title: "Get a fair value range", body: "Conservative, Likely, and Optimistic figures — derived from real registered sales, not portal estimates or AI guesses." },
+{ step: "03", title: "Know what to do next", body: "Area price trend, risk flags, a suggested opening offer, and your total cost to buy — all from official UK government data." },
               ].map((s) => (
                 <div key={s.step} className="flex gap-4">
                   <span className="font-serif text-3xl font-semibold text-primary/30 shrink-0 leading-none mt-0.5">{s.step}</span>
@@ -2588,10 +2626,10 @@ export default function ValuationPage() {
           <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground text-center sm:text-left">
               <Lock className="h-3.5 w-3.5 inline mr-1.5 text-primary" />
-              Free account unlocks all comparables and saves this valuation.
+              Free account unlocks all comparable sales and lets you save this report.
             </p>
             <Button size="sm" className="shrink-0 font-semibold" onClick={() => setSignupOpen(true)}>
-              Create free account <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              Create free account — no card needed <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
             </Button>
           </div>
         </div>
@@ -2601,10 +2639,10 @@ export default function ValuationPage() {
       {signupOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm" onClick={() => setSignupOpen(false)}>
           <div className="bg-card rounded-2xl border border-border/60 shadow-xl p-8 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">Free account</p>
-            <h2 className="font-serif text-xl text-foreground mb-2">Unlock your full valuation</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">Free — no card required</p>
+            <h2 className="font-serif text-xl text-foreground mb-2">See the full sold price data</h2>
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              Sign up free to see all comparables, save valuations, and access area briefs.
+              Create a free account to unlock all comparable sales, save this valuation, and run full postcode briefs — no card, no commitment.
             </p>
             <Button
               className="w-full font-semibold mb-3"
