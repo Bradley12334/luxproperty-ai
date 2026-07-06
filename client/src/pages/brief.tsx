@@ -2754,123 +2754,16 @@ export default function BriefPage() {
     );
   }
 
-  // ── Signed-out gate ─────────────────────────────────────────────────────────
-  // Signed-out users see the report title + a static locked teaser.
-  // No report content (no ai.* data) is rendered or mounted for !user.
-  if (!user) {
-    const reportTitle = report.queryType === "address" && report.propertyDeepDive
-      ? `Property Report — ${report.query}`
-      : `${report.areaIntelligence.location} Property Report — ${report.areaIntelligence.area}`;
-    const isPropertyBrief = report.queryType === "address" && !!report.propertyDeepDive;
-
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-1">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 sm:py-10">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="mb-6 -ml-2 text-muted-foreground">
-                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                New search
-              </Button>
-            </Link>
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-semibold">
-                  {isPropertyBrief ? "Property Brief" : "Area Brief"}
-                </Badge>
-              </div>
-              <h1 className="font-serif text-2xl sm:text-3xl tracking-tight leading-tight mb-2">
-                {reportTitle}
-              </h1>
-            </div>
-
-            {/* Locked gate — purely static, zero real data */}
-            <div
-              className="relative overflow-hidden rounded-xl border"
-              style={{ background: "#1A1612", borderColor: "#2A2420" }}
-              data-testid="section-signed-out-gate"
-            >
-              <div
-                className="pointer-events-none absolute inset-x-0 top-0 h-px"
-                style={{
-                  background: "linear-gradient(90deg, transparent, #B8860B 40%, #B8860B 60%, transparent)",
-                  opacity: 0.5,
-                }}
-              />
-              <div className="px-6 pt-8 pb-4 space-y-4" aria-hidden="true">
-                {[88, 72, 60, 80, 55].map((w, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <div className="h-2 rounded" style={{ background: "#2A2420", width: `${w}%` }} />
-                    <div className="h-2 rounded ml-auto" style={{ background: "#2A2420", width: "15%" }} />
-                  </div>
-                ))}
-                <div className="pt-2 space-y-2">
-                  <div className="h-1.5 rounded" style={{ background: "#2A2420", width: "90%" }} />
-                  <div className="h-1.5 rounded" style={{ background: "#2A2420", width: "76%" }} />
-                  <div className="h-1.5 rounded" style={{ background: "#2A2420", width: "62%" }} />
-                </div>
-              </div>
-              <div className="px-6 pb-6">
-                <div
-                  className="rounded-xl px-5 py-5 text-center"
-                  style={{ background: "rgba(42,36,32,0.85)", border: "1px solid #2A2420" }}
-                >
-                  <div
-                    className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full"
-                    style={{ background: "rgba(184,134,11,0.12)", border: "1px solid rgba(184,134,11,0.25)" }}
-                  >
-                    <Lock className="h-5 w-5" style={{ color: "#B8860B" }} />
-                  </div>
-                  <h3
-                    className="text-base font-semibold mb-1.5"
-                    style={{ color: "#FAF8F4", fontFamily: "'Instrument Serif', Georgia, serif" }}
-                  >
-                    Your brief is ready — sign in to view it
-                  </h3>
-                  <p className="text-xs leading-relaxed mb-4" style={{ color: "#9A9490" }}>
-                    Create a free account to access this report instantly. Explorer is always free — no card required. Professional unlocks comparable sales, a fair value range, and your pre-offer strategy.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => { setAuthTab("signup"); setAuthOpen(true); }}
-                      className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors"
-                      style={{ background: "#B8860B", color: "#FAF8F4" }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "#9A7A0A")}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "#B8860B")}
-                      data-testid="button-signup-gate"
-                    >
-                      Create free account — no card needed
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setAuthTab("signin"); setAuthOpen(true); }}
-                      className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors"
-                      style={{ background: "transparent", color: "#FAF8F4", border: "1px solid #2A2420" }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)")}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-                      data-testid="button-signin-gate"
-                    >
-                      Sign in
-                    </button>
-                  </div>
-                  <p className="mt-3 text-[11px]" style={{ color: "#5A5450" }}>
-                    Explorer is free. No card. No commitment.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-        <AuthModal
-          open={authOpen}
-          onClose={() => setAuthOpen(false)}
-          defaultTab={authTab}
-        />
-      </div>
-    );
+  // Anonymous brief: store in sessionStorage for post-signup save offer
+  if (!user && report) {
+    try {
+      sessionStorage.setItem("lux_anon_brief", JSON.stringify({
+        query: report.query,
+        areaName: report.areaIntelligence?.area || report.areaIntelligence?.location || report.query,
+        reportId: report.id,
+        savedAt: new Date().toISOString(),
+      }));
+    } catch { /* sessionStorage blocked */ }
   }
 
   const { areaIntelligence: ai, propertyDeepDive: pd } = report;
