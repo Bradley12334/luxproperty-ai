@@ -37,6 +37,7 @@ import {
   Clock,
   WifiOff,
   CheckCircle2,
+  CheckCircle,
   ExternalLink,
   HelpCircle,
   ShieldCheck,
@@ -2028,53 +2029,165 @@ export default function ValuationPage() {
             </section>
 
             {/* ════════════════════════════════════════════════════════════════
-                8. LEASEHOLD SUMMARY
+                8. TENURE
             ════════════════════════════════════════════════════════════════ */}
             {(() => {
-              const l        = report.leaseholdSummary;
+              const l          = report.leaseholdSummary;
               const lhDecision = getLeaseholdModuleDecision(l);
-              if (lhDecision.state === "hidden") return null;
-              if (lhDecision.state === "warning") {
+
+              // ── Freehold confirmed ───────────────────────────────────────
+              // Previously hidden — now show a minimal confirmed card so buyers
+              // always see a tenure answer, never a blank section.
+              if (lhDecision.state === "hidden" && !l.isLeasehold && l.tenureConfidence !== "uncertain") {
                 return (
-                  <section aria-labelledby="val-leasehold-heading">
-                    <SectionHeading id="val-leasehold-heading" label="Tenure" provenance={lhDecision.provenanceLabel} />
-                    <WarningCard message={lhDecision.copy!} />
-                  </section>
-                );
-              }
-              if (lhDecision.state === "compact") {
-                return (
-                  <section aria-labelledby="val-leasehold-heading">
-                    <SectionHeading id="val-leasehold-heading" label="Leasehold summary" provenance={lhDecision.provenanceLabel} />
-                    <div className="rounded-xl border border-amber-400/40 bg-amber-50/30 dark:bg-amber-950/15 p-5 sm:p-6 space-y-3">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-xs text-muted-foreground">Tenure</span>
-                        <span className="text-xs font-semibold text-foreground">
-                          Leasehold
-                          {l.tenureConfidence === "inferred" && (
-                            <span className="ml-1.5 text-[9px] font-normal text-amber-600/70 dark:text-amber-400/60 uppercase tracking-wide">Inferred</span>
-                          )}
+                  <section aria-labelledby="val-tenure-heading">
+                    <SectionHeading id="val-tenure-heading" label="Tenure" provenance="Confirmed from comparable sales" />
+                    <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-950/30 flex items-center justify-center shrink-0">
+                            <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">Freehold</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">You own the building and the land outright — no ground rent, no lease expiry, no managing agent.</p>
+                          </div>
+                        </div>
+                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-green-50 dark:bg-green-950/30 px-2.5 py-1 text-[10px] font-medium text-green-700 dark:text-green-400 border border-green-200/60 dark:border-green-800/40 shrink-0 ml-4">
+                          <CheckCircle className="h-3 w-3" />
+                          Confirmed
                         </span>
                       </div>
-                      <WarningCard level="amber" message={lhDecision.copy!} />
+                      {l.tenureConfidence === "inferred" && (
+                        <p className="text-[10px] text-muted-foreground/70 mt-3 leading-relaxed flex gap-1.5 items-start">
+                          <Info className="h-3 w-3 shrink-0 mt-0.5 flex-shrink-0" />
+                          Inferred from nearby comparable sales — verify with your solicitor at conveyancing.
+                        </p>
+                      )}
                     </div>
                   </section>
                 );
               }
+
+              // ── Tenure genuinely uncertain ───────────────────────────────
+              if (lhDecision.state === "warning") {
+                return (
+                  <section aria-labelledby="val-tenure-heading">
+                    <SectionHeading id="val-tenure-heading" label="Tenure" provenance="Seller confirmation needed" />
+                    <div className="rounded-xl border border-amber-400/40 bg-amber-50/20 dark:bg-amber-950/10 p-5 sm:p-6">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center shrink-0 mt-0.5">
+                          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-foreground">Tenure not confirmed</p>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
+                              Seller confirmation needed
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                            We checked the comparable sales data but could not confirm whether this property is freehold or leasehold with enough certainty to report a result. Nearby transactions show a mix of both tenure types.
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                            <span className="font-medium text-foreground">What to do:</span> Ask the agent to confirm tenure in writing before viewing. Your solicitor will verify via the title register during conveyancing.
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed">
+                            Checked: HM Land Registry comparable sales data · Title match not yet confirmed
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                );
+              }
+
+              // ── Leasehold confirmed — no lease terms available ───────────
+              if (lhDecision.state === "compact") {
+                return (
+                  <section aria-labelledby="val-tenure-heading">
+                    <SectionHeading id="val-tenure-heading" label="Tenure" provenance={lhDecision.provenanceLabel} />
+                    <div className="rounded-xl border border-amber-400/40 bg-amber-50/20 dark:bg-amber-950/10 p-5 sm:p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
+                            <Layers className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              Leasehold
+                              {l.tenureConfidence === "inferred" && (
+                                <span className="ml-2 text-[9px] font-normal text-amber-600/70 dark:text-amber-400/60 uppercase tracking-wide">Inferred</span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">You own the property for a fixed term — not the land. Lease length and running costs matter.</p>
+                          </div>
+                        </div>
+                        <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-[10px] font-medium text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40 shrink-0 ml-4">
+                          <AlertTriangle className="h-3 w-3" />
+                          Terms unavailable
+                        </span>
+                      </div>
+                      <div className="rounded-md border border-amber-300/40 bg-amber-50/40 dark:bg-amber-950/20 px-4 py-3 space-y-1.5">
+                        <p className="text-[11px] font-medium text-amber-900 dark:text-amber-200">Lease terms not in public records</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Lease length, service charge, and ground rent are not held in HM Land Registry or EPC records for this property. These are critical figures — a short lease or high service charge can significantly affect your mortgage options and resale value.
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          <span className="font-medium text-foreground">What to do:</span> Request the full lease pack from the seller or their solicitor before making an offer. Ask specifically for lease length remaining, annual service charge (with 3 years of accounts), and ground rent schedule.
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+                );
+              }
+
+              // ── Full leasehold — at least some terms known ───────────────
               const borderClass = l.leaseWarning === "critical"
                 ? "border-red-400/60 bg-red-50/40 dark:bg-red-950/20"
                 : l.leaseWarning === "caution"
                 ? "border-amber-400/50 bg-amber-50/40 dark:bg-amber-950/20"
                 : "border-border/60 bg-card";
+
               return (
-                <section aria-labelledby="val-leasehold-heading">
-                  <SectionHeading id="val-leasehold-heading" label="Leasehold summary" provenance={lhDecision.provenanceLabel} />
+                <section aria-labelledby="val-tenure-heading">
+                  <SectionHeading id="val-tenure-heading" label="Tenure" provenance={lhDecision.provenanceLabel} />
                   <div className={`rounded-xl border p-5 sm:p-6 ${borderClass}`}>
+
+                    {/* Header row */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
+                          <Layers className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            Leasehold
+                            {l.tenureConfidence === "inferred" && (
+                              <span className="ml-2 text-[9px] font-normal text-amber-600/70 dark:text-amber-400/60 uppercase tracking-wide">Inferred</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">You own the property for a fixed term — not the land.</p>
+                        </div>
+                      </div>
+                      <span className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium border shrink-0 ml-4 ${
+                        l.tenureConfidence === "confirmed"
+                          ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200/60 dark:border-green-800/40"
+                          : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40"
+                      }`}>
+                        {l.tenureConfidence === "confirmed"
+                          ? <><CheckCircle className="h-3 w-3" /> Confirmed from Land Registry</>
+                          : <><AlertTriangle className="h-3 w-3" /> Seller confirmation needed</>
+                        }
+                      </span>
+                    </div>
+
+                    {/* Critical / caution warnings */}
                     {l.leaseWarning === "critical" && (
                       <div className="flex items-start gap-2.5 mb-4 rounded-md border border-red-400/50 bg-red-100/60 dark:bg-red-950/30 px-3.5 py-2.5">
                         <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                         <p className="text-[11px] text-red-800 dark:text-red-300 leading-relaxed">
-                          <span className="font-semibold">Short lease warning.</span> Leases under 80 years can significantly reduce mortgage availability and resale value. Legal advice is strongly recommended before proceeding.
+                          <span className="font-semibold">Short lease warning.</span> Leases under 80 years significantly reduce mortgage availability and resale value. The cost of a statutory lease extension rises sharply below this threshold. Legal advice is strongly recommended before proceeding.
                         </p>
                       </div>
                     )}
@@ -2082,20 +2195,13 @@ export default function ValuationPage() {
                       <div className="flex items-start gap-2.5 mb-4 rounded-md border border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/20 px-3.5 py-2.5">
                         <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                         <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
-                          <span className="font-semibold">Lease length to monitor.</span> Under 125 years remaining — factor in the cost of a lease extension before making an offer.
+                          <span className="font-semibold">Lease length to watch.</span> Under 125 years remaining — factor in the cost of a lease extension before making an offer. Most lenders require at least 70–85 years remaining.
                         </p>
                       </div>
                     )}
+
+                    {/* Key metrics grid */}
                     <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
-                      <div className="flex items-baseline justify-between py-2.5 border-b border-border/30">
-                        <span className="text-xs text-muted-foreground shrink-0 mr-4">Tenure</span>
-                        <span className="text-xs font-medium text-foreground text-right">
-                          Leasehold
-                          {l.tenureConfidence === "inferred" && (
-                            <span className="block text-[9px] font-normal text-amber-600/70 dark:text-amber-400/60 uppercase tracking-wide">Inferred from comparables</span>
-                          )}
-                        </span>
-                      </div>
                       {l.leaseYearsRemaining !== null && (
                         <div className="flex items-baseline justify-between py-2.5 border-b border-border/30 last:border-0">
                           <span className="text-xs text-muted-foreground shrink-0 mr-4">Years remaining</span>
@@ -2121,14 +2227,22 @@ export default function ValuationPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Missing terms note */}
                     {l.leaseYearsRemaining === null && (
-                      <WarningCard level="amber" message="Lease length, service charge, and ground rent are not available from public records. Request the lease pack from the seller or their solicitor before proceeding." />
+                      <div className="mt-3 rounded-md border border-amber-300/40 bg-amber-50/40 dark:bg-amber-950/20 px-3.5 py-2.5">
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          <span className="font-medium text-foreground">Lease length not confirmed.</span> Request the lease pack from the seller or their solicitor. A solicitor will verify the exact remaining term via the title register.
+                        </p>
+                      </div>
                     )}
                     {l.leaseYearsRemaining !== null && (l.serviceChargeEstGBP === null && !l.serviceChargeNote) && (
                       <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed">
-                        Service charge and ground rent are not held in Land Registry or EPC records. Request from the seller or managing agent.
+                        Service charge and ground rent are not held in Land Registry or EPC records — request these figures from the seller or managing agent before proceeding.
                       </p>
                     )}
+
+                    {/* Valuation impact */}
                     <p className="text-[11px] text-muted-foreground/80 mt-3 leading-relaxed flex gap-1.5 items-start">
                       <Info className="h-3 w-3 shrink-0 mt-0.5 flex-shrink-0" />
                       {l.valuationImpactNote}
@@ -2143,31 +2257,124 @@ export default function ValuationPage() {
             ════════════════════════════════════════════════════════════════ */}
             {(() => {
               const epcDecision = getEpcModuleDecision(report.epc, report.meta.epc);
+
+              // ── No EPC found on the official register ─────────────────────
               if (epcDecision.state === "warning") {
                 return (
                   <section aria-labelledby="val-epc-heading">
-                    <SectionHeading id="val-epc-heading" label="Energy performance" provenance={epcDecision.provenanceLabel} />
-                    <WarningCard message={epcDecision.copy!} ctaText={epcDecision.ctaText} ctaUrl={epcDecision.ctaUrl} />
+                    <SectionHeading id="val-epc-heading" label="Energy performance (EPC)" provenance="No EPC found on official register" />
+                    <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
+                          <Leaf className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-foreground">No EPC on record</p>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground border border-border/60">
+                              Seller confirmation needed
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                            No energy performance certificate was found in the MHCLG EPC register for this postcode. This can mean the property predates mandatory EPC requirements (pre-2008 for sales), no assessment has been lodged yet, or the address is not yet matched in the public dataset.
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                            <span className="font-medium text-foreground">What to do:</span> Sellers are legally required to have a valid EPC before marketing a property. Ask the agent or seller for the certificate reference number, or search the official register directly.
+                          </p>
+                          <a
+                            href="https://find-energy-certificate.service.gov.uk/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 mt-3 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            Search the official EPC register
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                          <p className="text-[10px] text-muted-foreground/60 mt-3 leading-relaxed">
+                            Checked: MHCLG EPC Register (England &amp; Wales) · No matching certificate found for this postcode
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </section>
                 );
               }
+
+              // ── EPC found ─────────────────────────────────────────────────
               const epc = report.epc!;
+              const epcBandColour = ["A","B","C"].includes(epc.band)
+                ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300"
+                : epc.band === "D"
+                ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300";
+              const epcBandLabel = ["A","B","C"].includes(epc.band)
+                ? "Good — above average energy efficiency"
+                : epc.band === "D"
+                ? "Average — typical for UK housing stock"
+                : epc.band === "E"
+                ? "Below average — higher running costs expected"
+                : "Poor — significantly above-average heating costs; may affect mortgage options";
+
               return (
                 <section aria-labelledby="val-epc-heading">
-                  <SectionHeading id="val-epc-heading" label="Energy performance" provenance={epcDecision.provenanceLabel} />
-                  <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                      <div className={`w-16 h-16 rounded-xl flex items-center justify-center font-serif text-3xl font-bold shrink-0 ${["A","B","C"].includes(epc.band) ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300" : epc.band === "D" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300" : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300"}`}>
-                        {epc.band}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-foreground">EPC Band {epc.band} — score {epc.score}/100</p>
-                        {epc.floorAreaM2 && <p className="text-xs text-muted-foreground mt-0.5">Floor area: {epc.floorAreaM2} m²</p>}
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Lodged: {fmtDate(epc.lodgementDate)} · Expires: {fmtDate(epc.expiryDate)}
-                          {epc.isExpired && <span className="ml-2 text-amber-600 dark:text-amber-400 font-semibold">(expired)</span>}
+                  <SectionHeading id="val-epc-heading" label="Energy performance (EPC)" provenance={epcDecision.provenanceLabel} />
+                  <div className={`rounded-xl border p-5 sm:p-6 ${epc.isExpired ? "border-amber-400/40 bg-amber-50/10 dark:bg-amber-950/10" : "border-border/60 bg-card"}`}>
+
+                    {/* Expired warning banner */}
+                    {epc.isExpired && (
+                      <div className="flex items-start gap-2.5 mb-4 rounded-md border border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/20 px-3.5 py-2.5">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                          <span className="font-semibold">Certificate expired.</span> This EPC is no longer valid. Current energy performance may differ — ask the seller for an updated certificate before relying on these figures.
                         </p>
-                        {epc.isExpired && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">This EPC has expired. Current energy performance may differ — ask the seller for an updated certificate.</p>}
+                      </div>
+                    )}
+
+                    {/* Band + details */}
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-5">
+                      <div className="flex flex-row sm:flex-col items-center gap-3 sm:gap-2 shrink-0">
+                        <div className={`w-16 h-16 rounded-xl flex items-center justify-center font-serif text-3xl font-bold shrink-0 ${epcBandColour}`}>
+                          {epc.band}
+                        </div>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium border ${
+                          epc.isExpired
+                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40"
+                            : "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200/60 dark:border-green-800/40"
+                        }`}>
+                          {epc.isExpired
+                            ? <><AlertTriangle className="h-3 w-3" /> Expired</>
+                            : <><CheckCircle className="h-3 w-3" /> Confirmed from register</>
+                          }
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">Band {epc.band} — score {epc.score}/100</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{epcBandLabel}</p>
+                        <div className="mt-3 grid sm:grid-cols-2 gap-x-8 gap-y-0 divide-y divide-border/30 sm:divide-y-0">
+                          {epc.floorAreaM2 && (
+                            <div className="flex items-baseline justify-between py-2 border-b border-border/30 last:border-0">
+                              <span className="text-xs text-muted-foreground shrink-0 mr-4">Floor area</span>
+                              <span className="text-xs font-medium text-foreground text-right">{epc.floorAreaM2} m²</span>
+                            </div>
+                          )}
+                          <div className="flex items-baseline justify-between py-2 border-b border-border/30 last:border-0">
+                            <span className="text-xs text-muted-foreground shrink-0 mr-4">Certificate lodged</span>
+                            <span className="text-xs font-medium text-foreground text-right">{fmtDate(epc.lodgementDate)}</span>
+                          </div>
+                          <div className="flex items-baseline justify-between py-2 border-b border-border/30 last:border-0">
+                            <span className="text-xs text-muted-foreground shrink-0 mr-4">Expires</span>
+                            <span className={`text-xs font-medium text-right ${epc.isExpired ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>
+                              {fmtDate(epc.expiryDate)}{epc.isExpired ? " (expired)" : ""}
+                            </span>
+                          </div>
+                        </div>
+                        {(epc.band === "F" || epc.band === "G") && (
+                          <div className="mt-3 rounded-md border border-red-300/40 bg-red-50/40 dark:bg-red-950/20 px-3.5 py-2.5">
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              <span className="font-medium text-red-700 dark:text-red-400">Band {epc.band} — additional risks.</span> Properties rated F or G may be unmortgageable for buy-to-let purposes under current minimum energy efficiency standards. Factor in retrofit costs (insulation, heating system) before making an offer.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <SourceLine meta={report.meta.epc} />
