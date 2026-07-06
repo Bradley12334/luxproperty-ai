@@ -4440,38 +4440,64 @@ export default function BriefPage() {
 
           </div>{/* end space-y-0 outer wrapper */}
 
-          {/* ── Explorer Upgrade Banner — shown to free users below brief content ——— */}
+          {/* ── Upgrade / save banner — shown to free and anon users ————————————— */}
           {!isPaid && (
             <div
               className="mt-8 rounded-xl border border-primary/25 bg-primary/5 px-5 py-5"
               data-testid="section-explorer-upgrade-banner"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary mb-1">
-                    Professional — £4.99/month
-                  </p>
-                  <p className="text-sm font-semibold text-foreground mb-1">
-                    You’re seeing a fraction of this brief.
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
-                    Professional unlocks comparable sold prices, a fair value range, pre-offer strategy, crime breakdown, planning activity, broadband, air quality and PDF export — for any UK postcode, unlimited briefs. First full Investor brief free when you subscribe.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 shrink-0">
-                  <a
-                    href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    data-testid="link-explorer-upgrade-professional"
-                  >
-                    <button className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-                      Get Professional — £4.99/month
+              {!user ? (
+                /* Anonymous user — primary CTA is sign up and save */
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-1">
+                      Like what you see? Save this brief.
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
+                      Create a free account to save this brief, build a portfolio of postcodes, and access your history any time. Professional unlocks comparable sold prices, a fair value range, and a pre-offer strategy.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setAuthTab("signup"); setAuthOpen(true); }}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                      data-testid="button-upgrade-banner-signup"
+                    >
+                      Create free account — no card needed
                     </button>
-                  </a>
-                  <p className="text-[10px] text-muted-foreground text-center">Cancel anytime · No minimum term</p>
+                    <p className="text-[10px] text-muted-foreground text-center">Explorer is free · Upgrade anytime</p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* Signed-in free user — primary CTA is Professional upgrade */
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary mb-1">
+                      Professional — £4.99/month
+                    </p>
+                    <p className="text-sm font-semibold text-foreground mb-1">
+                      You’re seeing a fraction of this brief.
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
+                      Professional unlocks comparable sold prices, a fair value range, pre-offer strategy, crime breakdown, planning activity, broadband, air quality and PDF export — for any UK postcode, unlimited briefs. First full Investor brief free when you subscribe.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <a
+                      href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-testid="link-explorer-upgrade-professional"
+                    >
+                      <button className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+                        Get Professional — £4.99/month
+                      </button>
+                    </a>
+                    <p className="text-[10px] text-muted-foreground text-center">Cancel anytime · No minimum term</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -4580,6 +4606,13 @@ export default function BriefPage() {
                     {savedToPortfolio ? "Saved" : "Save to Portfolio"}
                   </Button>
                 )}
+                {/* Anon micro-note near save area */}
+                {!user && (
+                  <span className="hidden sm:inline text-[10px] text-muted-foreground self-center ml-1" data-testid="text-anon-save-note">
+                    Sign up to save this brief and build your portfolio.
+                  </span>
+                )}
+
                 {/* Export PDF — paid plans only */}
                 {isPaid ? (
                   <Button

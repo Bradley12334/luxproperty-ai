@@ -89,7 +89,7 @@ export default function Home() {
                   <em className="text-primary not-italic">Before you offer.</em>
                 </h1>
                 <p className="mt-5 text-[15px] text-foreground/60 leading-relaxed max-w-[440px]">
-                  Real comparable sales, risk flags, a fair value range, and a pre-offer strategy — for any UK postcode. Built on HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices.
+                  See crime rates, school ratings, price trends and risks for any UK postcode — no sign-up needed for your first brief. Built on HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices.
                 </p>
 
                 <form
@@ -579,7 +579,7 @@ export default function Home() {
           <div className="mx-auto max-w-5xl px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
             <div>
               <h2 className="font-serif text-[1.4rem] sm:text-[1.6rem] tracking-tight text-foreground leading-[1.15]">
-                Run your first brief. It takes 60 seconds.
+                Get your free postcode brief — no sign-up needed.
               </h2>
               <p className="text-[13px] text-foreground/50 mt-1">
                 Free to try. No card. No account required.
