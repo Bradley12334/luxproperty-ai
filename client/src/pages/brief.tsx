@@ -3491,106 +3491,52 @@ export default function BriefPage() {
                   </div>
                 )}
 
-                {/* Market Outlook + Verdict — gated */}
-                {hasMarketOutlookAccess ? (
-                  <div className="space-y-4">
-                    <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
-                      <SectionHeading>Market Outlook</SectionHeading>
-                      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                        Market signals are derived from Land Registry transaction data — not a prediction or forecast. Not financial advice.
+                {/* Market Outlook + Verdict — free for all users, no email required */}
+                <div className="space-y-4">
+                  <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
+                    <SectionHeading>Market Outlook</SectionHeading>
+                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                      Market signals are derived from Land Registry transaction data — not a prediction or forecast. Not financial advice.
+                    </p>
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
+                      <p className="text-sm text-foreground leading-relaxed" data-testid="text-kpi-price-growth">
+                        {ai.investmentOutlook.growthForecast}
                       </p>
-                      <div className="mb-4">
-                        <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
-                        <p className="text-sm text-foreground leading-relaxed" data-testid="text-kpi-price-growth">
-                          {ai.investmentOutlook.growthForecast}
-                        </p>
-                      </div>
-                      <div className="pt-4 border-t border-border/40">
-                        <div className="flex items-center gap-2 mb-3">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental yield context</p>
-                          <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
-                          <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-rental-yield">
-                            {ai.investmentOutlook.rentalYieldEstimate}
-                          </p>
-                        </div>
-                      </div>
-                      {ai.investmentOutlook.riskFlags.length > 0 && (
-                        <div className="mt-4">
-                          <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                            <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                            Market flags
-                          </p>
-                          <ul className="space-y-1.5">
-                            {ai.investmentOutlook.riskFlags.map((flag, i) => (
-                              <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
-                                {flag}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </Card>
-                    <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
-                      <SectionHeading>Verdict</SectionHeading>
-                      <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
-                    </Card>
-                  </div>
-                ) : (
-                  <FeatureGate
-                    featureName="investment_score"
-                    modalHeadline="Unlock Market Outlook & Verdict"
-                    modalSubtext="Enter your email to see price growth forecasts, rental yield, market flags, and the full brief verdict. Free — no payment required."
-                    teaser={
-                      <LockedPreview
-                        title="Market Outlook & Verdict"
-                        description="Price growth forecast, rental yield estimate, market risk flags, and the full AI brief verdict."
-                        planLabel="Free — enter email"
-                        pricingHref="/pricing"
-                        skeletonRows={4}
-                        testId="section-market-outlook-locked"
-                      />
-                    }
-                  >
-                    <div className="space-y-4">
-                      <Card className="p-5 sm:p-6" data-testid="section-market-outlook">
-                        <SectionHeading>Market Outlook</SectionHeading>
-                        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                          Market signals are derived from Land Registry transaction data — not a prediction or forecast. Not financial advice.
-                        </p>
-                        <div className="mb-4">
-                          <p className="text-xs text-muted-foreground mb-1">Recent market signals</p>
-                          <p className="text-sm text-foreground leading-relaxed">{ai.investmentOutlook.growthForecast}</p>
-                        </div>
-                        <div className="pt-4 border-t border-border/40">
-                          <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
-                          <p className="font-serif text-2xl tracking-tight text-foreground">{ai.investmentOutlook.rentalYieldEstimate}</p>
-                        </div>
-                        {ai.investmentOutlook.riskFlags.length > 0 && (
-                          <div className="mt-4">
-                            <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                              <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                              Market flags
-                            </p>
-                            <ul className="space-y-1.5">
-                              {ai.investmentOutlook.riskFlags.map((flag, i) => (
-                                <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
-                                  {flag}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </Card>
-                      <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
-                        <SectionHeading>Verdict</SectionHeading>
-                        <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
-                      </Card>
                     </div>
-                  </FeatureGate>
-                )}
+                    <div className="pt-4 border-t border-border/40">
+                      <div className="flex items-center gap-2 mb-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Rental yield context</p>
+                        <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#B8860B]/10 text-[#B8860B] border border-[#B8860B]/20">Landlords</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Rental yield (indicative) <EstimateTag /></p>
+                        <p className="font-serif text-2xl tracking-tight text-foreground" data-testid="text-kpi-rental-yield">
+                          {ai.investmentOutlook.rentalYieldEstimate}
+                        </p>
+                      </div>
+                    </div>
+                    {ai.investmentOutlook.riskFlags.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                          <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                          Market flags
+                        </p>
+                        <ul className="space-y-1.5">
+                          {ai.investmentOutlook.riskFlags.map((flag, i) => (
+                            <li key={i} className="text-sm text-foreground/80 pl-5 relative before:content-['–'] before:absolute before:left-0 before:text-muted-foreground">
+                              {flag}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </Card>
+                  <Card className="p-5 sm:p-6 border-primary/20" data-testid="section-verdict">
+                    <SectionHeading>Verdict</SectionHeading>
+                    <p className="text-sm leading-relaxed text-foreground/90 italic">{ai.verdict}</p>
+                  </Card>
+                </div>
 
               </TabsContent>
 
