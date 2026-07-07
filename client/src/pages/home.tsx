@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useMutation } from "@tanstack/react-query";
@@ -49,6 +49,25 @@ export default function Home() {
       void err; // suppress lint unused-var warning
     },
   });
+
+  // ── Live elapsed timer while the brief generates ─────────────────────────────
+  // The generation wait is the leading suspect for form drop-off, so show the
+  // user that work is happening and roughly how long it takes, rather than a
+  // silent spinner. Ticks every 100ms from when the mutation starts; resets and
+  // stops when it settles. Uses performance.now() so it's monotonic.
+  const isGenerating = generateBriefMutation.isPending;
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startRef = useRef<number>(0);
+  useEffect(() => {
+    if (!isGenerating) return;
+    startRef.current = performance.now();
+    setElapsedMs(0);
+    const id = window.setInterval(() => {
+      setElapsedMs(performance.now() - startRef.current);
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [isGenerating]);
+  const elapsedSecs = (elapsedMs / 1000).toFixed(1);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,20 +137,26 @@ export default function Home() {
                     className="h-12 px-6 text-[13px] font-semibold tracking-wide shrink-0"
                     data-testid="button-generate"
                   >
-                    {generateBriefMutation.isPending ? (
+                    {isGenerating ? (
                       <span className="flex items-center gap-2">
                         <span className="flex gap-1">
                           <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
                           <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
                           <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
                         </span>
-                        Generating
+                        Generating… <span className="tabular-nums font-mono">{elapsedSecs}s</span>
                       </span>
                     ) : (
                       <>Generate Free Brief <ArrowRight className="ml-1.5 h-4 w-4" /></>
                     )}
                   </Button>
                 </form>
+
+                {isGenerating && (
+                  <p className="mt-3 text-[12px] text-foreground/45 leading-relaxed" data-testid="text-generating-status" aria-live="polite">
+                    Pulling live data from HM Land Registry, police.uk, Ofsted &amp; the Environment Agency — usually 5–15 seconds.
+                  </p>
+                )}
 
                 {validationError && (
                   <p className="mt-3 text-sm text-destructive" data-testid="text-validation-error">
