@@ -92,7 +92,7 @@ export function StreetPriceRanking({ soldPrices }: StreetPriceRankingProps) {
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-bold text-foreground">{fmt(s.avgPrice)}</span>
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                      +{pct.toFixed(0)}%
+                      {pct >= 0 ? "+" : ""}{pct.toFixed(0)}%
                     </span>
                   </div>
                 </div>

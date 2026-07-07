@@ -158,16 +158,30 @@ function deriveVerdict(
   } else if (closestStation && stationWalkMins <= 14 && transportRating >= 6) {
     positives.push(`${closestStation.name} is ${stationWalkMins} min away \u2014 reasonable daily commute`);
   }
+  // School positive is gated on ACTUAL Ofsted data, never on the synthetic
+  // schoolsRating alone. This guarantees the top-line strength can never
+  // contradict the Nearby Schools section (which shows "School data limited"
+  // when no ratings are available). A named Good/Outstanding school is the
+  // minimum bar; a broader "above-average provision" claim requires two or
+  // more Good/Outstanding-rated schools actually present in the data.
+  const ratedGoodOrBetter = (ai.nearbySchools ?? []).filter(
+    s => s.ofstedRating === "Outstanding" || s.ofstedRating === "Good"
+  );
   if (topSchool && schoolsRating >= 7) {
     const walkNote = topSchool.walkMins <= 12 ? ` (${topSchool.walkMins} min walk)` : "";
     positives.push(`${topSchool.name} rated ${topSchool.ofstedRating} by Ofsted${walkNote}`);
-  } else if (!topSchool && schoolsRating >= 8) {
-    positives.push("above-average school provision for the area");
+  } else if (ratedGoodOrBetter.length >= 2) {
+    positives.push(`${ratedGoodOrBetter.length} Good/Outstanding-rated schools nearby`);
   }
   if (floodRisk === "Low") positives.push("low flood risk \u2014 insurance and mortgage terms unaffected");
   if (hasBroadbandStrength) positives.push(`${broadband!.rating.toLowerCase()} broadband (${broadband!.avgDownloadSpeed})`);
   if (closestPark && closestPark.walkMins <= 7) positives.push(`${closestPark.name} is ${closestPark.walkMins} min on foot`);
-  if (airRating === "Good" && (isTransitLight || !isTransitRich)) positives.push("clean air \u2014 NO\u2082 and PM2.5 within WHO guidelines");
+  const airIsEstimate = /\(est\.\)/.test(String(ai.airQuality?.no2Level ?? ""));
+  if (airRating === "Good" && (isTransitLight || !isTransitRich)) {
+    positives.push(airIsEstimate
+      ? "clean air likely \u2014 area-type estimate places NO\u2082 and PM2.5 within WHO guidelines"
+      : "clean air \u2014 NO\u2082 and PM2.5 within WHO guidelines");
+  }
   if (marketStrong) positives.push(`strong ${yoy} annual price growth \u2014 above-average capital trajectory`);
   else if (marketRising) positives.push(`steady ${yoy} year-on-year price growth`);
   if (cafeCount >= 3) positives.push("good local amenity density \u2014 cafes, restaurants, and essentials walkable");
@@ -185,8 +199,8 @@ function deriveVerdict(
     const topCat = ai.crimeStats?.topCategories?.[0];
     watchOuts.push(`above-average crime levels${topCat ? ` \u2014 top category: ${topCat.category}` : ""} \u2014 visit at different times of day`);
   }
-  if (airRating === "Very Poor") watchOuts.push(`very poor air quality (NO\u2082: ${String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}) \u2014 material for respiratory health`);
-  else if (airRating === "Poor") watchOuts.push(`poor air quality (NO\u2082: ${String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}) \u2014 worth noting for families with young children`);
+  if (airRating === "Very Poor") watchOuts.push(`very poor air quality (NO\u2082: ${ai.airQuality.no2Level}) \u2014 material for respiratory health`);
+  else if (airRating === "Poor") watchOuts.push(`poor air quality (NO\u2082: ${ai.airQuality.no2Level}) \u2014 worth noting for families with young children`);
   if (isTransitLight) {
     watchOuts.push(stationWalkMins < 999
       ? `nearest station is ${stationWalkMins} min away \u2014 most journeys will require a car`
@@ -299,99 +313,83 @@ function deriveResidentSentimentBullets(
     const p = rawSentiment;
     const bullets: Bullet[] = [];
 
+    // Accept an extracted fragment ONLY if it reads as a complete standalone
+    // sentence (sentence-initial capital, reasonable length). If it fails, we
+    // skip that bullet — one fewer clean bullet beats a broken one. The curated
+    // sentence is emitted verbatim: the type chip in the UI supplies the
+    // framing, so we do NOT prepend a prefix or lowercase the first word
+    // (that previously produced output like "Residents often describe hampstead
+    // is renowned..." and "Sentiment appears mixed on the main complaint is X").
+    const cleanSentence = (s: string): string | null => {
+      let t = (s || "").trim().replace(/^["'“”]+/, "").trim();
+      if (t.length < 25) return null;
+      if (!/^[A-Z0-9]/.test(t)) return null;            // reject mid-clause fragments
+      if (!/[.!?]["'”)]?$/.test(t)) t = t.replace(/[;,:\s]+$/, "") + ".";
+      return t;
+    };
+    const pushUnique = (type: Bullet["type"], text: string | null) => {
+      if (!text) return;
+      const key = normaliseName(text);
+      if (bullets.some(b => normaliseName(b.text) === key)) return;
+      bullets.push({ type, text });
+    };
+    const firstMatch = (patterns: RegExp[]): string => {
+      for (const pat of patterns) { const m = p.match(pat); if (m) return m[0].trim(); }
+      return "";
+    };
+
     // POSITIVE: first strong positive claim
-    const positivePatterns = [
+    let positiveText = firstMatch([
       /(?:residents|buyers|locals|people)\s+(?:consistently\s+)?(?:describe|cite|praise|love|speak\s+about)[^.]+\./i,
       /(?:most\s+common|top|consistently\s+cited|primary|key)\s+(?:draw|reason|appeal)[^.]+\./i,
       /[^.]*(?:renowned|celebrated|outstanding|exceptional|world[- ]class|best[- ]value|smug\s+contentment|intense\s+loyalty)[^.]*\./i,
-    ];
-    let positiveText = "";
-    for (const pat of positivePatterns) {
-      const m = p.match(pat);
-      if (m) { positiveText = m[0].trim(); break; }
-    }
+    ]);
     if (!positiveText) {
       const sentences = p.split(/(?<=\.)\s+/);
       positiveText = sentences[0] || "";
     }
-    if (positiveText) {
-      if (!positiveText.match(/^Residents|^Local|^Sentiment|^Coverage/i)) {
-        positiveText = "Residents often describe " + positiveText.charAt(0).toLowerCase() + positiveText.slice(1);
-      }
-      bullets.push({ type: "positive", text: positiveText });
-    }
+    pushUnique("positive", cleanSentence(positiveText));
 
     // LIFESTYLE: lived-experience / daily-ritual sentence
-    const lifestylePatterns = [
+    const lifestyleText = firstMatch([
       /[^.]*(?:morning|daily|weekend\s+market|farmers.{0,8}market|canal\s+walk|cycling\s+culture|school\s+run|Portobello|Broadway\s+Market|Broadway\s+market|Mill\s+Road|Exmouth\s+Market)[^.]*\./i,
       /[^.]*(?:village\s+feel|village-like|community\s+feel|neighbourhood\s+feel|village\s+within|feels\s+like\s+a\s+village)[^.]*\./i,
       /[^.]*(?:Heath|Harbour|harbour|river|park|outdoor|walking\s+distance)[^.]*(?:daily|everyday|routine|life)[^.]*\./i,
-    ];
-    let lifestyleText = "";
-    for (const pat of lifestylePatterns) {
-      const m = p.match(pat);
-      if (m) { lifestyleText = m[0].trim(); break; }
-    }
-    if (lifestyleText) {
-      if (!lifestyleText.match(/^Residents|^Local|^Sentiment|^Coverage/i)) {
-        lifestyleText = "Local feedback suggests " + lifestyleText.charAt(0).toLowerCase() + lifestyleText.slice(1);
-      }
-      bullets.push({ type: "lifestyle", text: lifestyleText });
-    }
+    ]);
+    pushUnique("lifestyle", cleanSentence(lifestyleText));
 
     // TRADE-OFF: friction / complaint sentences
-    const tradeoffPatterns = [
+    const tradeoffText = firstMatch([
       /[^.]*(?:most\s+common\s+(?:criticism|complaint|frustration)|recurring\s+(?:criticism|complaint)|the\s+main\s+(?:criticism|complaint|frustration|gripe|downside))[^.]*\./i,
       /[^.]*(?:main\s+frustrat|central\s+complaint|key\s+downside|the\s+criticism)[^.]*\./i,
       /[^.]*(?:frustrat|compla|downside|trade[- ]off|caveat|issue|compromis)[^.]*\.(?!\s*$)/i,
-    ];
-    let tradeoffText = "";
-    for (const pat of tradeoffPatterns) {
-      const m = p.match(pat);
-      if (m) { tradeoffText = m[0].trim(); break; }
-    }
-    if (tradeoffText && tradeoffText !== positiveText) {
-      if (!tradeoffText.match(/^The|^A\s|^Residents|^Local|^Sentiment/i)) {
-        tradeoffText = "Sentiment appears mixed on " + tradeoffText.charAt(0).toLowerCase() + tradeoffText.slice(1);
-      }
-      bullets.push({ type: "trade-off", text: tradeoffText });
-    }
+    ]);
+    pushUnique("trade-off", cleanSentence(tradeoffText));
 
     // CAUTION: buyer-specific warning
-    const cautionPatterns = [
+    const cautionText = firstMatch([
       /[^.]*(?:anxiety|anxious|worried|parking\s+is|crime\s+(?:is|statistics)|school\s+competi|catchment\s+anxiet|noise\s+from)[^.]*\./i,
       /[^.]*(?:verify|check\s+before|instruct|independent|caveat|caution|warrants)[^.]*\./i,
-    ];
-    let cautionText = "";
-    for (const pat of cautionPatterns) {
-      const m = p.match(pat);
-      if (m && m[0].trim() !== tradeoffText && m[0].trim() !== positiveText) {
-        cautionText = m[0].trim();
-        break;
-      }
-    }
-    if (cautionText) {
-      bullets.push({ type: "caution", text: cautionText });
-    }
+    ]);
+    pushUnique("caution", cleanSentence(cautionText));
 
     // NOTE: fifth bullet — named source or named event reference
     if (bullets.length < 4) {
       const noteMatch = p.match(/[^.]*(?:Mumsnet|r\/london|r\/|estate\s+agent|Time\s+Out|annual|festival|carnival|Flower\s+Show)[^.]*\./i);
-      if (noteMatch && !bullets.some(b => b.text === noteMatch[0].trim())) {
-        bullets.push({ type: "note", text: noteMatch[0].trim() });
-      }
+      if (noteMatch) pushUnique("note", cleanSentence(noteMatch[0]));
     }
 
     // Ensure at least one trade-off/caution if none found
     if (!bullets.some(b => b.type === "trade-off" || b.type === "caution")) {
       const sentences = p.split(/(?<=\.)\s+/);
       const lastSent = sentences[sentences.length - 1] || sentences[sentences.length - 2] || "";
-      if (lastSent && lastSent !== positiveText) {
-        bullets.push({ type: "trade-off", text: lastSent });
-      }
+      pushUnique("trade-off", cleanSentence(lastSent));
     }
 
-    return bullets.slice(0, 5);
+    // Only trust the curated parse if it yielded at least two clean bullets;
+    // otherwise fall through to the data-driven path below rather than render a
+    // thin/empty "What Residents Say" section.
+    if (bullets.length >= 2) return bullets.slice(0, 5);
   }
 
   // -- FALLBACK / DATA-DRIVEN PATH --------------------------------------------
@@ -2187,7 +2185,7 @@ async function fetchEpcData(outcode: string): Promise<{
 // ─── Live Air Quality (DEFRA ERG via /api/air-quality) ───────────────────────
 async function fetchAirQuality(lat: number, lng: number): Promise<{
   siteName: string; localAuthority: string; no2Level: string; pm25Level: string;
-  rating: "Good" | "Moderate" | "High" | "Very High"; maxIndex: number;
+  rating: "Good" | "Moderate" | "High" | "Very High"; maxIndex: number; distKm: number | null;
 } | null> {
   try {
     const res = await fetch(`/api/air-quality?lat=${lat}&lng=${lng}`);
@@ -2201,6 +2199,7 @@ async function fetchAirQuality(lat: number, lng: number): Promise<{
       pm25Level: data.pm25Level,
       rating: data.rating as "Good" | "Moderate" | "High" | "Very High",
       maxIndex: data.maxIndex,
+      distKm: typeof data.distKm === "number" ? data.distKm : null,
     };
   } catch { return null; }
 }
@@ -2283,7 +2282,10 @@ async function fetchNearbyStations(lat: number, lng: number): Promise<Array<{
       else if (tags.amenity === "bus_station") modes.push("bus");
       if (modes.length === 0) continue;
       const lineRefs = [tags.network || "", tags.operator || "", tags.route_ref || "", tags.ref || ""].filter(Boolean);
-      const lines = lineRefs.flatMap((r: string) => r.split(/[;,]/)).map((r: string) => r.trim()).filter((r: string) => r.length > 1 && r.length < 40).slice(0, 4);
+      const lines = dedupeBy(
+        lineRefs.flatMap((r: string) => r.split(/[;,]/)).map((r: string) => r.trim()).filter((r: string) => r.length > 1 && r.length < 40),
+        (r: string) => r.toLowerCase()
+      ).slice(0, 4);
       stations.push({ name: name.replace(/ (Railway )?Station$/, " Station"), lines, modes, distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: el.lat, lng: el.lon });
     }
     const seen = new Map<string, typeof stations[0]>();
@@ -2326,6 +2328,32 @@ function normaliseName(name: string): string {
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// \u2500\u2500\u2500 Generic list deduplication \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Removes items sharing the same key, keeping the FIRST occurrence. Callers
+// pass arrays pre-sorted by distance so the nearest instance is the one kept.
+// Used to collapse the node/way/relation duplicates that Overpass returns for
+// the same physical place (a school queried as both node and way, a park as
+// both way and relation) without dropping genuinely distinct same-name branches.
+function dedupeBy<T>(items: T[], keyFn: (t: T) => string): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const it of items) {
+    const k = keyFn(it);
+    if (k && seen.has(k)) continue;
+    if (k) seen.add(k);
+    out.push(it);
+  }
+  return out;
+}
+
+// Location-aware key: same name AND within ~110m (3dp) is treated as one place,
+// so distinct branches of a chain at different locations are preserved.
+function placeKey(name: string, lat?: number, lng?: number): string {
+  const n = normaliseName(name || "");
+  if (lat == null || lng == null) return n;
+  return `${n}|${lat.toFixed(3)}|${lng.toFixed(3)}`;
 }
 
 async function getOfstedData(): Promise<Record<string, number>> {
@@ -2398,7 +2426,12 @@ async function fetchNearbySchools(lat: number, lng: number): Promise<Array<{
       const urn = tags["ref:GB:ofsted"] || tags["ref:ofsted"] || "";
       schools.push({ name, type, ofstedRating: "", distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: elLat, lng: elLng, postcode, urn });
     }
-    const sorted = schools.sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, 8);
+    // Dedupe node/way duplicates of the same school (same name within ~110m),
+    // keeping the nearest instance, before taking the top 8.
+    const sorted = dedupeBy(
+      schools.sort((a, b) => a.distanceMetres - b.distanceMetres),
+      s => placeKey(s.name, s.lat, s.lng)
+    ).slice(0, 8);
     // Fetch Ofsted ratings in parallel — JSON is cached after first load
     const ratings = await Promise.all(sorted.map(s => lookupOfstedRating(s.name, s.postcode, s.urn || undefined)));
     return sorted.map((s, i) => ({ name: s.name, type: s.type, ofstedRating: ratings[i], distanceMetres: s.distanceMetres, walkMins: s.walkMins, lat: s.lat, lng: s.lng }));
@@ -2453,11 +2486,16 @@ async function fetchNearbyAmenities(lat: number, lng: number): Promise<{
       }
     }
     const sortDist = (a: { distanceMetres: number }, b: { distanceMetres: number }) => a.distanceMetres - b.distanceMetres;
+    // Dedupe by name+location (nearest kept) so the same physical place returned
+    // more than once by Overpass can't appear twice in a category. Distinct
+    // branches of a chain at different locations survive (different placeKey).
+    const dedupePlaces = <T extends { name: string; lat?: number; lng?: number }>(arr: T[]) =>
+      dedupeBy(arr.sort(sortDist), p => placeKey(p.name, p.lat, p.lng));
     return {
-      supermarkets: supermarkets.sort(sortDist).slice(0, 5),
-      cafesAndRestaurants: cafesAndRestaurants.sort(sortDist).slice(0, 6),
-      health: health.sort(sortDist).slice(0, 4),
-      greenSpaces: greenSpaces.sort(sortDist).slice(0, 4),
+      supermarkets: dedupePlaces(supermarkets).slice(0, 5),
+      cafesAndRestaurants: dedupePlaces(cafesAndRestaurants).slice(0, 6),
+      health: dedupePlaces(health).slice(0, 4),
+      greenSpaces: dedupePlaces(greenSpaces).slice(0, 4),
     };
   } catch { return null; }
 }
@@ -2760,13 +2798,16 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     const volumeNote = totalTxns > 0 ? `${totalTxns} Land Registry transactions recorded over ${historyYears} year${historyYears === 1 ? "" : "s"}` : "limited transaction volume";
     return `Recent price trend is ${direction} (${yoyChange} year-on-year based on Land Registry data). Transaction volume is ${demandLevel} (${volumeNote}). This reflects observed market activity — not a forecast. Future values depend on interest rates, local supply, and national conditions.`;
   })();
-  // Comparables
-  const comparables = recentTxns.slice(0, 4).map(t => ({
-    address: t.address,
-    price: fmt(t.price),
-    date: formatDate(t.date),
-    type: t.type,
-  }));
+  // Comparables — dedupe identical sale rows (same address + price + date) that
+  // Land Registry can return more than once, before taking the top 4.
+  const comparables = dedupeBy(recentTxns, t => `${normaliseName(t.address)}|${t.price}|${t.date}`)
+    .slice(0, 4)
+    .map(t => ({
+      address: t.address,
+      price: fmt(t.price),
+      date: formatDate(t.date),
+      type: t.type,
+    }));
 
   // Scotland/NI message
   const scotlandNote = outsideEnglandWales
@@ -2778,6 +2819,13 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   const fiveYearGrowth = (firstValidMedian > 0 && latestMedian > 0)
     ? `${(((latestMedian - firstValidMedian) / firstValidMedian) * 100).toFixed(1)}%`
     : "—";
+  // Canonical SIGNED presentation of the multi-year trajectory. Read this
+  // everywhere a "+X%" style figure is shown so no call site prefixes its own
+  // sign onto a value that may already be negative (which produced "+-35.3%").
+  // fiveYearGrowth already carries a "-" when negative; only positives need "+".
+  const fiveYearGrowthSigned = fiveYearGrowth === "—"
+    ? "—"
+    : fiveYearGrowth.startsWith("-") ? fiveYearGrowth : `+${fiveYearGrowth}`;
 
   const totalSalesThisYear = yearData[yearData.length - 1]?.length || 0;
   const demandSignal = totalSalesThisYear > 40 ? "High" : totalSalesThisYear > 15 ? "Moderate" : "Low";
@@ -3283,7 +3331,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     executiveSummary: outsideEnglandWales
       ? scotlandNote
       : hasData
-        ? `${areaName} (${outcode}) is classified as a ${tier} residential market. Median transaction value stands at ${fmt(latestMedian)}, based on ${totalTxns} Land Registry records across ${historyYears} year${historyYears === 1 ? "" : "s"}. The ${historyYears}-year price trajectory is ${fiveYearGrowth !== "—" ? `+${fiveYearGrowth}` : "—"}, with year-on-year movement of ${yoyChange}. ${ward ? `Ward: ${ward}.` : ""} ${constituency ? `Parliamentary constituency: ${constituency}.` : ""} Demand is currently ${demandSignal.toLowerCase()}, with ${totalSalesThisYear} registered transactions in the most recent year on record. ${marketMomentum}.`
+        ? `${areaName} (${outcode}) is classified as a ${tier} residential market. Median transaction value stands at ${fmt(latestMedian)}, based on ${totalTxns} Land Registry records across ${historyYears} year${historyYears === 1 ? "" : "s"}. The ${historyYears}-year price trajectory is ${fiveYearGrowthSigned}, with year-on-year movement of ${yoyChange}. ${ward ? `Ward: ${ward}.` : ""} ${constituency ? `Parliamentary constituency: ${constituency}.` : ""} Demand is currently ${demandSignal.toLowerCase()}, with ${totalSalesThisYear} registered transactions in the most recent year on record. ${marketMomentum}.`
         : `${areaName} (${outcode}) is in ${region}. Transaction volume was below the threshold for full statistical analysis — the report draws on available district-level Land Registry records. Manual verification via Rightmove and Zoopla sold data is advised.`,
     marketOverview: {
       averagePrice: hasData ? fmt(latestMedian) : outsideEnglandWales ? "Scotland/NI — see note" : "Insufficient data",
@@ -3509,11 +3557,18 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
         ? ` | EPC data (${liveEpc.totalRecords} certificates): most common rating ${liveEpc.mostCommonRating}${liveEpc.avgEfficiencyScore ? `, avg efficiency ${liveEpc.avgEfficiencyScore}/100` : ""}${liveEpc.pctRatedCOrAbove !== null ? `, ${liveEpc.pctRatedCOrAbove}% rated C or above` : ""}${liveEpc.mostCommonConstructionEra ? `. Most common era: ${liveEpc.mostCommonConstructionEra}` : ""}.`
         : "";
       if (liveAirQuality) {
+        // Honest borrowed-reading label: these are readings from the nearest
+        // DEFRA monitoring station, which is almost never at the postcode
+        // itself. State the monitor name and distance and mark it indicative,
+        // rather than presenting it as a reading taken at the property.
+        const distNote = liveAirQuality.distKm != null
+          ? `${liveAirQuality.distKm} km away`
+          : `nearest active station`;
         return {
           no2Level: liveAirQuality.no2Level,
           pm25Level: liveAirQuality.pm25Level,
           rating: liveAirQuality.rating,
-          note: `Live DEFRA readings from ${liveAirQuality.siteName} (${liveAirQuality.localAuthority}). AQI index: ${liveAirQuality.maxIndex}/10. Source: uk-air.defra.gov.uk.${epcNote}`,
+          note: `Nearest monitor: ${liveAirQuality.siteName}, ${liveAirQuality.localAuthority} — ${distNote}. Indicative only — the reading is from the closest DEFRA station, not the postcode itself. AQI index: ${liveAirQuality.maxIndex}/10. Source: uk-air.defra.gov.uk.${epcNote}`,
         };
       }
       // ── AIR QUALITY FALLBACK ─────────────────────────────────────────────────
@@ -3695,15 +3750,21 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
       };
     })(),
     nearbyDevelopments: enrichDevelopments(
-      (
-        livePlanningActivity?.developments && livePlanningActivity.developments.length > 0
-          ? livePlanningActivity.developments
-          : enrichmentProfile?.nearbyDevelopments
-      ) ?? [
-        { name: "No major schemes on record", type: "—", status: "Current", impact: "Neutral" as const, impactLabel: "unclear" as const, impactRationale: `No significant consented schemes were identified near ${areaName}. Use the council portal link to check for recent applications before exchange.`, detail: `No significant consented schemes were found near ${areaName} in our current dataset. Use the planning portal link in the Planning Activity section to verify recent applications.` },
-      ]
+      dedupeBy(
+        (
+          livePlanningActivity?.developments && livePlanningActivity.developments.length > 0
+            ? livePlanningActivity.developments
+            : enrichmentProfile?.nearbyDevelopments
+        ) ?? [
+          { name: "No major schemes on record", type: "—", status: "Current", impact: "Neutral" as const, impactLabel: "unclear" as const, impactRationale: `No significant consented schemes were identified near ${areaName}. Use the council portal link to check for recent applications before exchange.`, detail: `No significant consented schemes were found near ${areaName} in our current dataset. Use the planning portal link in the Planning Activity section to verify recent applications.` },
+        ],
+        d => normaliseName(d.name)
+      )
     ),
-    recentSoldPrices: liveSoldPrices.length > 0 ? liveSoldPrices : (enrichmentProfile?.recentSoldPrices ?? []),
+    recentSoldPrices: dedupeBy(
+      liveSoldPrices.length > 0 ? liveSoldPrices : (enrichmentProfile?.recentSoldPrices ?? []),
+      s => `${normaliseName(s.address)}|${s.price}|${s.date}`
+    ),
 
     // ── Live Local Amenities ──────────────────────────────────────────────────
     nearbyStations: liveStations,
@@ -4090,7 +4151,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
           ? `${fmt(latestMedian * 0.9)} – ${fmt(latestMedian * 1.15)} (90–115% of ${areaName} median)`
           : "Insufficient recent sales data for this postcode — instruct a RICS-regulated surveyor for a binding valuation before offering.",
         priceVsAreaAverage: hasData
-          ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · ${historyYears}-yr: +${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"}`
+          ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · ${historyYears}-yr: ${fiveYearGrowthSigned}`
           : outsideEnglandWales ? "Sold-price data is not available for this region via Land Registry — see ros.gov.uk (Scotland) or Welsh Government data for alternatives." : "Fewer than 5 recent transactions at this postcode level. Treat the area median as a directional anchor; commission a surveyor for a property-specific figure.",
         valueScore: hasData
           ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : tier === "mid-market" ? "7.4" : "7.0"} / 10`
@@ -4101,7 +4162,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
       ],
       negotiationBrief: {
         suggestedOfferRange: hasData
-          ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)}`
+          ? `${fmt(latestMedian * 0.88)} – ${fmt(latestMedian * 0.97)} (88–97% of ${areaName} median)`
           : "See offer strategy below.",
         leveragePoints: [],
       },

@@ -241,211 +241,6 @@ function CollapsibleSection({ title, children, defaultOpen = true, testId }: {
 
 // ── One-Glance Summary ───────────────────────────────────────────────────────
 
-// ── Buyer Summary Block ──────────────────────────────────────────────────────
-// A four-field executive readout designed to be the first thing a buyer reads.
-// Evidence-led — every field derives from real signals in the brief data.
-// In thinner-data areas it does more interpretive work; in richer areas it
-// acts as a strong executive readout without duplicating the full report.
-
-interface BuyerSummary {
-  bestFor: string;      // Type of buyer / household this area suits
-  mainStrengths: string; // Clearest positive signals, specific and evidence-led
-  watchOuts: string;    // Main trade-offs or caution points
-  buyerTakeaway: string; // Pre-offer buyer recommendation — action-oriented, confidence-calibrated
-}
-
-function deriveBuyerSummary(
-  ai: BriefReport["areaIntelligence"],
-  isPropertyReport: boolean,
-): BuyerSummary {
-  const yoy = ai.marketOverview.priceChangeYoY;
-  const yoyNum = parseFloat(yoy.replace(/[^\d.\-]/g, ""));
-  const supply = ai.marketOverview.supplyLevel?.toLowerCase() ?? "";
-  const avgPrice = ai.marketOverview.averagePrice;
-  const dom = ai.marketOverview.avgDaysOnMarket;
-
-  const safetyRating   = ai.neighbourhoodProfile?.safetyRating ?? 70;
-  const transportRating = ai.neighbourhoodProfile?.transportRating ?? 5;
-  const schoolsRating  = ai.neighbourhoodProfile?.schoolsRating ?? 5;
-
-  const closestStation = ai.nearbyStations?.slice().sort((a, b) => a.walkMins - b.walkMins)?.[0];
-  const stationWalkMins = closestStation?.walkMins ?? 999;
-  const closestPark    = ai.nearbyAmenities?.greenSpaces?.[0];
-  const topSchool      = ai.nearbySchools?.find(s => s.ofstedRating === "Outstanding" || s.ofstedRating === "Good");
-  const floodRisk      = ai.floodRisk?.riskBadge ?? "Low";
-  const airRating      = ai.airQuality?.rating ?? "Good";
-  const crimePerMonth  = ai.crimeStats?.totalCrimesPerMonth ?? 0;
-  const cafeCount      = ai.nearbyAmenities?.cafesAndRestaurants?.length ?? 0;
-
-  // Derived context signals
-  const isTransitRich  = transportRating >= 7 || stationWalkMins <= 8;
-  const isTransitLight = transportRating < 5 || stationWalkMins > 20;
-  const isAmenityLight = cafeCount === 0;
-  const hasBroadbandStrength = ai.broadband?.rating === "Excellent" || ai.broadband?.rating === "Very Good";
-  const hasDataConfidence = avgPrice !== "Insufficient data" && avgPrice !== "Scotland/NI — see note" && !isNaN(yoyNum);
-  const priceNum = parseFloat(avgPrice.replace(/[^\d]/g, ""));
-  const isThinData = !hasDataConfidence || priceNum === 0;
-
-  // ── BEST FOR ─────────────────────────────────────────────────────────────
-  const bestForParts: string[] = [];
-  if (topSchool && schoolsRating >= 7) bestForParts.push("families prioritising schools");
-  if (isTransitRich) bestForParts.push("commuters who want walkable transport");
-  if (closestPark && closestPark.walkMins <= 6) bestForParts.push("buyers who value green space on the doorstep");
-  if (hasBroadbandStrength && isTransitLight) bestForParts.push("remote workers who rely on fast home broadband");
-
-  let bestFor: string;
-  if (priceNum > 1_000_000) {
-    bestFor = bestForParts.length > 0
-      ? `High-net-worth buyers, particularly ${bestForParts[0]} — this is a prime-market postcode.`
-      : "High-net-worth buyers seeking a premium, established address with structural long-term value.";
-  } else if (priceNum > 500_000) {
-    bestFor = bestForParts.length > 0
-      ? `Professionals and equity-rich upsizers, especially ${bestForParts[0]}.`
-      : "Established buyers and professionals looking for quality without prime-market pricing.";
-  } else if (isTransitLight && isAmenityLight) {
-    bestFor = "Buyers prioritising space over connectivity — families, home workers, and those comfortable car-dependent living. Less suited to daily commuters who need quick rail access.";
-  } else if (isTransitLight) {
-    bestFor = bestForParts.filter(p => !p.includes("commuter")).length > 0
-      ? `${bestForParts.filter(p => !p.includes("commuter"))[0].replace(/^./, c => c.toUpperCase())} — worth weighing up if a daily train commute is part of the plan.`
-      : "Buyers comfortable with car-dependent commuting. Worth weighing against your daily travel requirements before committing.";
-  } else if (bestForParts.length >= 2) {
-    bestFor = `${bestForParts[0].replace(/^./, c => c.toUpperCase())} and ${bestForParts[1]}.`;
-  } else if (bestForParts.length === 1) {
-    bestFor = `${bestForParts[0].replace(/^./, c => c.toUpperCase())}. Also suited to first-time buyers and owner-occupiers looking for value in a well-connected area.`;
-  } else {
-    const characterSnip = (ai.neighbourhoodProfile?.character ?? "").split(".")[0];
-    bestFor = characterSnip.length > 20 && characterSnip.length < 130
-      ? characterSnip + "."
-      : "A broad range of buyers — from first-time buyers to families — depending on budget and lifestyle priorities.";
-  }
-
-  // ── MAIN STRENGTHS ───────────────────────────────────────────────────────
-  const strengthParts: string[] = [];
-
-  if (closestStation && stationWalkMins <= 8) {
-    const lineNote = closestStation.lines.length > 0 ? ` (${closestStation.lines.slice(0, 2).join(", ")})` : "";
-    strengthParts.push(`${closestStation.name}${lineNote} is a ${stationWalkMins}-minute walk`);
-  } else if (closestStation && stationWalkMins <= 15 && transportRating >= 6) {
-    strengthParts.push(`${closestStation.name} is ${stationWalkMins} minutes away — reasonable for most commuters`);
-  }
-  if (topSchool) {
-    strengthParts.push(`${topSchool.name} rated ${topSchool.ofstedRating} by Ofsted${topSchool.walkMins <= 12 ? ` (${topSchool.walkMins} min walk)` : ""}`);
-  } else if (schoolsRating >= 7) {
-    strengthParts.push("above-average school provision for the area");
-  }
-  if (floodRisk === "Low") {
-    strengthParts.push("low flood risk — insurance and mortgage terms unaffected");
-  }
-  if (airRating === "Good" && isTransitLight) {
-    strengthParts.push("good air quality — a benefit of lower traffic density");
-  } else if (airRating === "Good" && !isTransitRich) {
-    strengthParts.push("clean air — NO₂ and PM2.5 within WHO guidelines");
-  }
-  if (hasBroadbandStrength) {
-    strengthParts.push(`${ai.broadband!.rating.toLowerCase()} broadband (${ai.broadband!.avgDownloadSpeed})`);
-  }
-  if (closestPark && closestPark.walkMins <= 7) {
-    const parkStr = isAmenityLight
-      ? `${closestPark.name} (${closestPark.walkMins} min) provides open space that partly offsets lighter local amenities`
-      : `${closestPark.name} is ${closestPark.walkMins} minutes on foot`;
-    strengthParts.push(parkStr);
-  }
-  if (!isNaN(yoyNum) && yoyNum >= 4) {
-    strengthParts.push(`strong ${yoy} annual price growth — above-average capital appreciation`);
-  } else if (!isNaN(yoyNum) && yoyNum > 0 && yoyNum < 4) {
-    strengthParts.push(`steady ${yoy} year-on-year price growth`);
-  }
-
-  let mainStrengths: string;
-  if (strengthParts.length >= 2) {
-    mainStrengths = strengthParts.slice(0, 3).map((p, i) => i === 0 ? p.charAt(0).toUpperCase() + p.slice(1) : p).join(". ") + ".";
-  } else if (strengthParts.length === 1) {
-    mainStrengths = strengthParts[0].charAt(0).toUpperCase() + strengthParts[0].slice(1) + ". The wider area offers a stable residential base — review the full sections for detail.";
-  } else if (isThinData) {
-    mainStrengths = "Transaction volume is too low for a data-driven strengths analysis. The sections below — transport, schools, flood risk, and crime — provide the clearest directional read for this area.";
-  } else {
-    const floodNote = floodRisk === "Low" ? "low flood risk" : "flood data worth reviewing";
-    mainStrengths = `Average price of ${avgPrice} with ${floodNote} — a stable base for ownership. Review transport, schools, and environment below for fuller context.`;
-  }
-
-  // ── WATCH-OUTS ────────────────────────────────────────────────────────────
-  const watchParts: string[] = [];
-
-  if (floodRisk === "High") {
-    watchParts.push("high flood risk — get a dedicated flood assessment and check insurance terms before proceeding");
-  } else if (floodRisk === "Medium") {
-    watchParts.push("medium flood risk on record — worth a specific assessment before exchange");
-  }
-  if (!isNaN(yoyNum) && yoyNum < -2) {
-    watchParts.push(`prices down ${yoy.replace("-", "")} year-on-year — understand local drivers before committing`);
-  }
-  if (crimePerMonth > 80 && safetyRating < 45) {
-    const topCat = ai.crimeStats?.topCategories?.[0];
-    watchParts.push(`above-average crime levels${topCat ? ` — most common category: ${topCat.category}` : ""} — visit at different times of day`);
-  }
-  if (airRating === "Poor" || airRating === "Very Poor") {
-    watchParts.push(`${airRating.toLowerCase()} air quality (NO₂: ${String(ai.airQuality.no2Level).replace(/ \(est\.\)/g, "")}) — relevant for families and those with respiratory health concerns`);
-  }
-  if (isTransitLight) {
-    const stationNote = stationWalkMins < 999
-      ? `nearest station is ${stationWalkMins} minutes away — most journeys will require a car`
-      : "no station within easy walking distance — car-dependent area";
-    watchParts.push(stationNote);
-  }
-  if (isAmenityLight && !watchParts.some(w => w.includes("amenity") || w.includes("café"))) {
-    watchParts.push("limited walkable amenities — essentials covered but lifestyle options are thin on the ground");
-  }
-  if (typeof dom === "number" && dom > 70) {
-    watchParts.push(`slow market — homes averaging ${dom} days to sell, which may reflect weaker demand in this pocket`);
-  }
-  if (watchParts.length === 0 && ai.investmentOutlook?.riskFlags?.length > 0) {
-    watchParts.push(ai.investmentOutlook.riskFlags[0].replace(/^[A-Z]/, c => c.toLowerCase()));
-  }
-
-  let watchOuts: string;
-  if (watchParts.length >= 2) {
-    watchOuts = watchParts.slice(0, 2).map((p, i) => i === 0 ? p.charAt(0).toUpperCase() + p.slice(1) : p).join(". ") + ".";
-  } else if (watchParts.length === 1) {
-    watchOuts = watchParts[0].charAt(0).toUpperCase() + watchParts[0].slice(1) + ". Commission a survey and review the title register before exchange.";
-  } else {
-    watchOuts = isPropertyReport
-      ? "No major area-level concerns in this data. Review the comparable sales and valuation section for property-specific considerations."
-      : "No material red flags in this data. Review planning activity and crime sections for local nuances before committing.";
-  }
-
-  // ── OVERALL SUITABILITY ───────────────────────────────────────────────────
-  let buyerTakeaway: string;
-
-  // Count positive vs negative signals
-  const positives = strengthParts.length;
-  const negatives = watchParts.length;
-  const hasFloodRisk = floodRisk === "High" || floodRisk === "Medium";
-  const marketRising = !isNaN(yoyNum) && yoyNum > 0;
-  const marketFalling = !isNaN(yoyNum) && yoyNum < -2;
-
-  if (isThinData) {
-    buyerTakeaway = `Thin data area — figures are directional, not statistically precise. Focus on the structural signals: transport, schools, flood risk, and council tax. Visit the area, speak to a local agent, and commission a RICS survey before offering. Don't let limited data drive a fast decision.`;
-  } else if (positives >= 3 && negatives === 0) {
-    buyerTakeaway = `Strong area for most buyer types at ${avgPrice}. No material red flags — the full report gives you enough to move into due diligence. Instruct a RICS Level 2 survey and review the planning section before exchange.`;
-  } else if (positives >= 2 && negatives <= 1 && !hasFloodRisk) {
-    buyerTakeaway = `Good case for proceeding${marketRising ? ` — ${yoy} price growth supports your position` : ""}. Address the watch-out before offering, but it's not a deal-breaker. Use the comparable sales to anchor your opening bid.`;
-  } else if (negatives >= 2 && hasFloodRisk) {
-    buyerTakeaway = `Proceed with care. Flood risk combined with ${negatives > 2 ? "other material concerns" : "a further watch-out"} means this requires full due diligence — a structural survey, dedicated flood assessment, and insurance quote before you commit. These issues are manageable but not optional to verify.`;
-  } else if (negatives >= 2 && marketFalling) {
-    buyerTakeaway = `Negotiate from a position of information. Soft prices and the concerns above give you leverage — but verify whether the price weakness is structural or temporary before offering. Build a safety margin into your maximum. Use comparables to calibrate your opening bid.`;
-  } else if (isTransitLight && isAmenityLight) {
-    buyerTakeaway = `Best suited to buyers choosing space and calm over urban convenience. Test your daily routine — particularly the commute — against what's actually here before committing. If connectivity works for your lifestyle, this area represents reasonable value.`;
-  } else if (positives >= 2 && negatives >= 2) {
-    buyerTakeaway = `Balanced case — clear strengths, genuine trade-offs. ${marketRising ? `Price momentum (${yoy}) is in your favour. ` : ""}Decide how much weight the watch-outs carry for your specific situation, then use the negotiation section to calibrate your offer.`;
-  } else {
-    buyerTakeaway = marketRising
-      ? `Solid basis for proceeding in a ${yoy} market. No critical concerns in this data — the sections below give you everything you need to pressure-test the decision and calibrate your offer.`
-      : `Reasonable value at ${avgPrice}. No critical concerns identified — use the comparable sales and negotiation section to anchor your bid, and commission a survey before exchange.`;
-  }
-
-  return { bestFor, mainStrengths, watchOuts, buyerTakeaway };
-}
-
 // ── Red Flag Summary Block ────────────────────────────────────────────────
 function RedFlagSummaryBlock({
   flags,
@@ -3164,7 +2959,7 @@ export default function BriefPage() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed border-l-2 border-border pl-3">
-                        The range gives you a starting anchor for offer calibration — not a final number. For a binding figure, instruct a RICS-regulated surveyor.
+                        This range is a band around the area median. The Offer Strategy section below shows a Fair Value Range that also blends in the specific nearby comparable sales, so the two figures can differ — that is expected, not a contradiction. Both are starting anchors for offer calibration, not a final number. For a binding figure, instruct a RICS-regulated surveyor.
                       </p>
                     </Card>
 
@@ -4039,15 +3834,15 @@ export default function BriefPage() {
                         </div>
                         <div className="flex flex-col gap-1">
                           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ Level</span>
-                          <span className="text-base font-bold text-foreground">{ai.airQuality.no2Level} μg/m³</span>
+                          <span className="text-base font-bold text-foreground">{ai.airQuality.no2Level}</span>
                         </div>
                         <div className="flex flex-col gap-1">
                           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5</span>
-                          <span className="text-base font-bold text-foreground">{ai.airQuality.pm25Level} μg/m³</span>
+                          <span className="text-base font-bold text-foreground">{ai.airQuality.pm25Level}</span>
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground leading-relaxed">{ai.airQuality.note}</p>
-                      <p className="text-xs text-muted-foreground/70 leading-relaxed">Source: DEFRA Air Quality modelling. Relevant for families and those with respiratory health concerns.</p>
+                      <p className="text-xs text-muted-foreground/70 leading-relaxed">Relevant for families and those with respiratory health concerns. Source detail is shown above.</p>
                     </div>
                   </CollapsibleSection>
                 ) : (
