@@ -2623,6 +2623,51 @@ function median(prices: number[]): number {
     : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 
+// ─── Performance instrumentation + per-source resilience ──────────────────────
+// PERF_LOG is opt-in so production consoles stay quiet. Enable per-stage timing
+// in any browser session with:  window.__LUX_PERF = true  (then generate a brief).
+// It prints each data source's wall time and the total, so the bottleneck can be
+// re-measured any time without code changes.
+const PERF_LOG = (typeof window !== "undefined" && (window as any).__LUX_PERF === true);
+const _now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+// SOURCE_TIMEOUT_MS bounds EACH independent data source. Every source only
+// contributes one section of the brief and already falls back to null/[] on
+// error, so cutting a hanging source loose simply omits its section — never a
+// hard failure.
+//
+// This is a HANG-CEILING, not an aggressive cut. Measured real latencies (best
+// of 3, SW3): postcodes ~0.07s, crime ~0.18s, Land Registry ~0.2–1.3s, flood
+// ~1.8–4.2s, and Overpass (stations/schools/amenities) ~8s cold and prone to
+// HTTP 429 rate-limiting. Overpass already self-aborts at 12s internally; the
+// other sources have NO timeout of their own and are the true indefinite-hang
+// risk. 9s sits above the legitimately-slow sources (so we don't drop sections
+// that would have succeeded) but bounds the worst case. Tuning: lower toward 6s
+// to prioritise speed over completeness (accepts dropping cold-Overpass
+// sections); raise toward 12s to prioritise completeness over the tail latency.
+const SOURCE_TIMEOUT_MS = 9000;
+
+// withTimeout: resolve `fallback` if `p` neither resolves nor rejects within
+// `ms`, and also convert a rejection into `fallback`. This gives us
+// Promise.allSettled semantics (one bad source can't reject the group) PLUS a
+// hard time bound (one hung source can't delay the group) in a single wrapper,
+// while preserving the exact fallback value each downstream section expects.
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
+  const t0 = _now();
+  return new Promise<T>((resolve) => {
+    let settled = false;
+    const done = (v: T, note: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (PERF_LOG) console.log(`[perf] ${label}: ${(_now() - t0).toFixed(0)}ms${note}`);
+      resolve(v);
+    };
+    const timer = setTimeout(() => done(fallback, ` — TIMED OUT after ${ms}ms → fallback`), ms);
+    p.then(v => done(v, ""), () => done(fallback, " — errored → fallback"));
+  });
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 export async function generateBrief(query: string, plan?: string): Promise<BriefReport> {
   // ── OUTER SAFETY NET ─────────────────────────────────────────────────────────
@@ -2649,11 +2694,15 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   // Scotland / NI — Land Registry doesn't cover these
   const outsideEnglandWales = isOutsideEnglandWales(outcode);
 
-  // Fetch metadata + district in parallel
+  // Fetch metadata + district in parallel. This is wave 1 — the ONLY prerequisite
+  // wave: everything downstream needs either the coordinates (meta.lat/lng) or the
+  // district it resolves. Bounded + logged like every other source.
+  const _w1t0 = _now();
   const [meta, district] = await Promise.all([
-    fetchPostcodeMeta(postcode),
-    getDistrict(postcode),
+    withTimeout(fetchPostcodeMeta(postcode), SOURCE_TIMEOUT_MS, null, "postcodeMeta"),
+    withTimeout(getDistrict(postcode), SOURCE_TIMEOUT_MS, "", "district"),
   ]);
+  if (PERF_LOG) console.log(`[perf] wave-1 (meta+district): ${(_now() - _w1t0).toFixed(0)}ms`);
 
   const areaName = meta?.district || district || outcode;
   const region = meta?.region || "England";
@@ -2709,47 +2758,81 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   let liveCouncilTax: Awaited<ReturnType<typeof fetchCouncilTax>> = null;
   let liveDwellingMix: Awaited<ReturnType<typeof fetchDwellingMix>> = null;
 
-  if (!outsideEnglandWales && district) {
-    const lrFetches = years.map(yr => fetchLandRegistryYear(district, yr));
-    const [, ...lrResults] = await Promise.all([
-      Promise.resolve(null), // placeholder so index 0 aligns
-      ...lrFetches,
-      fetchRecentTransactions(district, outcode),
-      fetchSoldPricesWithCoords(district, outcode),
-    ]) as any[];
-    // lrResults: [...yearArrays, recentTxns, liveSoldPrices]
-    for (let i = 0; i < historyYears; i++) yearData[i] = lrResults[i] ?? [];
-    recentTxns   = lrResults[historyYears]     ?? [];
-    liveSoldPrices = lrResults[historyYears + 1] ?? [];
+  // Derive isLondon early so it can be used in API guards below
+  // isLondon: region-first (most reliable — comes from postcodes.io), then unambiguous prefix fallback
+  // Prefix fallback excludes: DA (straddles Kent/Bexley), WD (Watford/Hertfordshire), SL (Berkshire)
+  // EH, PA, G etc. (Scotland) correctly excluded because they don't match any London prefix
+  // Depends only on wave-1 metadata (region/country/outcode), so it can be computed
+  // before the fetch wave and used to gate the London-only sources within it.
+  const LONDON_PREFIXES_FALLBACK = /^(E\d|EC\d|N\d|NW\d|SE\d|SW\d|W\d|WC\d|BR\d|CR\d|EN\d|HA\d|IG\d|KT\d|RM\d|SM\d|TW\d|UB\d)/;
+  const isLondon = (region === "London") || (country === "England" && !region && LONDON_PREFIXES_FALLBACK.test(outcode));
+
+  // ── SINGLE PARALLEL FETCH WAVE ──────────────────────────────────────────────
+  // Land Registry (needs `district`) and the live area sources (need `lat/lng`)
+  // BOTH depend only on wave-1 metadata — neither needs the other. So they run in
+  // ONE Promise.all rather than awaiting Land Registry fully before starting the
+  // live sources (the previous structure serialised the two groups for no reason).
+  // Total fetch time is now ≈ the single slowest source, not the sum of the two
+  // groups. Every source is wrapped in withTimeout so one slow/hung source can
+  // neither stall (time bound) nor break (error → fallback) the whole brief.
+  const doLandRegistry = !outsideEnglandWales && !!district;
+  const T = SOURCE_TIMEOUT_MS;
+  const briefT0 = _now();
+
+  const lrYearPromises = doLandRegistry
+    ? years.map(yr => withTimeout(fetchLandRegistryYear(district, yr), T, [] as number[], `LR:${yr}`))
+    : [];
+
+  const [
+    lrYears, recentTxnsRes, soldCoordsRes,
+    liveFloodRiskR, liveEpcR, liveAirQualityR, liveTflCommuteR, liveStationsR,
+    liveSchoolsR, liveAmenitiesR, liveCrimeR, livePlanningActivityR,
+    liveRentalMarketR, liveBroadbandR, liveCouncilTaxR, liveDwellingMixR,
+  ] = await Promise.all([
+    Promise.all(lrYearPromises),
+    doLandRegistry ? withTimeout(fetchRecentTransactions(district, outcode), T, [] as typeof recentTxns, "LR:recentTxns") : Promise.resolve([] as typeof recentTxns),
+    doLandRegistry ? withTimeout(fetchSoldPricesWithCoords(district, outcode), T, [] as typeof liveSoldPrices, "LR:soldCoords") : Promise.resolve([] as typeof liveSoldPrices),
+    withTimeout((meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null), T, null, "floodRisk"),
+    withTimeout(fetchEpcData(outcode), T, null, "epc"),
+    withTimeout((meta?.lat && meta?.lng && isLondon) ? fetchAirQuality(meta.lat, meta.lng) : Promise.resolve(null), T, null, "airQuality"),
+    withTimeout((meta?.lat && meta?.lng && isLondon) ? fetchTflCommute(meta.lat, meta.lng) : Promise.resolve(null), T, null, "tflCommute"),
+    withTimeout((meta?.lat && meta?.lng) ? fetchNearbyStations(meta.lat, meta.lng) : Promise.resolve([]), T, [] as Awaited<ReturnType<typeof fetchNearbyStations>>, "stations"),
+    withTimeout((meta?.lat && meta?.lng) ? fetchNearbySchools(meta.lat, meta.lng) : Promise.resolve([]), T, [] as Awaited<ReturnType<typeof fetchNearbySchools>>, "schools"),
+    withTimeout((meta?.lat && meta?.lng) ? fetchNearbyAmenities(meta.lat, meta.lng) : Promise.resolve(null), T, null, "amenities"),
+    withTimeout((meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng, country) : Promise.resolve(null), T, null, "crime"),
+    withTimeout((meta?.lat && meta?.lng) ? fetchPlanningActivity(postcode, meta.lat, meta.lng, district) : Promise.resolve(null), T, null, "planning"),
+    withTimeout(fetchRentalMarket(postcode), T, null, "rentalMarket"),
+    withTimeout(fetchBroadband(postcode), T, null, "broadband"),
+    withTimeout(fetchCouncilTax(postcode), T, null, "councilTax"),
+    withTimeout(fetchDwellingMix(postcode), T, null, "dwellingMix"),
+  ]);
+
+  // Assign Land Registry results (unchanged values — only the fetch timing moved).
+  if (doLandRegistry) {
+    for (let i = 0; i < historyYears; i++) yearData[i] = lrYears[i] ?? [];
+    recentTxns     = recentTxnsRes ?? [];
+    liveSoldPrices = soldCoordsRes ?? [];
     console.log(
       `[LuxProperty] Land Registry fetched | years requested=${historyYears} | rows per year:`,
       yearData.map((d, i) => `${years[i]}:${d.length}`)
     );
   }
 
-  // Derive isLondon early so it can be used in API guards below
-  // isLondon: region-first (most reliable — comes from postcodes.io), then unambiguous prefix fallback
-  // Prefix fallback excludes: DA (straddles Kent/Bexley), WD (Watford/Hertfordshire), SL (Berkshire)
-  // EH, PA, G etc. (Scotland) correctly excluded because they don't match any London prefix
-  const LONDON_PREFIXES_FALLBACK = /^(E\d|EC\d|N\d|NW\d|SE\d|SW\d|W\d|WC\d|BR\d|CR\d|EN\d|HA\d|IG\d|KT\d|RM\d|SM\d|TW\d|UB\d)/;
-  const isLondon = (region === "London") || (country === "England" && !region && LONDON_PREFIXES_FALLBACK.test(outcode));
+  liveFloodRisk       = liveFloodRiskR;
+  liveEpc             = liveEpcR;
+  liveAirQuality      = liveAirQualityR;
+  liveTflCommute      = liveTflCommuteR;
+  liveStations        = liveStationsR;
+  liveSchools         = liveSchoolsR;
+  liveAmenities       = liveAmenitiesR;
+  liveCrime           = liveCrimeR;
+  livePlanningActivity = livePlanningActivityR;
+  liveRentalMarket    = liveRentalMarketR;
+  liveBroadband       = liveBroadbandR;
+  liveCouncilTax      = liveCouncilTaxR;
+  liveDwellingMix     = liveDwellingMixR;
 
-  // Fetch all live data in parallel
-  [liveFloodRisk, liveEpc, liveAirQuality, liveTflCommute, liveStations, liveSchools, liveAmenities, liveCrime, livePlanningActivity, liveRentalMarket, liveBroadband, liveCouncilTax, liveDwellingMix] = await Promise.all([
-    (meta?.lat && meta?.lng) ? fetchFloodRisk(meta.lat, meta.lng) : Promise.resolve(null),
-    fetchEpcData(outcode),
-    (meta?.lat && meta?.lng && isLondon) ? fetchAirQuality(meta.lat, meta.lng) : Promise.resolve(null),
-    (meta?.lat && meta?.lng && isLondon) ? fetchTflCommute(meta.lat, meta.lng) : Promise.resolve(null),
-    (meta?.lat && meta?.lng) ? fetchNearbyStations(meta.lat, meta.lng) : Promise.resolve([]),
-    (meta?.lat && meta?.lng) ? fetchNearbySchools(meta.lat, meta.lng) : Promise.resolve([]),
-    (meta?.lat && meta?.lng) ? fetchNearbyAmenities(meta.lat, meta.lng) : Promise.resolve(null),
-    (meta?.lat && meta?.lng) ? fetchCrimeStats(meta.lat, meta.lng, country) : Promise.resolve(null),
-    (meta?.lat && meta?.lng) ? fetchPlanningActivity(postcode, meta.lat, meta.lng, district) : Promise.resolve(null),
-    fetchRentalMarket(postcode),
-    fetchBroadband(postcode),
-    fetchCouncilTax(postcode),
-    fetchDwellingMix(postcode),
-  ]) as any;
+  if (PERF_LOG) console.log(`[perf] TOTAL fetch wave: ${(_now() - briefT0).toFixed(0)}ms`);
 
   const yearMedians = yearData.map(median);
   const latestMedian = [...yearMedians].reverse().find(p => p > 0) || 0;
