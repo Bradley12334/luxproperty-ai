@@ -2381,7 +2381,17 @@ async function fetchNearbySchools(lat: number, lng: number): Promise<Array<{
   node["amenity"="kindergarten"](around:1000,${lat},${lng});
   way["amenity"="kindergarten"](around:1000,${lat},${lng});
 );out body center 25;`;
-    const elements = await overpassQuery(query);
+    // Overpass is intermittently rate-limited when the schools, stations and
+    // amenities queries fire together, so a single pass can return null even
+    // though the data exists — verified: SW3 1AA and CR0 both have 25 schools in
+    // OSM that a retry recovers. Retry a few times (short backoff) so real schools
+    // reliably come through. This NEVER fabricates: if every attempt genuinely
+    // returns no data, we fall through to [] and the section/pins simply don't show.
+    let elements = await overpassQuery(query);
+    for (let attempt = 0; attempt < 2 && !elements; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+      elements = await overpassQuery(query);
+    }
     if (!elements) return [];
     const schools: Array<{ name: string; type: string; ofstedRating: string; distanceMetres: number; walkMins: number; lat: number; lng: number; postcode: string }> = [];
     for (const el of elements) {
