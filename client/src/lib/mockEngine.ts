@@ -2647,6 +2647,46 @@ const _now = () => (typeof performance !== "undefined" ? performance.now() : Dat
 // sections); raise toward 12s to prioritise completeness over the tail latency.
 const SOURCE_TIMEOUT_MS = 9000;
 
+// ─── Live progress reporting ──────────────────────────────────────────────────
+// Human-readable status shown to the user while the brief generates. Keyed by the
+// SAME `label` each source is already tagged with in the fetch wave, so the
+// messages are driven by REAL work — each fires when that source actually settles
+// (success, error, OR timeout), never on a fixed timer. That means the status
+// line can never get stuck on a slow/failed source: withTimeout guarantees every
+// label settles within SOURCE_TIMEOUT_MS and reports exactly once.
+//
+// Several Land Registry labels (LR:2025, LR:recentTxns, LR:soldCoords) map to the
+// same message on purpose; the UI-side reporter de-duplicates so the user sees
+// each distinct message at most once, in real completion order.
+const SOURCE_PROGRESS_MSG: Record<string, string> = {
+  postcodeMeta: "Resolving location & district…",
+  district:     "Resolving location & district…",
+  "LR:recentTxns": "Pulling sold prices from HM Land Registry…",
+  "LR:soldCoords": "Pulling sold prices from HM Land Registry…",
+  floodRisk:    "Checking flood risk (Environment Agency)…",
+  epc:          "Reading EPC energy ratings…",
+  airQuality:   "Checking air quality…",
+  tflCommute:   "Mapping transport links…",
+  stations:     "Finding nearby stations…",
+  schools:      "Looking up school ratings (Ofsted)…",
+  amenities:    "Locating shops, parks & amenities…",
+  crime:        "Analysing crime data (police.uk)…",
+  planning:     "Checking local planning activity…",
+  rentalMarket: "Reviewing the rental market…",
+  broadband:    "Checking broadband speeds (Ofcom)…",
+  councilTax:   "Looking up council tax bands…",
+  dwellingMix:  "Profiling the local housing mix…",
+};
+// Per-year Land Registry labels (LR:2025 etc.) also mean "sold prices".
+const progressMessageFor = (label: string): string | undefined =>
+  SOURCE_PROGRESS_MSG[label] ?? (/^LR:/.test(label) ? "Pulling sold prices from HM Land Registry…" : undefined);
+
+// Set for the duration of a single generateBrief call (the UI generates one brief
+// at a time — the Generate button is disabled while pending — so a module-level
+// reporter is safe and avoids threading a callback through ~16 withTimeout calls).
+// Reset in generateBrief's finally so a later call without onProgress stays quiet.
+let _progressReporter: ((label: string) => void) | null = null;
+
 // withTimeout: resolve `fallback` if `p` neither resolves nor rejects within
 // `ms`, and also convert a rejection into `fallback`. This gives us
 // Promise.allSettled semantics (one bad source can't reject the group) PLUS a
@@ -2661,6 +2701,8 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T, label: string): 
       settled = true;
       clearTimeout(timer);
       if (PERF_LOG) console.log(`[perf] ${label}: ${(_now() - t0).toFixed(0)}ms${note}`);
+      // Report real progress as this source settles — after timing, before resolve.
+      if (_progressReporter) { try { _progressReporter(label); } catch { /* never let UI reporting break a brief */ } }
       resolve(v);
     };
     const timer = setTimeout(() => done(fallback, ` — TIMED OUT after ${ms}ms → fallback`), ms);
@@ -2669,12 +2711,30 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T, label: string): 
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
-export async function generateBrief(query: string, plan?: string): Promise<BriefReport> {
+export async function generateBrief(
+  query: string,
+  plan?: string,
+  // Optional live-progress sink. Called with a short, human-readable status
+  // message as each real pipeline step settles. De-duplicated here so each
+  // distinct message is emitted at most once, in real completion order.
+  onProgress?: (message: string) => void,
+): Promise<BriefReport> {
   // ── OUTER SAFETY NET ─────────────────────────────────────────────────────────
   // Catches any unexpected runtime error anywhere in this function and rethrows
   // with a typed message so the frontend can surface a specific error instead of
   // the generic "Something went wrong" fallback.
   try {
+
+  // ── LIVE PROGRESS WIRING ─────────────────────────────────────────────────────
+  // De-dupe distinct messages and route source labels → messages. Wire the
+  // module-level reporter that withTimeout calls as each source settles.
+  const _emittedProgress = new Set<string>();
+  const emitProgress = (message: string | undefined) => {
+    if (!message || _emittedProgress.has(message)) return;
+    _emittedProgress.add(message);
+    if (onProgress) { try { onProgress(message); } catch { /* UI reporting must never break a brief */ } }
+  };
+  _progressReporter = onProgress ? (label) => emitProgress(progressMessageFor(label)) : null;
 
   // Track usage for Explorer plan counter
   incrementBriefUsage();
@@ -2833,6 +2893,9 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   liveDwellingMix     = liveDwellingMixR;
 
   if (PERF_LOG) console.log(`[perf] TOTAL fetch wave: ${(_now() - briefT0).toFixed(0)}ms`);
+
+  // All sources have settled — everything below is synchronous derivation/assembly.
+  emitProgress("Building your brief…");
 
   const yearMedians = yearData.map(median);
   const latestMedian = [...yearMedians].reverse().find(p => p > 0) || 0;
@@ -4295,6 +4358,9 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     }
     // Generic fallback — still better than swallowing silently
     throw new Error("BRIEF_ERROR");
+  } finally {
+    // Always detach the reporter so a later call without onProgress stays quiet.
+    _progressReporter = null;
   }
 }
 

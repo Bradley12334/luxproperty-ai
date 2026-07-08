@@ -34,10 +34,18 @@ export default function Home() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [, navigate] = useLocation();
 
+  // Real pipeline progress messages land here; the display effect below paces them.
+  // Declared before the mutation because the mutationFn closure references it.
+  const progressQueueRef = useRef<string[]>([]);
+
   const generateBriefMutation = useMutation({
     mutationFn: async (q: string) => {
       const callerPlan = getUser()?.plan;
-      return (await generateBrief(q, callerPlan)) as BriefReport;
+      // Push each real pipeline step into the queue; the display effect paces
+      // them so parallel completions don't flash past unreadably.
+      return (await generateBrief(q, callerPlan, (m) => {
+        progressQueueRef.current.push(m);
+      })) as BriefReport;
     },
     onSuccess: (data) => {
       navigate(`/brief/${data.id}`);
@@ -68,6 +76,38 @@ export default function Home() {
     return () => window.clearInterval(id);
   }, [isGenerating]);
   const elapsedSecs = (elapsedMs / 1000).toFixed(1);
+
+  // ── Live status line, paced from real pipeline events ────────────────────────
+  // generateBrief pushes a message into this queue as each data source actually
+  // settles (see onProgress wiring above). The sources run in parallel and often
+  // resolve in a burst, so we pace the queue: show each message for at least
+  // MIN_DWELL_MS before advancing. Because withTimeout guarantees every source
+  // settles (success, error, or timeout) and finally emits "Building your brief…",
+  // the line can never stick on a slow/failed source — it always keeps moving and
+  // ends on the build step. Interim NOTE: this is already wired to REAL events; if
+  // the pipeline later exposes per-section streaming, feed those events here too.
+  const lastShownRef = useRef<number>(0);
+  const [statusMsg, setStatusMsg] = useState("");
+  const MIN_DWELL_MS = 650;
+  useEffect(() => {
+    if (!isGenerating) {
+      progressQueueRef.current = [];
+      lastShownRef.current = 0;
+      setStatusMsg("");
+      return;
+    }
+    // Seed immediately so the bar is never blank before the first event lands.
+    setStatusMsg("Connecting to official data sources…");
+    lastShownRef.current = performance.now();
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      if (progressQueueRef.current.length && now - lastShownRef.current >= MIN_DWELL_MS) {
+        setStatusMsg(progressQueueRef.current.shift()!);
+        lastShownRef.current = now;
+      }
+    }, 120);
+    return () => window.clearInterval(id);
+  }, [isGenerating]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,12 +191,6 @@ export default function Home() {
                     )}
                   </Button>
                 </form>
-
-                {isGenerating && (
-                  <p className="mt-3 text-[12px] text-foreground/45 leading-relaxed" data-testid="text-generating-status" aria-live="polite">
-                    Pulling live data from HM Land Registry, police.uk, Ofsted &amp; the Environment Agency — usually 5–15 seconds.
-                  </p>
-                )}
 
                 {validationError && (
                   <p className="mt-3 text-sm text-destructive" data-testid="text-validation-error">
@@ -943,6 +977,43 @@ export default function Home() {
       </main>
 
       <Footer />
+
+      {/* ── Live generation status bar ──────────────────────────────────────────
+          Fixed to the bottom of the viewport so it's visible during the wait
+          without scrolling — important on mobile, where most traffic is and the
+          Generate button sits mid-page. Shows the current real step, elapsed
+          time, and an expectation line (real source count + typical duration). */}
+      {isGenerating && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-card/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
+          style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+          role="status"
+          aria-live="polite"
+          data-testid="generation-status-bar"
+        >
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-3 pb-1">
+            <div className="flex items-center gap-3">
+              <span className="flex gap-1 shrink-0" aria-hidden="true">
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-primary" />
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-primary" />
+                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-primary" />
+              </span>
+              <span
+                className="flex-1 min-w-0 truncate text-[13px] sm:text-sm font-medium text-foreground"
+                data-testid="text-generation-status"
+              >
+                {statusMsg}
+              </span>
+              <span className="shrink-0 tabular-nums font-mono text-[12px] text-foreground/45">
+                {elapsedSecs}s
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] text-foreground/40 leading-relaxed">
+              Checking a dozen official UK sources — HM Land Registry, police.uk, Ofsted, Ofcom &amp; the Environment Agency. Usually 5–15 seconds.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
