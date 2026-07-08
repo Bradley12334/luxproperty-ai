@@ -25,6 +25,10 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      {/* Generation mode: /brief?q=<postcode> runs generateBrief on the page so the
+          skeleton + live status show during the wait. Stored mode: /brief/:id reads
+          an already-generated brief from the in-memory store (portfolio links, etc.). */}
+      <Route path="/brief" component={BriefPage} />
       <Route path="/brief/:id" component={BriefPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/portfolio" component={PortfolioPage} />

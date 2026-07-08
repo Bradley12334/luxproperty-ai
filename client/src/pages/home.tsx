@@ -1,9 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { useMutation } from "@tanstack/react-query";
-import { generateBrief } from "@/lib/mockEngine";
-import { getUser } from "@/lib/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/header";
@@ -25,7 +22,6 @@ import {
   Wifi,
   ChevronRight,
 } from "lucide-react";
-import type { BriefReport } from "@shared/schema";
 import { validatePostcodeInput } from "@/lib/postcodeValidation";
 
 export default function Home() {
@@ -33,81 +29,6 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [, navigate] = useLocation();
-
-  // Real pipeline progress messages land here; the display effect below paces them.
-  // Declared before the mutation because the mutationFn closure references it.
-  const progressQueueRef = useRef<string[]>([]);
-
-  const generateBriefMutation = useMutation({
-    mutationFn: async (q: string) => {
-      const callerPlan = getUser()?.plan;
-      // Push each real pipeline step into the queue; the display effect paces
-      // them so parallel completions don't flash past unreadably.
-      return (await generateBrief(q, callerPlan, (m) => {
-        progressQueueRef.current.push(m);
-      })) as BriefReport;
-    },
-    onSuccess: (data) => {
-      navigate(`/brief/${data.id}`);
-    },
-    // Keep the typed query in the field and surface a message — do not clear input
-    onError: (err: unknown) => {
-      // Errors are logged in generateBrief; query state is untouched.
-      // The error message is rendered via generateBriefMutation.error below.
-      void err; // suppress lint unused-var warning
-    },
-  });
-
-  // ── Live elapsed timer while the brief generates ─────────────────────────────
-  // The generation wait is the leading suspect for form drop-off, so show the
-  // user that work is happening and roughly how long it takes, rather than a
-  // silent spinner. Ticks every 100ms from when the mutation starts; resets and
-  // stops when it settles. Uses performance.now() so it's monotonic.
-  const isGenerating = generateBriefMutation.isPending;
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const startRef = useRef<number>(0);
-  useEffect(() => {
-    if (!isGenerating) return;
-    startRef.current = performance.now();
-    setElapsedMs(0);
-    const id = window.setInterval(() => {
-      setElapsedMs(performance.now() - startRef.current);
-    }, 100);
-    return () => window.clearInterval(id);
-  }, [isGenerating]);
-  const elapsedSecs = (elapsedMs / 1000).toFixed(1);
-
-  // ── Live status line, paced from real pipeline events ────────────────────────
-  // generateBrief pushes a message into this queue as each data source actually
-  // settles (see onProgress wiring above). The sources run in parallel and often
-  // resolve in a burst, so we pace the queue: show each message for at least
-  // MIN_DWELL_MS before advancing. Because withTimeout guarantees every source
-  // settles (success, error, or timeout) and finally emits "Building your brief…",
-  // the line can never stick on a slow/failed source — it always keeps moving and
-  // ends on the build step. Interim NOTE: this is already wired to REAL events; if
-  // the pipeline later exposes per-section streaming, feed those events here too.
-  const lastShownRef = useRef<number>(0);
-  const [statusMsg, setStatusMsg] = useState("");
-  const MIN_DWELL_MS = 650;
-  useEffect(() => {
-    if (!isGenerating) {
-      progressQueueRef.current = [];
-      lastShownRef.current = 0;
-      setStatusMsg("");
-      return;
-    }
-    // Seed immediately so the bar is never blank before the first event lands.
-    setStatusMsg("Connecting to official data sources…");
-    lastShownRef.current = performance.now();
-    const id = window.setInterval(() => {
-      const now = performance.now();
-      if (progressQueueRef.current.length && now - lastShownRef.current >= MIN_DWELL_MS) {
-        setStatusMsg(progressQueueRef.current.shift()!);
-        lastShownRef.current = now;
-      }
-    }, 120);
-    return () => window.clearInterval(id);
-  }, [isGenerating]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +40,11 @@ export default function Home() {
       setValidationError(check.reason);
       return;
     }
-    generateBriefMutation.mutate(trimmed);
+    // Navigate to the brief page immediately — generation now runs THERE, so the
+    // user sees the brief skeleton + live status during the wait instead of a
+    // blank home button. The plan is read from the auth store on the brief page
+    // (NOT passed in the URL) so the entitlement can't be tampered via the query.
+    navigate(`/brief?q=${encodeURIComponent(trimmed)}`);
   };
 
   return (
@@ -173,42 +98,17 @@ export default function Home() {
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={!query.trim() || generateBriefMutation.isPending}
+                    disabled={!query.trim()}
                     className="h-12 px-6 text-[13px] font-semibold tracking-wide shrink-0"
                     data-testid="button-generate"
                   >
-                    {isGenerating ? (
-                      <span className="flex items-center gap-2">
-                        <span className="flex gap-1">
-                          <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                        </span>
-                        Generating… <span className="tabular-nums font-mono">{elapsedSecs}s</span>
-                      </span>
-                    ) : (
-                      <>Generate Free Brief <ArrowRight className="ml-1.5 h-4 w-4" /></>
-                    )}
+                    Generate Free Brief <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
                 </form>
 
                 {validationError && (
                   <p className="mt-3 text-sm text-destructive" data-testid="text-validation-error">
                     {validationError}
-                  </p>
-                )}
-                {!validationError && generateBriefMutation.isError && (
-                  <p className="mt-3 text-sm text-destructive" data-testid="text-error">
-                    {(() => {
-                      const msg = generateBriefMutation.error instanceof Error
-                        ? generateBriefMutation.error.message
-                        : "";
-                      if (msg === "NETWORK_ERROR")
-                        return "Network error — check your connection and try again.";
-                      if (msg === "TIMEOUT_ERROR")
-                        return "The request timed out. Please try again.";
-                      return "Something went wrong generating the brief. Please try again.";
-                    })()}
                   </p>
                 )}
 
@@ -977,43 +877,6 @@ export default function Home() {
       </main>
 
       <Footer />
-
-      {/* ── Live generation status bar ──────────────────────────────────────────
-          Fixed to the bottom of the viewport so it's visible during the wait
-          without scrolling — important on mobile, where most traffic is and the
-          Generate button sits mid-page. Shows the current real step, elapsed
-          time, and an expectation line (real source count + typical duration). */}
-      {isGenerating && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-card/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
-          style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
-          role="status"
-          aria-live="polite"
-          data-testid="generation-status-bar"
-        >
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-3 pb-1">
-            <div className="flex items-center gap-3">
-              <span className="flex gap-1 shrink-0" aria-hidden="true">
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-primary" />
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-primary" />
-                <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-primary" />
-              </span>
-              <span
-                className="flex-1 min-w-0 truncate text-[13px] sm:text-sm font-medium text-foreground"
-                data-testid="text-generation-status"
-              >
-                {statusMsg}
-              </span>
-              <span className="shrink-0 tabular-nums font-mono text-[12px] text-foreground/45">
-                {elapsedSecs}s
-              </span>
-            </div>
-            <p className="mt-1.5 text-[11px] text-foreground/40 leading-relaxed">
-              Checking a dozen official UK sources — HM Land Registry, police.uk, Ofsted, Ofcom &amp; the Environment Agency. Usually 5–15 seconds.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

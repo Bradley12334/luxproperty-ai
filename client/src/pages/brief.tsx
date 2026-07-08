@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "wouter";
-import { getBrief } from "@/lib/mockEngine";
+import { getBrief, generateBrief } from "@/lib/mockEngine";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ import {
 import { SoldPricesMap, deriveMapInterpretation } from "@/components/sold-prices-map";
 import type { BriefReport } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
-import { clearBonusInvestorBrief } from "@/lib/authStore";
+import { clearBonusInvestorBrief, getUser } from "@/lib/authStore";
 import { AuthModal } from "@/components/auth-modal";
 import { PostcodeMap } from "@/components/postcode-map";
 import { NeighbourhoodMap } from "@/components/neighbourhood-map";
@@ -136,15 +136,22 @@ const LOADING_STEPS = [
   "Summarising key findings",
 ];
 
-function LoadingState() {
+// LoadingState renders the brief skeleton during the wait. When `statusMessage`
+// is supplied (generation mode — /brief?q=…), it shows the REAL live pipeline step
+// + elapsed time instead of the fixed rotating steps, so the status line is truthful
+// and matches what the pipeline is actually doing. When omitted (the momentary read
+// of an already-stored /brief/:id), it falls back to the rotating steps.
+function LoadingState({ statusMessage, elapsedSecs }: { statusMessage?: string; elapsedSecs?: string }) {
   const [stepIdx, setStepIdx] = useState(0);
+  const live = !!statusMessage;
 
   useEffect(() => {
+    if (live) return; // real messages drive the line in generation mode
     const interval = setInterval(() => {
       setStepIdx((i) => (i + 1) % LOADING_STEPS.length);
     }, 1800);
     return () => clearInterval(interval);
-  }, []);
+  }, [live]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -158,34 +165,83 @@ function LoadingState() {
             <h2 className="font-serif text-xl tracking-tight mb-3">
               Compiling your property report
             </h2>
-            {/* Progress steps */}
-            <div className="flex flex-col items-center gap-2 mb-6">
-              {LOADING_STEPS.map((step, i) => (
-                <div
-                  key={step}
-                  className={`flex items-center gap-2 text-sm transition-all duration-500 ${
-                    i < stepIdx
-                      ? "text-primary/50 line-through"
-                      : i === stepIdx
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground/40"
-                  }`}
-                >
-                  {i < stepIdx && <span className="text-primary text-xs">✓</span>}
-                  {i === stepIdx && (
-                    <span className="flex gap-0.5">
-                      <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
-                      <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
-                      <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
-                    </span>
+            {live ? (
+              /* Real live status line (generation mode) */
+              <div className="flex flex-col items-center gap-2 mb-6" role="status" aria-live="polite">
+                <div className="flex items-center gap-2 text-sm text-foreground font-medium" data-testid="text-generation-status">
+                  <span className="flex gap-0.5" aria-hidden="true">
+                    <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                    <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                    <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                  </span>
+                  <span>{statusMessage}</span>
+                  {elapsedSecs && (
+                    <span className="tabular-nums font-mono text-xs text-muted-foreground">{elapsedSecs}s</span>
                   )}
-                  {i > stepIdx && <span className="w-3" />}
-                  {step}
                 </div>
-              ))}
-            </div>
+                <p className="text-[11px] text-muted-foreground/60 max-w-xs text-center leading-relaxed">
+                  Checking a dozen official UK sources — HM Land Registry, police.uk, Ofsted, Ofcom &amp; the Environment Agency. Usually 5–15 seconds.
+                </p>
+              </div>
+            ) : (
+              /* Fixed rotating steps (momentary stored-brief read) */
+              <div className="flex flex-col items-center gap-2 mb-6">
+                {LOADING_STEPS.map((step, i) => (
+                  <div
+                    key={step}
+                    className={`flex items-center gap-2 text-sm transition-all duration-500 ${
+                      i < stepIdx
+                        ? "text-primary/50 line-through"
+                        : i === stepIdx
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground/40"
+                    }`}
+                  >
+                    {i < stepIdx && <span className="text-primary text-xs">✓</span>}
+                    {i === stepIdx && (
+                      <span className="flex gap-0.5">
+                        <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                        <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                        <span className="pulse-dot w-1 h-1 rounded-full bg-primary" />
+                      </span>
+                    )}
+                    {i > stepIdx && <span className="w-3" />}
+                    {step}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <SkeletonReport />
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+// Shown when generation fails on the brief page (generation mode). Mirrors the
+// typed-error copy the home page used to show, with a path back to search.
+function GenerationErrorState({ message }: { message: string }) {
+  const copy =
+    message === "NETWORK_ERROR"
+      ? "Network error — check your connection and try again."
+      : message === "TIMEOUT_ERROR"
+      ? "The request timed out. Please try again."
+      : "Something went wrong generating the brief. Please try again.";
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header />
+      <main className="flex-1 flex items-center justify-center">
+        <div className="text-center px-6" data-testid="generation-error">
+          <h2 className="font-serif text-xl mb-2">We couldn't generate this brief</h2>
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm">{copy}</p>
+          <Link href="/">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-3.5 w-3.5" />
+              Back to search
+            </Button>
+          </Link>
         </div>
       </main>
       <Footer />
@@ -2469,6 +2525,19 @@ export default function BriefPage() {
   const [report, setReport] = useState<BriefReport | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ── Generation mode (/brief?q=…) ─────────────────────────────────────────────
+  // When we arrive without an :id but with a ?q= query, generation runs HERE so
+  // the skeleton + live status show during the wait. Content is unchanged — this
+  // is the same generateBrief call that used to run on the home page.
+  const isGenMode = !briefId;
+  const genStartedRef = useRef(false);
+  const progressQueueRef = useRef<string[]>([]);
+  const lastShownRef = useRef(0);
+  const genStartRef = useRef(0);
+  const [genStatus, setGenStatus] = useState("Connecting to official data sources…");
+  const [genElapsedMs, setGenElapsedMs] = useState(0);
+  const [genError, setGenError] = useState<string | null>(null);
+
   // Feature 1: Custom branding state
   const [companyName, setCompanyName] = useState("");
   const [preparedBy, setPreparedBy] = useState("");
@@ -2511,6 +2580,48 @@ export default function BriefPage() {
     }
   }, [briefId]);
 
+  // Generation mode: run generateBrief once on arrival at /brief?q=…
+  useEffect(() => {
+    if (!isGenMode || genStartedRef.current) return;
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (!q) { setIsLoading(false); return; } // /brief with no query → "not found"
+    genStartedRef.current = true;
+    genStartRef.current = performance.now();
+    lastShownRef.current = performance.now();
+    (async () => {
+      try {
+        // Plan is read from the auth store here (not the URL) so entitlement can't
+        // be tampered via the query string. Same call that ran on the home page.
+        const result = await generateBrief(q, getUser()?.plan, (m) => {
+          progressQueueRef.current.push(m);
+        });
+        setReport(result);
+        setIsLoading(false);
+        // Record whether it's already in the portfolio, matching stored-mode.
+        isInPortfolio(result.query.toUpperCase()).then(setSavedToPortfolio);
+      } catch (e) {
+        setGenError(e instanceof Error ? e.message || "BRIEF_ERROR" : "BRIEF_ERROR");
+        setIsLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGenMode]);
+
+  // Pace the live status queue + tick elapsed while generating (min-dwell so the
+  // burst of parallel completions is readable rather than a flicker).
+  useEffect(() => {
+    if (!isGenMode || genError || !isLoading) return;
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      setGenElapsedMs(now - genStartRef.current);
+      if (progressQueueRef.current.length && now - lastShownRef.current >= 650) {
+        setGenStatus(progressQueueRef.current.shift()!);
+        lastShownRef.current = now;
+      }
+    }, 120);
+    return () => window.clearInterval(id);
+  }, [isGenMode, genError, isLoading]);
+
   async function handleSaveToPortfolio() {
     if (!report) return;
     const { ok } = await addToPortfolio(report);
@@ -2523,8 +2634,14 @@ export default function BriefPage() {
     }
   }
 
+  if (genError) {
+    return <GenerationErrorState message={genError} />;
+  }
+
   if (isLoading) {
-    return <LoadingState />;
+    return isGenMode
+      ? <LoadingState statusMessage={genStatus} elapsedSecs={(genElapsedMs / 1000).toFixed(1)} />
+      : <LoadingState />;
   }
 
   if (!report) {
