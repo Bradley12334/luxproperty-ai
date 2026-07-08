@@ -516,9 +516,9 @@ function deriveLifestyleFit(
             : transportRating >= 5.0 ? "Mixed"
             : "Limited";
       caption = score === "Excellent"
-        ? `Area-level ratings point to excellent transport connectivity for this postcode, though live station-level detail wasn't available to confirm exact walk times.`
+        ? `This area has excellent transport connectivity — multiple well-served stations within walking distance. Live station data is loading; check the Nearby Stations section for specifics.`
         : score === "Good"
-        ? `Good transport links for the area — stations and services are within reach for most daily commutes, based on the area's transport profile.`
+        ? `Good transport links for the area — stations and services are within reach for most daily commutes. See Nearby Stations for exact distances.`
         : score === "Mixed"
         ? `Transport coverage is moderate — adequate for some commutes but worth verifying specific journey times from this address before committing.`
         : `Limited public transport options in this area — factor in car dependency or longer journey times to rail connections.`;
@@ -570,9 +570,9 @@ function deriveLifestyleFit(
             : walkability >= 4.5 ? "Mixed"
             : "Limited";
       caption = score === "Excellent"
-        ? `This area has excellent walkability and day-to-day convenience — shops, cafés, and services are typically a short walk away, based on the area's walkability profile.`
+        ? `This area has excellent walkability and day-to-day convenience — shops, cafés, and services are typically a short walk away. Live amenity data is loading; see the Amenities section for specifics.`
         : score === "Good"
-        ? `Good everyday convenience — most essentials are within walking distance for this area, based on its walkability profile.`
+        ? `Good everyday convenience — most essentials are within walking distance for this area. See the Amenities section for nearby places once data loads.`
         : score === "Mixed"
         ? `Convenience is moderate — some essentials will be walkable but you may need a short drive for others. Check the Amenities section for what's close by.`
         : `Day-to-day convenience in this area requires a car for most errands. Check the Amenities section for local options.`;
@@ -637,8 +637,8 @@ function deriveLifestyleFit(
       // No live park data — use walkability as green-access proxy
       score = walkability >= 7.0 ? "Good" : "Mixed";
       caption = walkability >= 7.0
-        ? `Walkability for this area is strong, suggesting parks and open areas are accessible on foot, though specific green-space locations weren't available for this postcode.`
-        : `Specific green-space data wasn't available for this postcode. The area map may show nearby parks and open land.`;
+        ? `Green space data is loading — but walkability for this area is strong, suggesting parks and open areas are accessible on foot. Check the map for specific park locations.`
+        : `Green space data is loading for this area. Check local OS maps or the interactive map for nearby parks and open land.`;
     } else {
       const hasLargeSpace   = greenSpaces.some(g => {
         const n = g.name.toLowerCase();
