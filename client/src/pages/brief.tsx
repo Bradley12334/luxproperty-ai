@@ -1538,8 +1538,8 @@ ${offerStrategyHtml}` : ""}
     <div class="section-label">Air Quality</div>
     <div style="display:flex;gap:24px;margin-bottom:10px">
       <div class="kpi"><div class="kpi-label">Rating</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.rating}</div></div>
-      <div class="kpi"><div class="kpi-label">NO₂</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.no2Level}</div></div>
-      <div class="kpi"><div class="kpi-label">PM2.5</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.pm25Level}</div></div>
+      ${!/^(no data|—|n\/a|)$/i.test((ai.airQuality.no2Level ?? "").trim()) ? `<div class="kpi"><div class="kpi-label">NO₂</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.no2Level}</div></div>` : ""}
+      ${!/^(no data|—|n\/a|)$/i.test((ai.airQuality.pm25Level ?? "").trim()) ? `<div class="kpi"><div class="kpi-label">PM2.5</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.pm25Level}</div></div>` : ""}
     </div>
     <p class="body-text">${ai.airQuality.note}</p>
   </div>
@@ -3729,8 +3729,14 @@ export default function BriefPage() {
                   </CollapsibleSection>
                 )}
 
-                {/* Local Amenities */}
+                {/* Local Amenities — hide when every category is empty (Overpass
+                    returned nothing) rather than rendering an empty section shell. */}
                 {ai.nearbyAmenities && (
+                  ((ai.nearbyAmenities.supermarkets?.length ?? 0) +
+                   (ai.nearbyAmenities.cafesAndRestaurants?.length ?? 0) +
+                   (ai.nearbyAmenities.health?.length ?? 0) +
+                   (ai.nearbyAmenities.greenSpaces?.length ?? 0)) > 0
+                ) && (
                   <CollapsibleSection title="Local Amenities" testId="section-amenities" defaultOpen={false}>
                     <div className="space-y-0">
                       {/* Amenity picture interpretation */}
@@ -3956,14 +3962,21 @@ export default function BriefPage() {
                             "text-red-600 dark:text-red-400"
                           }`}>{ai.airQuality.rating}</span>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ Level</span>
-                          <span className="text-base font-bold text-foreground">{ai.airQuality.no2Level}</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5</span>
-                          <span className="text-base font-bold text-foreground">{ai.airQuality.pm25Level}</span>
-                        </div>
+                        {/* Show a reading only when it's real — a live monitor can
+                            report NO₂ but not PM2.5 (or vice-versa). Hide the empty
+                            field rather than rendering "No data"; the grid reflows. */}
+                        {!/^(no data|—|n\/a|)$/i.test((ai.airQuality.no2Level ?? "").trim()) && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ Level</span>
+                            <span className="text-base font-bold text-foreground">{ai.airQuality.no2Level}</span>
+                          </div>
+                        )}
+                        {!/^(no data|—|n\/a|)$/i.test((ai.airQuality.pm25Level ?? "").trim()) && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5</span>
+                            <span className="text-base font-bold text-foreground">{ai.airQuality.pm25Level}</span>
+                          </div>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground leading-relaxed">{ai.airQuality.note}</p>
                       <p className="text-xs text-muted-foreground/70 leading-relaxed">Relevant for families and those with respiratory health concerns. Source detail is shown above.</p>
@@ -4045,29 +4058,40 @@ export default function BriefPage() {
 
                 {/* Rental Demand score — Investor feature */}
                 {user?.plan === "investor" ? (
-                  <CollapsibleSection title="Rental Demand" testId="section-rental-demand" defaultOpen={false}>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Demand Level</span>
-                          <span className="text-base font-bold text-[#B8860B]">{ai.rentalDemand?.demandLevel ?? "—"}</span>
+                  (() => {
+                    // Render from the REAL rentalDemand fields (label/score/avgDaysToLet/
+                    // vsNationalAvg/rationale). The previous markup referenced fields that
+                    // don't exist on the type (demandLevel/voidRisk/tenantProfile/supplyTrend),
+                    // so every tile rendered "—" on every postcode. Hide the whole section
+                    // when the signal is genuinely insufficient, and drop any null tile —
+                    // never show a "—" placeholder.
+                    const rd = ai.rentalDemand;
+                    if (!rd || rd.confidence === "Insufficient" || rd.label === "Insufficient evidence") return null;
+                    const tiles = [
+                      { key: "Demand Level", value: rd.label, accent: true, est: false },
+                      rd.score != null ? { key: "Demand Score", value: `${rd.score}/10`, accent: false, est: false } : null,
+                      rd.avgDaysToLet != null ? { key: "Avg Days to Let", value: `${rd.avgDaysToLet} days`, accent: false, est: true } : null,
+                      rd.vsNationalAvg ? { key: "vs National", value: rd.vsNationalAvg, accent: false, est: true } : null,
+                    ].filter(Boolean) as Array<{ key: string; value: string; accent: boolean; est: boolean }>;
+                    return (
+                      <CollapsibleSection title="Rental Demand" testId="section-rental-demand" defaultOpen={false}>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {tiles.map((t) => (
+                              <div key={t.key} className="flex flex-col gap-1">
+                                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                                  {t.key}{t.est ? <> <EstimateTag /></> : null}
+                                </span>
+                                <span className={`text-base font-bold ${t.accent ? "text-[#B8860B]" : "text-foreground"}`}>{t.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {rd.rationale ? <p className="text-sm text-foreground/80 leading-relaxed">{rd.rationale}</p> : null}
+                          {rd.note ? <p className="text-sm text-muted-foreground leading-relaxed">{rd.note}</p> : null}
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Void Risk <EstimateTag /></span>
-                          <span className="text-base font-bold text-foreground">{ai.rentalDemand?.voidRisk ?? "—"}</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Tenant Profile</span>
-                          <span className="text-sm font-medium text-foreground">{ai.rentalDemand?.tenantProfile ?? "—"}</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Supply Trend <EstimateTag /></span>
-                          <span className="text-sm font-medium text-foreground">{ai.rentalDemand?.supplyTrend ?? "—"}</span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{ai.rentalDemand?.note ?? ""}</p>
-                    </div>
-                  </CollapsibleSection>
+                      </CollapsibleSection>
+                    );
+                  })()
                 ) : isPaid ? (
                   <div className="relative" data-testid="section-rental-demand-locked">
                     <div className="blur-sm pointer-events-none select-none opacity-60">
