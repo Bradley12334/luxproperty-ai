@@ -1538,8 +1538,8 @@ ${offerStrategyHtml}` : ""}
     <div class="section-label">Air Quality</div>
     <div style="display:flex;gap:24px;margin-bottom:10px">
       <div class="kpi"><div class="kpi-label">Rating</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.rating}</div></div>
-      <div class="kpi"><div class="kpi-label">NO₂</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.no2Level}</div></div>
-      <div class="kpi"><div class="kpi-label">PM2.5</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.pm25Level}</div></div>
+      ${!/^(no data|—|n\/a|)$/i.test((ai.airQuality.no2Level ?? "").trim()) ? `<div class="kpi"><div class="kpi-label">NO₂</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.no2Level}</div></div>` : ""}
+      ${!/^(no data|—|n\/a|)$/i.test((ai.airQuality.pm25Level ?? "").trim()) ? `<div class="kpi"><div class="kpi-label">PM2.5</div><div class="kpi-value" style="font-size:16px">${ai.airQuality.pm25Level}</div></div>` : ""}
     </div>
     <p class="body-text">${ai.airQuality.note}</p>
   </div>
@@ -3956,14 +3956,23 @@ export default function BriefPage() {
                             "text-red-600 dark:text-red-400"
                           }`}>{ai.airQuality.rating}</span>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ Level</span>
-                          <span className="text-base font-bold text-foreground">{ai.airQuality.no2Level}</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5</span>
-                          <span className="text-base font-bold text-foreground">{ai.airQuality.pm25Level}</span>
-                        </div>
+                        {/* Show a reading only when it's real. A live DEFRA monitor can
+                            report NO₂ but not PM2.5 (or vice-versa) → literal "No data".
+                            This hides ONLY an individually-empty tile — it can never hide a
+                            real reading (the regex matches only ""/"No data"/"—"/"n/a") nor
+                            the section (the Rating always stays). The grid reflows. */}
+                        {!/^(no data|—|n\/a|)$/i.test((ai.airQuality.no2Level ?? "").trim()) && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">NO₂ Level</span>
+                            <span className="text-base font-bold text-foreground">{ai.airQuality.no2Level}</span>
+                          </div>
+                        )}
+                        {!/^(no data|—|n\/a|)$/i.test((ai.airQuality.pm25Level ?? "").trim()) && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">PM2.5</span>
+                            <span className="text-base font-bold text-foreground">{ai.airQuality.pm25Level}</span>
+                          </div>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground leading-relaxed">{ai.airQuality.note}</p>
                       <p className="text-xs text-muted-foreground/70 leading-relaxed">Relevant for families and those with respiratory health concerns. Source detail is shown above.</p>
