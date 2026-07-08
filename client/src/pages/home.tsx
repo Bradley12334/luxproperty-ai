@@ -135,7 +135,7 @@ export default function Home() {
                   {/* Card header */}
                   <div className="px-4 py-3.5 border-b border-border/60 flex items-center justify-between">
                     <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Intelligence Brief</p>
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Sample Brief · illustrative figures</p>
                       <p className="font-serif text-foreground text-[15px] mt-0.5">Chelsea, SW3 1AA</p>
                     </div>
                     <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
@@ -364,7 +364,7 @@ export default function Home() {
                 <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
                   <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Area Intelligence Brief</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Sample Brief · illustrative figures</p>
                       <p className="font-serif text-foreground text-[15px] mt-0.5 tracking-tight">Chelsea, SW3 1AA</p>
                     </div>
                     <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">

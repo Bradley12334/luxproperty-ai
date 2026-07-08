@@ -388,6 +388,13 @@ export default function AreaPage() {
                 </Card>
               ))}
             </div>
+            {/* Honest labelling: these are indicative editorial area guides, NOT the
+                live per-postcode Land Registry figures a brief computes. Stated so a
+                figure here (e.g. a district-wide median) can't read as contradicting
+                the live brief for a specific postcode. */}
+            <p className="mt-4 text-[11px] text-muted-foreground/70 leading-relaxed">
+              Indicative area guide, not a live valuation. Generate a brief for the live HM Land Registry median, year-on-year change and comparable sales for a specific postcode.
+            </p>
           </div>
         </section>
 
