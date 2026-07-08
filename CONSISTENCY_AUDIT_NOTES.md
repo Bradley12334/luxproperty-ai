@@ -63,12 +63,33 @@ off-limits without a decision). Options:
 - **C. Label only (done) + document.** Ship the static-figure labelling above, leave the
   live computation unchanged, and treat A/B as a separate data-methodology task.
 
-**Recommendation: A**, with the confidence gates doing the thin-data honesty work — it
-makes the median mean "this postcode," which is what users read it as, and removes the
-median-vs-fair-value geographic mismatch at source. But it's a data-methodology change
-that must be measured across dense/suburban/thin postcodes before merge, so it needs your
-sign-off rather than a blind edit here (no Node/browser in this environment to verify).
+## DECISION MADE: Option A — median is now OUTCODE-level (implemented)
+`fetchLandRegistryYear(district, outcode, year)` now filters the district result to the
+searched outcode via `getOutcode(postcode) === outcode` before computing prices, so the
+median / YoY / 5-yr / tier / `demandSignal` / `totalTxns` all describe the searched
+outcode and agree with the outcode-level comparables and fair-value at a consistent
+granularity. `totalTxns` is now an outcode count, so the existing confidence gates
+(`Low` when `totalSalesThisYear < 3`, median needs ≥5) automatically become stricter for
+sparse outcodes — the thin-data honesty the task asks for, for free.
 
-## Not verified here
-No Node/browser available, so nothing was run. The homepage/area labels are static JSX
-(low risk). The median decision (A/B) is unverified by design — pending your call.
+Implementation choices:
+- **`_pageSize` kept at 100** (known-good). Raising it risks an untested API page-size
+  limit on the revenue path. Trade-off: the 100-record district recency cap now also
+  bounds the outcode sample, so some legitimately-populated outcodes may trip the
+  thin-data path. If verification shows that happening too often, raise `_pageSize`
+  toward 500 (API max) — a documented one-line change. This was chosen over a per-year
+  district fallback, which would mix granularities across years and corrupt the trend.
+- No district fallback for the median: a sparse outcode honestly shows insufficient-data
+  rather than silently borrowing the (diluted) district figure.
+
+## MUST verify before merge (no Node/browser here — NOT run)
+This is a data-methodology change to the core figure. Generate briefs and check:
+- **SW3 1AA (dense):** median now reads ~outcode level (≈£1.3M range), and agrees with
+  the fair-value range instead of the old ~£845k district figure.
+- **A couple of suburban outcodes:** median still populates and looks sane; YoY/5-yr signs
+  correct; no `+-` doubled signs.
+- **A rural/thin outcode:** confirm it shows the insufficient-data / low-confidence path
+  honestly rather than a shaky number — and that it does NOT over-trigger for outcodes
+  that genuinely have sales (if it does, bump `_pageSize`).
+- Homepage cards now say "Sample Brief · illustrative figures"; /area shows the indicative
+  note — neither reads as contradicting a live brief.

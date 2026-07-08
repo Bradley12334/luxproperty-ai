@@ -1964,8 +1964,22 @@ async function fetchPostcodeMeta(postcode: string): Promise<{
   return null;
 }
 
-// ─── Land Registry: prices for a district + year ─────────────────────────────
-async function fetchLandRegistryYear(district: string, year: number): Promise<number[]> {
+// ─── Land Registry: prices for an OUTCODE + year ─────────────────────────────
+// Filters the district result down to the searched OUTCODE so the median / YoY /
+// 5-yr trend describe the postcode the user actually searched — not the whole
+// administrative district. For mixed districts (e.g. Kensington & Chelsea) the
+// district median was diluted well below the outcode's true level and disagreed
+// with the outcode-level comparables/fair-value; matching the granularity fixes
+// that at source. Thin outcodes are handled HONESTLY downstream: median() needs
+// >= 5 sales or returns 0, so a sparse outcode shows the insufficient-data path
+// rather than a shaky number stated as fact.
+//
+// NOTE: this inherits the district query's `_pageSize=100` recency cap, which now
+// also bounds the outcode sample. Kept at 100 deliberately — that value is known-
+// good, and raising it risks an untested API page-size limit on the revenue path.
+// If verification shows legitimately-populated outcodes tripping the thin-data
+// path too often, raise `_pageSize` toward 500 (the API max) — a one-line change.
+async function fetchLandRegistryYear(district: string, outcode: string, year: number): Promise<number[]> {
   if (!district) return [];
   try {
     const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=100&propertyAddress.district=${encodeURIComponent(district)}&min-transactionDate=${year}-01-01&max-transactionDate=${year}-12-31&_sort=-transactionDate`;
@@ -1973,7 +1987,12 @@ async function fetchLandRegistryYear(district: string, year: number): Promise<nu
     if (!res.ok) return [];
     const data = await res.json();
     const items = data?.result?.items || [];
-    return items.map((item: any) => item.pricePaid as number).filter((p: number) => p > 0);
+    return items
+      // Keep only sales in the searched outcode. `getOutcode` normalises spaced
+      // and unspaced postcodes and won't confuse "SW3" with "SW30".
+      .filter((item: any) => !outcode || getOutcode(item?.propertyAddress?.postcode || "") === outcode)
+      .map((item: any) => item.pricePaid as number)
+      .filter((p: number) => p > 0);
   } catch { return []; }
 }
 
@@ -2840,7 +2859,7 @@ export async function generateBrief(
   const briefT0 = _now();
 
   const lrYearPromises = doLandRegistry
-    ? years.map(yr => withTimeout(fetchLandRegistryYear(district, yr), T, [] as number[], `LR:${yr}`))
+    ? years.map(yr => withTimeout(fetchLandRegistryYear(district, outcode, yr), T, [] as number[], `LR:${yr}`))
     : [];
 
   const [
