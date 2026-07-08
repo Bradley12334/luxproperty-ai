@@ -3772,13 +3772,13 @@ export default function BriefPage() {
                       })()}
                       {/* Amenity rows */}
                       {[
+                        // Only categories that actually exist on nearbyAmenities. "Health"
+                        // previously read a non-existent `.medical` field, so health POIs
+                        // (which ARE fetched) never rendered — fixed to `.health`.
                         { icon: Coffee, label: "Cafes & Restaurants", items: ai.nearbyAmenities?.cafesAndRestaurants },
                         { icon: ShoppingCart, label: "Supermarkets", items: ai.nearbyAmenities?.supermarkets },
+                        { icon: Stethoscope, label: "Health", items: ai.nearbyAmenities?.health },
                         { icon: TreePine, label: "Green Spaces", items: ai.nearbyAmenities?.greenSpaces },
-                        { icon: Zap, label: "Gyms", items: ai.nearbyAmenities?.gyms },
-                        { icon: Star, label: "Pubs", items: ai.nearbyAmenities?.pubs },
-                        { icon: Stethoscope, label: "Medical", items: ai.nearbyAmenities?.medical },
-                        { icon: BookOpen, label: "Libraries", items: ai.nearbyAmenities?.libraries },
                       ].filter(cat => (cat.items?.length ?? 0) > 0).map((cat) => (
                         <div key={cat.label} className="py-3 border-b border-border/20 last:border-0">
                           <div className="flex items-center gap-2 mb-2">
@@ -3787,12 +3787,21 @@ export default function BriefPage() {
                             <span className="text-[10px] text-muted-foreground">({cat.items!.length})</span>
                           </div>
                           <div className="space-y-1.5">
-                            {cat.items!.slice(0, 4).map((item, j) => (
+                            {cat.items!.slice(0, 4).map((item, j) => {
+                              // Derive walk-time uniformly from distanceMetres (~80 m/min).
+                              // Supermarkets/cafés/health carry distanceMetres but not walkMins,
+                              // so the old `{item.walkMins} min` rendered a blank " min".
+                              const mins = (item as any).walkMins ?? Math.ceil((((item as any).distanceMetres ?? 0) / 80));
+                              const metres = Math.round(((item as any).distanceMetres ?? 0));
+                              return (
                               <div key={j} className="flex items-center justify-between text-xs">
                                 <span className="text-foreground/80">{item.name}</span>
-                                <span className="text-muted-foreground shrink-0 ml-2">{item.walkMins} min</span>
+                                <span className="text-muted-foreground shrink-0 ml-2">
+                                  {mins} min{metres > 0 ? ` · ${metres < 1000 ? `${metres} m` : `${(metres / 1000).toFixed(1)} km`}` : ""}
+                                </span>
                               </div>
-                            ))}
+                              );
+                            })}
                             {cat.items!.length > 4 && (
                               <p className="text-[10px] text-muted-foreground/60">+{cat.items!.length - 4} more</p>
                             )}
