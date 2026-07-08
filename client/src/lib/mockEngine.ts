@@ -2465,56 +2465,28 @@ async function fetchNearbyAmenities(lat: number, lng: number): Promise<{
   greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number; lat?: number; lng?: number }>;
 } | null> {
   try {
-    const query = `[out:json][timeout:20];(
-  node["shop"~"supermarket|convenience|greengrocer|bakery|butcher|deli|health_food|department_store"](around:1200,${lat},${lng});
-  node["amenity"~"cafe|restaurant|fast_food"](around:700,${lat},${lng});
-  node["amenity"~"doctors|pharmacy|hospital|clinic"](around:1200,${lat},${lng});
-  way["leisure"="park"]["name"](around:1500,${lat},${lng});
-  relation["leisure"="park"]["name"](around:1500,${lat},${lng});
-);out body center 80;`;
-    const elements = await overpassQuery(query);
-    if (!elements) return null;
-
-    const supermarkets: Array<{ name: string; type: string; distanceMetres: number; lat: number; lng: number }> = [];
-    const cafesAndRestaurants: Array<{ name: string; type: string; distanceMetres: number; lat: number; lng: number }> = [];
-    const health: Array<{ name: string; type: string; distanceMetres: number; lat: number; lng: number }> = [];
-    const greenSpaces: Array<{ name: string; distanceMetres: number; walkMins: number; lat: number; lng: number }> = [];
-
-    for (const el of elements) {
-      const tags = el.tags || {};
-      const name = tags.name;
-      if (!name) continue;
-      const elLat = el.lat ?? el.center?.lat;
-      const elLng = el.lon ?? el.center?.lon;
-      if (!elLat || !elLng) continue;
-      const dist = distMetres(lat, lng, elLat, elLng);
-      const shopType = tags.shop;
-      const amenity = tags.amenity;
-      const leisure = tags.leisure;
-      if (shopType && ["supermarket","convenience","greengrocer","bakery","butcher","deli","health_food","department_store"].includes(shopType)) {
-        const typeLabel = shopType === "supermarket" ? "Supermarket" : shopType === "convenience" ? "Convenience store" : shopType === "bakery" ? "Bakery" : shopType === "butcher" ? "Butcher" : "Shop";
-        if (supermarkets.length < 8) supermarkets.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
-      } else if (amenity && ["cafe","restaurant","fast_food"].includes(amenity)) {
-        const typeLabel = amenity === "cafe" ? "Café" : amenity === "restaurant" ? "Restaurant" : "Food";
-        if (cafesAndRestaurants.length < 8) cafesAndRestaurants.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
-      } else if (amenity && ["doctors","pharmacy","hospital","clinic"].includes(amenity)) {
-        const typeLabel = amenity === "doctors" ? "GP Surgery" : amenity === "pharmacy" ? "Pharmacy" : amenity === "hospital" ? "Hospital" : "Clinic";
-        if (health.length < 6) health.push({ name, type: typeLabel, distanceMetres: dist, lat: elLat, lng: elLng });
-      } else if (leisure === "park") {
-        if (greenSpaces.length < 6) greenSpaces.push({ name, distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: elLat, lng: elLng });
-      }
-    }
-    const sortDist = (a: { distanceMetres: number }, b: { distanceMetres: number }) => a.distanceMetres - b.distanceMetres;
-    // Dedupe by name+location (nearest kept) so the same physical place returned
-    // more than once by Overpass can't appear twice in a category. Distinct
-    // branches of a chain at different locations survive (different placeKey).
-    const dedupePlaces = <T extends { name: string; lat?: number; lng?: number }>(arr: T[]) =>
-      dedupeBy(arr.sort(sortDist), p => placeKey(p.name, p.lat, p.lng));
+    // Route amenities through the server endpoint (/api/local-amenities) instead of
+    // a direct browser Overpass call. Schools + stations already fire concurrent
+    // browser Overpass queries; adding a third — the heaviest (shops + cafés +
+    // health + parks, with ways/relations) — meant amenities routinely lost the
+    // Overpass rate-limit/latency race inside the per-source timeout and returned
+    // null, so BOTH the amenities list section and every map pin (shop/park/health/
+    // café) silently disappeared even where the data clearly exists. The server
+    // endpoint runs the identical query from Vercel's IP (separate rate bucket, no
+    // browser CORS/concurrency) and returns the parsed, capped shape directly.
+    const res = await fetch(`/api/local-amenities?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || data.error) return null;
+    // Dedupe by name+location (nearest kept) so a place returned as both node and
+    // way/relation can't appear twice; distinct branches survive (different placeKey).
+    const dedupePlaces = <T extends { name: string; distanceMetres: number; lat?: number; lng?: number }>(arr: T[] | undefined) =>
+      dedupeBy((arr ?? []).slice().sort((a, b) => a.distanceMetres - b.distanceMetres), p => placeKey(p.name, p.lat, p.lng));
     return {
-      supermarkets: dedupePlaces(supermarkets).slice(0, 5),
-      cafesAndRestaurants: dedupePlaces(cafesAndRestaurants).slice(0, 6),
-      health: dedupePlaces(health).slice(0, 4),
-      greenSpaces: dedupePlaces(greenSpaces).slice(0, 4),
+      supermarkets: dedupePlaces(data.supermarkets),
+      cafesAndRestaurants: dedupePlaces(data.cafesAndRestaurants),
+      health: dedupePlaces(data.health),
+      greenSpaces: dedupePlaces(data.greenSpaces),
     };
   } catch { return null; }
 }

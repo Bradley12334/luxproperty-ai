@@ -107,14 +107,17 @@ function bearingOffset(
 // Spread fallback pins evenly around the compass
 const BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315, 22, 67, 112, 157, 202, 247, 292, 337];
 
+// `key` maps each legend row to the pin category it represents, so the legend can
+// be filtered to ONLY the categories that actually have pins on the map — a legend
+// must never advertise a pin type that isn't present for this postcode.
 const LEGEND_ITEMS = [
-  { color: "#B8860B", emoji: "📍", label: "Location" },
-  { color: "#2563eb", emoji: "🚉", label: "Station" },
-  { color: "#16a34a", emoji: "🎓", label: "School" },
-  { color: "#ea580c", emoji: "🛒", label: "Shop" },
-  { color: "#0d9488", emoji: "🌳", label: "Park" },
-  { color: "#dc2626", emoji: "🏥", label: "Health" },
-  { color: "#7c3aed", emoji: "☕", label: "Café" },
+  { key: "location", color: "#B8860B", emoji: "📍", label: "Location" },
+  { key: "station", color: "#2563eb", emoji: "🚉", label: "Station" },
+  { key: "school", color: "#16a34a", emoji: "🎓", label: "School" },
+  { key: "shop", color: "#ea580c", emoji: "🛒", label: "Shop" },
+  { key: "park", color: "#0d9488", emoji: "🌳", label: "Park" },
+  { key: "health", color: "#dc2626", emoji: "🏥", label: "Health" },
+  { key: "cafe", color: "#7c3aed", emoji: "☕", label: "Café" },
 ];
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
@@ -378,9 +381,21 @@ export function NeighbourhoodMap({
         />
       </div>
 
-      {/* Legend */}
+      {/* Legend — only categories that actually have pins on the map. Mirrors the
+          pin-adding logic above (same slice caps), so a row appears iff ≥1 pin does. */}
+      {(() => {
+        const present: Record<string, boolean> = {
+          location: true,
+          station: stations.slice(0, 6).length > 0,
+          school: schools.slice(0, 5).length > 0,
+          shop: (amenities?.supermarkets?.slice(0, 4).length ?? 0) > 0,
+          park: (amenities?.greenSpaces?.slice(0, 4).length ?? 0) > 0,
+          health: (amenities?.health?.slice(0, 3).length ?? 0) > 0,
+          cafe: (amenities?.cafesAndRestaurants?.slice(0, 3).length ?? 0) > 0,
+        };
+        return (
       <div className="flex flex-wrap gap-3">
-        {LEGEND_ITEMS.map((item) => (
+        {LEGEND_ITEMS.filter((item) => present[item.key]).map((item) => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div
               style={{
@@ -403,6 +418,8 @@ export function NeighbourhoodMap({
           </div>
         ))}
       </div>
+        );
+      })()}
 
       <p className="text-xs text-muted-foreground">
         Interactive map — drag to pan, +/− or pinch to zoom. Click any pin for details.
