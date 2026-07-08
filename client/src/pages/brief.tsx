@@ -80,6 +80,7 @@ import { DevelopmentAlerts, pdfDevelopmentAlertsSection } from "@/components/dev
 import { getInfrastructureFlags } from "@/lib/hs2Data";
 import { FeatureGate, useEmailCaptured } from "@/components/FeatureGate";
 import { LockedPreview } from "@/components/LockedPreview";
+import { UpgradePreview } from "@/components/UpgradePreview";
 
 function SkeletonReport() {
   return (
@@ -2867,6 +2868,12 @@ export default function BriefPage() {
                 <CollapsibleSection title="Mortgage Calculator" testId="section-mortgage" defaultOpen={false}>
                   <MortgageCalculator averagePrice={ai.marketOverview.averagePrice} />
                 </CollapsibleSection>
+
+                {/* Postcode-specific blurred preview of the locked tiers — placed at
+                    the end of the default Overview tab, after the free value, where
+                    buyer intent is highest. Real teaser counts above each blur; the
+                    paid figures stay behind the blur. Renders null for Investor. */}
+                <UpgradePreview report={report} isPaid={isPaid} isInvestor={isInvestor} />
 
               </TabsContent>
 
