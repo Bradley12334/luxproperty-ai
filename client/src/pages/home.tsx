@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { GenerateLoadingScreen } from "@/components/generate-loading-screen";
 import {
   Search,
   ArrowRight,
@@ -62,6 +63,15 @@ export default function Home() {
     }
     generateBriefMutation.mutate(trimmed);
   };
+
+  // While a brief is generating, show the loading screen (skeleton + timer) in
+  // place of the home page. On success the mutation navigates to the brief; on
+  // error this unmounts and the form (with its error message) renders again.
+  // This changes ONLY what shows during generation — the finished brief is
+  // rendered by the brief page, entirely unaffected.
+  if (generateBriefMutation.isPending) {
+    return <GenerateLoadingScreen />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
