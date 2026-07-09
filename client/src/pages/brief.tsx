@@ -4340,6 +4340,60 @@ export default function BriefPage() {
             </div>
           )}
 
+          {/* ── Upgrade to Professional — end-of-brief block (Explorer/free only) ──
+              Self-contained, generic (no postcode/brief data). Shown only to free
+              (Explorer) users. Links to the existing /pricing upgrade flow. */}
+          {!isPaid && (
+            <div
+              className="mt-8 rounded-xl border border-primary/25 bg-primary/5 px-5 py-6 sm:px-7 sm:py-7"
+              data-testid="section-upgrade-professional-end"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary mb-2">
+                Professional
+              </p>
+              <h3 className="text-lg sm:text-xl font-semibold text-foreground leading-snug mb-3">
+                You’ve screened the area. Now go into the offer with numbers.
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl mb-5">
+                Professional shows you what similar homes actually sold for, a fair-value range for this postcode, and a full pre-offer strategy — so you know what to offer and why.
+              </p>
+
+              <p className="text-xs font-semibold text-foreground mb-2.5">
+                Plus everything else in the full brief:
+              </p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
+                {[
+                  "5-year Land Registry price history",
+                  "Crime breakdown by category",
+                  "Planning activity & risk flags",
+                  "Full commute calculator",
+                  "Broadband & fibre coverage",
+                  "Rental market context",
+                  "Air quality",
+                  "PDF export",
+                  "Save & revisit briefs",
+                  "Unlimited briefs",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link href="/pricing">
+                <button
+                  type="button"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  data-testid="button-upgrade-professional-end"
+                >
+                  Unlock the full brief — £4.99/mo
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </Link>
+            </div>
+          )}
+
           {/* Bottom CTA */}
           <div className="mt-10 pt-8 border-t border-border/40">
             {/* Custom Report Branding — Investor only */}
