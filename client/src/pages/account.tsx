@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -52,12 +52,50 @@ export default function AccountPage() {
   useDocumentTitle("Account");
   const { user, isSignedIn } = useAuth();
   const [, navigate] = useLocation();
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isSignedIn) {
       navigate("/");
     }
   }, [isSignedIn, navigate]);
+
+  // Mint a fresh Stripe Billing Portal session server-side and send the customer
+  // there. Replaces a hardcoded billing.stripe.com/p/login/... link that 404'd
+  // and was not scoped to the signed-in customer.
+  async function openBillingPortal() {
+    if (!user || portalLoading) return;
+    setPortalLoading(true);
+    setPortalError(null);
+    try {
+      const res = await fetch("/api/billing-portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.url) {
+        // Same-tab redirect: popup blockers reliably kill window.open() after an
+        // await, and Stripe returns the customer to /account via return_url.
+        window.location.href = data.url;
+        return;
+      }
+
+      setPortalError(
+        data.code === "NO_CUSTOMER"
+          ? "We couldn't find your billing record — you may have paid with a different email address. Please contact support@luxproperty.ai and we'll sort it out."
+          : data.code === "PORTAL_NOT_CONFIGURED"
+          ? "The billing portal isn't available right now. Please contact support@luxproperty.ai and we'll cancel or amend your subscription for you."
+          : data.error || "Could not open the billing portal. Please try again, or contact support@luxproperty.ai."
+      );
+    } catch {
+      setPortalError("Could not reach the billing portal. Please check your connection and try again.");
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   if (!user) return null;
 
@@ -171,23 +209,30 @@ export default function AccountPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-sm"
-                      onClick={() => window.open("https://billing.stripe.com/p/login/live_00g14n4MU7tN9XW000", "_blank", "noopener,noreferrer")}
+                      className="text-sm w-full sm:w-auto"
+                      onClick={openBillingPortal}
+                      disabled={portalLoading}
                       data-testid="button-manage-subscription"
                     >
-                      Manage Subscription
-                      <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                      {portalLoading ? "Opening…" : "Manage Subscription"}
+                      {!portalLoading && <ArrowRight className="ml-2 h-3.5 w-3.5" />}
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => window.open("https://billing.stripe.com/p/login/live_00g14n4MU7tN9XW000", "_blank", "noopener,noreferrer")}
+                      className="text-sm w-full sm:w-auto text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={openBillingPortal}
+                      disabled={portalLoading}
                       data-testid="button-cancel-subscription"
                     >
                       Cancel subscription
                     </Button>
                   </div>
+                  {portalError && (
+                    <p className="text-xs text-destructive leading-relaxed" data-testid="text-portal-error">
+                      {portalError}
+                    </p>
+                  )}
                 </div>
               )}
             </Card>
