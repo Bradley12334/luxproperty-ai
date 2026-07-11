@@ -12,6 +12,9 @@
     }
   ],
   "rewrites": [
+    { "source": "/api/broadband", "destination": "/api/postcode-data?source=broadband" },
+    { "source": "/api/council-tax", "destination": "/api/postcode-data?source=council-tax" },
+    { "source": "/api/rental-market", "destination": "/api/postcode-data?source=rental-market" },
     { "source": "/api/:path*", "destination": "/api/:path*" },
     {
       "source": "/((?!.*\\.(?:ico|png|jpg|jpeg|svg|gif|webp|css|js|woff2?|ttf|eot|map|json|txt|xml)$).*)",
