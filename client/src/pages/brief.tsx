@@ -64,6 +64,7 @@ import { SoldPricesMap, deriveMapInterpretation } from "@/components/sold-prices
 import type { BriefReport } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { clearBonusInvestorBrief } from "@/lib/authStore";
+import { checkoutUrl } from "@/lib/checkout";
 import { AuthModal } from "@/components/auth-modal";
 import { PostcodeMap } from "@/components/postcode-map";
 import { NeighbourhoodMap } from "@/components/neighbourhood-map";
@@ -4328,6 +4329,10 @@ export default function BriefPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       data-testid="link-explorer-upgrade-professional"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open(checkoutUrl(e.currentTarget.href), "_blank", "noopener,noreferrer");
+                      }}
                     >
                       <button className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
                         Get Professional — £4.99/month
