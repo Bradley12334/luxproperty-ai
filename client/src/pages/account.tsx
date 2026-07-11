@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { signOut } from "@/lib/authStore";
+import { checkoutUrl } from "@/lib/checkout";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   User,
@@ -141,7 +142,7 @@ export default function AccountPage() {
                   <Button
                     size="sm"
                     className="font-semibold text-sm"
-                    onClick={() => window.open(plan.upgradeUrl!, "_blank", "noopener,noreferrer")}
+                    onClick={() => window.open(checkoutUrl(plan.upgradeUrl!), "_blank", "noopener,noreferrer")}
                     data-testid="button-upgrade"
                   >
                     Upgrade to {plan.upgradeTo}

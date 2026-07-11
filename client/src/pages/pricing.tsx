@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Minus, Star, Gift, Lock } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { checkoutUrl } from "@/lib/checkout";
 
 const tiers = [
   {
@@ -238,7 +239,7 @@ export default function PricingPage() {
                       data-testid={`button-pricing-${tier.name.toLowerCase()}`}
                       onClick={() => {
                         if (tier.stripeUrl) {
-                          window.open(tier.stripeUrl, "_blank", "noopener,noreferrer");
+                          window.open(checkoutUrl(tier.stripeUrl), "_blank", "noopener,noreferrer");
                         } else {
                           window.location.href = "/";
                         }
@@ -409,7 +410,15 @@ export default function PricingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <div className="flex flex-col items-center gap-1.5">
-                <a href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional" target="_blank" rel="noopener noreferrer">
+                <a
+                  href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open(checkoutUrl(e.currentTarget.href), "_blank", "noopener,noreferrer");
+                  }}
+                >
                   <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-professional">
                     Get Professional — £4.99/month
                   </Button>
