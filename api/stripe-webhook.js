@@ -5,24 +5,61 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
 // ─── Plan mapping ────────────────────────────────────────────────────────────
-// These MUST match the live Stripe account (acct_1TMEwHP7AaxWnYG2).
-// Verified against the live account — do not edit without re-checking:
-//   Stripe Dashboard → Product catalogue → click product → copy Product/Price ID.
+// Stripe object IDs are MODE-SPECIFIC: test-mode products/prices have different
+// IDs from live-mode ones. Hardcoding a single set is what broke this before —
+// the map held prod_UKur… IDs that existed in no mode at all, so the lookup
+// always failed, `plan` stayed null, and the handler returned 200 without ever
+// touching the database. Payments succeeded; nobody was upgraded.
 //
-// Previously these held product IDs (prod_UKur…) that did not exist in the
-// account at all, so the lookup always failed, `plan` stayed null, and the
-// handler returned 200 without ever touching the database — payments succeeded
-// and nobody was upgraded. Product ID is the primary key; price ID is a
-// fallback in case a product is re-priced under a new price object.
-const PRODUCT_TO_PLAN = {
-  prod_URdf6yYOnUexia: "professional", // Professional — £4.99/mo
-  prod_URdg68jhOvTMso: "investor",     // Investor — £39.99/mo
-};
+// Resolution is now layered so it works in BOTH modes:
+//   1. Env-configured IDs — set these per Vercel environment (live IDs on
+//      Production, test IDs on Preview/Development):
+//        STRIPE_PRODUCT_PROFESSIONAL / STRIPE_PRODUCT_INVESTOR
+//        STRIPE_PRICE_PROFESSIONAL   / STRIPE_PRICE_INVESTOR
+//   2. Known live-mode IDs (acct_1TMEwHP7AaxWnYG2) as built-in defaults, so
+//      production keeps working even with no env vars set.
+//   3. Product metadata/name lookup (see resolvePlanFromProduct) — the safety
+//      net that makes an unconfigured test-mode product still resolve.
+// The maps are a UNION of ids → plan, so test and live IDs can coexist safely.
+function buildPlanMap(entries) {
+  const map = {};
+  for (const [id, plan] of entries) {
+    if (id && typeof id === "string") map[id.trim()] = plan;
+  }
+  return map;
+}
 
-const PRICE_TO_PLAN = {
-  price_1TSkOHP7AaxWnYG27bdaHVBU: "professional", // £4.99/mo
-  price_1TSkOlP7AaxWnYG2LJzX7Jc7: "investor",     // £39.99/mo
-};
+const PRODUCT_TO_PLAN = buildPlanMap([
+  [process.env.STRIPE_PRODUCT_PROFESSIONAL, "professional"],
+  [process.env.STRIPE_PRODUCT_INVESTOR, "investor"],
+  ["prod_URdf6yYOnUexia", "professional"], // live — Professional £4.99/mo
+  ["prod_URdg68jhOvTMso", "investor"],     // live — Investor £39.99/mo
+]);
+
+const PRICE_TO_PLAN = buildPlanMap([
+  [process.env.STRIPE_PRICE_PROFESSIONAL, "professional"],
+  [process.env.STRIPE_PRICE_INVESTOR, "investor"],
+  ["price_1TSkOHP7AaxWnYG27bdaHVBU", "professional"], // live — £4.99/mo
+  ["price_1TSkOlP7AaxWnYG2LJzX7Jc7", "investor"],     // live — £39.99/mo
+]);
+
+// Last-resort resolution: ask Stripe about the product itself. Works in any
+// mode with no configuration, provided the product carries metadata.plan
+// (preferred — set `plan=professional` / `plan=investor` on the Stripe product)
+// or is simply named "Professional" / "Investor" as they are today.
+async function resolvePlanFromProduct(stripe, productId) {
+  try {
+    const product = await stripe.products.retrieve(productId);
+    const metaPlan = String(product.metadata?.plan || "").toLowerCase().trim();
+    if (metaPlan === "professional" || metaPlan === "investor") return metaPlan;
+    const name = String(product.name || "").toLowerCase();
+    if (name.includes("professional")) return "professional";
+    if (name.includes("investor")) return "investor";
+  } catch (err) {
+    console.error("Product lookup failed for", productId, err.message);
+  }
+  return null;
+}
 
 export const config = {
   api: {
@@ -84,7 +121,10 @@ export default async function handler(req, res) {
       .toLowerCase()
       .trim();
 
-    // ── Resolve plan from line items (product first, then price) ──────────────
+    // ── Resolve plan from line items ─────────────────────────────────────────
+    // Order: known product id → known price id → ask Stripe about the product
+    // (metadata.plan, then name). The final step is what lets an unconfigured
+    // test-mode product resolve without hardcoding its IDs.
     let plan = null;
     try {
       const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 5 });
@@ -98,6 +138,16 @@ export default async function handler(req, res) {
         if (priceId && PRICE_TO_PLAN[priceId]) {
           plan = PRICE_TO_PLAN[priceId];
           break;
+        }
+        if (productId) {
+          plan = await resolvePlanFromProduct(stripe, productId);
+          if (plan) {
+            console.warn(
+              `Plan resolved via product lookup, not the ID map — product ${productId} ` +
+              `is not in PRODUCT_TO_PLAN. Add it (or set STRIPE_PRODUCT_* env vars) for this mode.`
+            );
+            break;
+          }
         }
       }
     } catch (err) {
@@ -115,7 +165,8 @@ export default async function handler(req, res) {
       console.error(
         "PLAN RESOLUTION FAILED — payment taken, no upgrade applied. session:",
         session.id,
-        "| update PRODUCT_TO_PLAN / PRICE_TO_PLAN in api/stripe-webhook.js"
+        "| fix: set STRIPE_PRODUCT_PROFESSIONAL / STRIPE_PRODUCT_INVESTOR (or",
+        "STRIPE_PRICE_*) for this Stripe mode, or set metadata.plan on the product"
       );
       return res.status(500).json({ error: "Could not determine plan" });
     }
