@@ -45,10 +45,34 @@ drop policy if exists evt_anon_deny on public.email_verification_tokens;
 create policy evt_anon_deny on public.email_verification_tokens
   for all to anon using (false) with check (false);
 
--- Grandfather existing accounts: they predate verification, and we do not want to
--- lock 17 real users out of a product they may have paid for. They are treated as
--- verified; the forced password rotation below is what protects them.
-update public.users set email_verified = true where created_at < now();
+-- (Grandfathering happens in STEP 1B, at promote time — see below. It must NOT run
+--  here, or accounts created between this step and the promote would be left
+--  unverified with no verification email ever sent, since the old sign-up path
+--  doesn't send one.)
+
+
+-- ═══ STEP 1B — GRANDFATHER EXISTING ACCOUNTS  ⚠ RUN AT THE MOMENT OF PROMOTE ══
+-- Policy: existing users are treated as verified and are NOT asked to re-verify.
+-- Only NEW sign-ups (which go through the new code, and therefore do receive a
+-- confirmation email) must verify.
+--
+-- The cutoff is what makes that precise:
+--   * created BEFORE the promote → old sign-up path → never got a confirmation
+--     email → grandfather as verified.
+--   * created AFTER the promote  → new sign-up path → confirmation email sent →
+--     must verify (do NOT grandfather, or they'd skip verification entirely).
+--
+-- So run this immediately BEFORE or AT the promote, while the old code is still
+-- the one serving sign-ups. `now()` is then exactly the right boundary.
+
+update public.users
+   set email_verified = true
+ where created_at < now();
+
+-- Confirm (expect: all current accounts verified, e.g. 17):
+--   select count(*) filter (where email_verified) as verified,
+--          count(*) filter (where not email_verified) as unverified
+--     from public.users;
 
 
 -- ═══ STEP 2 — HASH EXISTING PASSWORDS  ⚠ RUN ONLY AFTER THE DEPLOY ═══════════
