@@ -63,6 +63,14 @@
     <priority>0.3</priority>
   </url>
 
+  <!-- Buyer guides (SEO long-form) -->
+  <url>
+    <loc>https://www.luxproperty.ai/guides/sw3-chelsea-buyers-guide</loc>
+    <lastmod>2026-07-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
   <!-- Area intelligence pages — London prime -->
   <url>
     <loc>https://www.luxproperty.ai/area/SW3</loc>
