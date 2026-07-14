@@ -4331,7 +4331,17 @@ export default function BriefPage() {
                       data-testid="link-explorer-upgrade-professional"
                       onClick={(e) => {
                         e.preventDefault();
-                        window.open(checkoutUrl(e.currentTarget.href), "_blank", "noopener,noreferrer");
+                        // checkoutUrl fails closed (null when signed out). This banner
+                        // only renders the Stripe link for signed-in users, but if that
+                        // ever changes, send them to sign-up rather than to an
+                        // identity-less checkout. Reuses this page's existing AuthModal.
+                        const url = checkoutUrl(e.currentTarget.href);
+                        if (url) {
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        } else {
+                          setAuthTab("signup");
+                          setAuthOpen(true);
+                        }
                       }}
                     >
                       <button className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">

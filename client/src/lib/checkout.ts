@@ -4,30 +4,33 @@
 // Why this exists:
 // The app upgrades users via static Stripe Payment Links. A bare Payment Link
 // carries NO link back to the account that clicked it — Stripe only knows the
-// email the buyer types into the checkout form. The webhook was therefore
-// matching payments to accounts purely by that typed email, so paying with a
-// different email than your account email silently upgraded the wrong row (or
-// no row at all), while the money was still taken.
+// email the buyer types into the checkout form. Payments made that way cannot be
+// matched to an account, which is what produced "we couldn't find your billing
+// record" on the manage/cancel flow.
 //
-// Stripe Payment Links accept `client_reference_id` as a query parameter and
-// echo it back on the `checkout.session.completed` event. We put the user's id
-// there, so the webhook can upgrade the exact account that paid. We also
-// prefill the email so the buyer defaults to their account address.
+// Stripe Payment Links accept `client_reference_id` as a query parameter and echo
+// it back on the `checkout.session.completed` event. We put the user's id there,
+// so the webhook can upgrade the exact account that paid. We also prefill the
+// email so the buyer defaults to their account address.
 //
-// If nobody is signed in we return the URL untouched — an anonymous purchase
-// still works and falls back to email matching in the webhook.
+// FAIL CLOSED: if nobody is signed in we return null rather than the bare link.
+// An identity-less checkout is then impossible to construct, instead of merely
+// being hidden by the UI. Callers must handle null by sending the user through
+// sign-in first — see useCheckout(), which is the only sanctioned way to start a
+// checkout.
 import { getUser } from "./authStore";
 
-export function checkoutUrl(baseUrl: string): string {
+export function checkoutUrl(baseUrl: string): string | null {
   const user = getUser();
-  if (!user) return baseUrl;
+  if (!user) return null;
   try {
     const url = new URL(baseUrl);
     url.searchParams.set("client_reference_id", user.id);
     url.searchParams.set("prefilled_email", user.email);
     return url.toString();
   } catch {
-    // Never let a malformed URL block checkout — fall back to the raw link.
-    return baseUrl;
+    // A malformed base URL is a programming error, not something to paper over
+    // with an identity-less link.
+    return null;
   }
 }

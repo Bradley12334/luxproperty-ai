@@ -180,7 +180,12 @@ export default function AccountPage() {
                   <Button
                     size="sm"
                     className="font-semibold text-sm"
-                    onClick={() => window.open(checkoutUrl(plan.upgradeUrl!), "_blank", "noopener,noreferrer")}
+                    onClick={() => {
+                      // checkoutUrl fails closed (null when signed out). This page
+                      // already redirects anonymous visitors, so this is belt-and-braces.
+                      const url = checkoutUrl(plan.upgradeUrl!);
+                      if (url) window.open(url, "_blank", "noopener,noreferrer");
+                    }}
                     data-testid="button-upgrade"
                   >
                     Upgrade to {plan.upgradeTo}

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Minus, Star, Gift, Lock } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { checkoutUrl } from "@/lib/checkout";
+import { useCheckout } from "@/hooks/use-checkout";
 
 const tiers = [
   {
@@ -141,8 +141,10 @@ function CellValue({ value, col }: { value: boolean | string; col: string }) {
 
 export default function PricingPage() {
   useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 3 briefs/month. Professional at £4.99/month. Investor at £39.99/month. No contracts, cancel anytime.");
+  const { startCheckout, authModal } = useCheckout();
   return (
     <div className="flex min-h-screen flex-col">
+      {authModal}
       <Header />
 
       <main className="flex-1">
@@ -239,7 +241,7 @@ export default function PricingPage() {
                       data-testid={`button-pricing-${tier.name.toLowerCase()}`}
                       onClick={() => {
                         if (tier.stripeUrl) {
-                          window.open(checkoutUrl(tier.stripeUrl), "_blank", "noopener,noreferrer");
+                          startCheckout(tier.stripeUrl);
                         } else {
                           window.location.href = "/";
                         }
@@ -416,7 +418,7 @@ export default function PricingPage() {
                   rel="noopener noreferrer"
                   onClick={(e) => {
                     e.preventDefault();
-                    window.open(checkoutUrl(e.currentTarget.href), "_blank", "noopener,noreferrer");
+                    startCheckout(e.currentTarget.href);
                   }}
                 >
                   <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-professional">
