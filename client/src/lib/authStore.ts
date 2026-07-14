@@ -88,31 +88,56 @@ export async function restoreSession(): Promise<void> {
 
   // Reads non-sensitive columns only. password_hash is revoked from the anon role,
   // so it is not selectable from the browser at all — by design.
-  const { data, error } = await supabase
+  //
+  // SCHEMA-TOLERANT: email_verified / must_reset_password only exist once the auth
+  // migration has run. Selecting a non-existent column makes PostgREST reject the
+  // WHOLE query, which previously errored here and wiped the session — logging
+  // everyone out on page load. So we try the full set, then fall back to the
+  // always-present columns, keeping whatever verification state the session already
+  // had. Only a genuine "no such user" clears the session.
+  const CORE = "id, name, email, plan, bonus_investor_brief, created_at";
+  const full = await supabase
     .from("users")
-    .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, created_at")
+    .select(`${CORE}, email_verified, must_reset_password`)
     .eq("id", cached.id)
     .maybeSingle();
 
-  if (error || !data) {
-    // Session invalid — clear it
+  let data = full.data as Record<string, unknown> | null;
+  let error = full.error;
+
+  if (error) {
+    // Likely the optional columns aren't migrated yet — retry with core columns.
+    const base = await supabase.from("users").select(CORE).eq("id", cached.id).maybeSingle();
+    data = base.data as Record<string, unknown> | null;
+    error = base.error;
+  }
+
+  if (error) {
+    // A real query/transport error (not "row not found"). Do NOT nuke the session
+    // over a transient failure — keep the cached user and try again next load.
+    return;
+  }
+  if (!data) {
+    // Account genuinely no longer exists.
     clearSession();
     currentUser = null;
     notify();
     return;
   }
 
-  // Update with latest state from DB (catches Stripe-triggered upgrades,
-  // email verification completed in another tab, etc.)
+  // Update with latest state from DB (catches Stripe-triggered upgrades, etc.).
+  // Missing optional columns fall back to the cached value, then to safe defaults.
   currentUser = {
-    id: data.id,
-    name: data.name,
-    email: data.email,
+    id: data.id as string,
+    name: data.name as string,
+    email: data.email as string,
     plan: data.plan as User["plan"],
     bonusInvestorBrief: !!data.bonus_investor_brief,
-    emailVerified: !!data.email_verified,
-    mustResetPassword: !!data.must_reset_password,
-    joinedAt: data.created_at,
+    emailVerified:
+      data.email_verified === undefined ? cached.emailVerified ?? true : !!data.email_verified,
+    mustResetPassword:
+      data.must_reset_password === undefined ? cached.mustResetPassword ?? false : !!data.must_reset_password,
+    joinedAt: data.created_at as string,
   };
   saveSession(currentUser);
   notify();

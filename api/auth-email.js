@@ -116,10 +116,69 @@ function publicUser(row) {
     email: row.email,
     plan: row.plan,
     bonusInvestorBrief: !!row.bonus_investor_brief,
-    emailVerified: !!row.email_verified,
+    // Absent columns (schema not migrated yet) default to a safe non-blocking
+    // state: verified (there is no verification infrastructure pre-migration, so
+    // we must not gate purchases on it) and no forced rotation.
+    emailVerified: row.email_verified === undefined ? true : !!row.email_verified,
     mustResetPassword: !!row.must_reset_password,
     joinedAt: row.created_at,
   };
+}
+
+// ─── SCHEMA-TOLERANT COLUMN HANDLING ─────────────────────────────────────────
+// The verification/rotation columns (email_verified, must_reset_password) are
+// added by the auth-hardening migration. If that migration has NOT run, selecting
+// or inserting them makes PostgREST reject the ENTIRE query (undefined_column),
+// which broke sign-in, sign-up and reset for everyone. These helpers try the full
+// column set first and transparently fall back to the always-present columns, so
+// auth works whether or not the migration has been applied — and self-heals the
+// moment it is. `_optionalCols` caches the outcome across warm invocations.
+const CORE_COLS = "id, name, email, plan, bonus_investor_brief, password_hash, created_at";
+const OPT_COLS = "email_verified, must_reset_password";
+const FULL_COLS = `${CORE_COLS}, ${OPT_COLS}`;
+let _optionalCols = null; // null=unknown, true=present, false=not migrated yet
+
+function isMissingColumn(error) {
+  if (!error) return false;
+  return (
+    error.code === "42703" ||
+    /(email_verified|must_reset_password)/i.test(error.message || "") &&
+      /(does not exist|could not find|schema cache|column)/i.test(error.message || "")
+  );
+}
+
+async function fetchUserBy(supabase, column, value) {
+  if (_optionalCols !== false) {
+    const { data, error } = await supabase
+      .from("users").select(FULL_COLS).eq(column, value).maybeSingle();
+    if (!error) { _optionalCols = true; return { data, error: null }; }
+    if (!isMissingColumn(error)) return { data: null, error };
+    _optionalCols = false; // migration not applied — degrade gracefully
+    console.warn("auth: verification columns absent — running in pre-migration mode");
+  }
+  const { data, error } = await supabase
+    .from("users").select(CORE_COLS).eq(column, value).maybeSingle();
+  return { data, error };
+}
+
+async function insertUserRow(supabase, base) {
+  if (_optionalCols !== false) {
+    const { data, error } = await supabase
+      .from("users").insert({ ...base, email_verified: false }).select(FULL_COLS).single();
+    if (!error) { _optionalCols = true; return { data, error: null }; }
+    if (!isMissingColumn(error)) return { data: null, error };
+    _optionalCols = false;
+  }
+  return supabase.from("users").insert(base).select(CORE_COLS).single();
+}
+
+// Best-effort clear of the rotation flag. Never allowed to fail the caller: the
+// password change is the critical operation and must have already succeeded.
+async function clearMustReset(supabase, userId) {
+  if (_optionalCols === false) return;
+  const { error } = await supabase
+    .from("users").update({ must_reset_password: false }).eq("id", userId);
+  if (error && isMissingColumn(error)) _optionalCols = false;
 }
 
 const SITE_URL = "https://www.luxproperty.ai";
@@ -230,17 +289,12 @@ export default async function handler(req, res) {
 
     const password_hash = await hashPassword(password);
 
-    const { data, error } = await supabase
-      .from("users")
-      .insert({
-        name: String(name).trim(),
-        email,
-        password_hash,
-        plan: "explorer",
-        email_verified: false,
-      })
-      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, created_at")
-      .single();
+    const { data, error } = await insertUserRow(supabase, {
+      name: String(name).trim(),
+      email,
+      password_hash,
+      plan: "explorer",
+    });
 
     if (error || !data) {
       console.error("signup insert failed:", error?.message);
@@ -263,11 +317,7 @@ export default async function handler(req, res) {
 
     const supabase = serviceClient();
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, password_hash, created_at")
-      .eq("email", email)
-      .maybeSingle();
+    const { data, error } = await fetchUserBy(supabase, "email", email);
 
     if (error) {
       console.error("signin lookup failed:", error.message);
@@ -307,11 +357,7 @@ export default async function handler(req, res) {
     await supabase.from("users").update({ email_verified: true }).eq("id", row.user_id);
     await supabase.from("email_verification_tokens").update({ used: true }).eq("token", token);
 
-    const { data: user } = await supabase
-      .from("users")
-      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, created_at")
-      .eq("id", row.user_id)
-      .maybeSingle();
+    const { data: user } = await fetchUserBy(supabase, "id", row.user_id);
 
     return res.status(200).json({ ok: true, user: user ? publicUser(user) : null });
   }
@@ -349,27 +395,26 @@ export default async function handler(req, res) {
     }
 
     const supabase = serviceClient();
-    const { data } = await supabase
-      .from("users")
-      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, password_hash, created_at")
-      .eq("email", email)
-      .maybeSingle();
+    const { data } = await fetchUserBy(supabase, "email", email);
 
     if (!data) return res.status(401).json({ error: "Incorrect email or password." });
 
     const ok = await verifyPassword(supabase, data.id, currentPassword, data.password_hash);
     if (!ok) return res.status(401).json({ error: "Incorrect email or password." });
 
+    // Change the password (critical) and clear the rotation flag SEPARATELY, so a
+    // missing must_reset_password column can never block the actual password change.
     const password_hash = await hashPassword(newPassword);
     const { error: updErr } = await supabase
       .from("users")
-      .update({ password_hash, must_reset_password: false })
+      .update({ password_hash })
       .eq("id", data.id);
 
     if (updErr) {
       console.error("force-reset update failed:", updErr.message);
       return res.status(500).json({ error: "Could not update your password. Please try again." });
     }
+    await clearMustReset(supabase, data.id);
 
     // Any outstanding reset links are now stale.
     await supabase.from("password_reset_tokens").update({ used: true }).eq("user_id", data.id).eq("used", false);
@@ -507,14 +552,23 @@ export default async function handler(req, res) {
     }
 
     // Hash it. This previously wrote the raw password straight into the column.
-    // Also clears must_reset_password — a completed reset satisfies the forced
-    // rotation, so a user who resets via email isn't asked to do it again.
+    // The password change and the must_reset_password clear are done SEPARATELY so
+    // a missing rotation column (schema not migrated) can't block the reset — which
+    // was the bug that made a fresh reset still fail to log in.
     const newHash = await hashPassword(password);
 
-    await supabase
+    const { error: updErr } = await supabase
       .from("users")
-      .update({ password_hash: newHash, must_reset_password: false })
+      .update({ password_hash: newHash })
       .eq("id", resetToken.user_id);
+
+    if (updErr) {
+      console.error("reset update failed:", updErr.message);
+      return res.status(500).json({ error: "Could not update your password. Please try again." });
+    }
+
+    // A completed reset satisfies any forced rotation (best-effort; column may not exist).
+    await clearMustReset(supabase, resetToken.user_id);
 
     await supabase
       .from("password_reset_tokens")
