@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { CookieBanner } from "@/components/cookie-banner";
 import NotFound from "@/pages/not-found";
 import ResetPasswordPage from "@/pages/reset-password";
+import VerifyEmailPage from "@/pages/verify-email";
 import Home from "@/pages/home";
 import BriefPage from "@/pages/brief";
 import PricingPage from "@/pages/pricing";
@@ -35,6 +36,7 @@ function AppRouter() {
       <Route path="/area/:postcode" component={AreaPage} />
       <Route path="/compare" component={ComparePage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/feedback" component={FeedbackPage} />
       <Route path="/valuation" component={ValuationPage} />
       <Route path="/success" component={SuccessPage} />

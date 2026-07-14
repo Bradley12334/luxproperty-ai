@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { signIn, signUp } from "@/lib/authStore";
+import { signIn, signUp, forceResetPassword, isValidEmailFormat } from "@/lib/authStore";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, User, Mail, Lock, Loader2 } from "lucide-react";
 
@@ -25,11 +25,52 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
+  // Forced rotation for accounts whose password was exposed. Triggered by
+  // signIn() returning mustResetPassword — the user has already proved they know
+  // the current password, they just can't continue until they pick a new one.
+  const [rotateMode, setRotateMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const { toast } = useToast();
 
   function reset() {
     setName(""); setEmail(""); setPassword(""); setError(""); setShowPassword(false);
     setForgotMode(false); setForgotEmail(""); setForgotSent(false);
+    setRotateMode(false); setNewPassword(""); setConfirmPassword("");
+  }
+
+  // Forced password rotation. The account's old password was exposed, so it must
+  // be replaced before the user continues. They've already authenticated with it
+  // above, so this just swaps it — no email round-trip, no lockout.
+  async function handleRotatePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+    if (newPassword === password) {
+      setError("Please choose a different password from your current one.");
+      return;
+    }
+
+    setLoading(true);
+    const result = await forceResetPassword(email, password, newPassword);
+    setLoading(false);
+
+    if (!result.ok) {
+      setError(result.error || "Could not update your password.");
+      return;
+    }
+
+    toast({ title: "Password updated", description: "Thanks — your account is secure." });
+    reset();
+    onClose();
   }
 
   async function handleForgotPassword(e: React.FormEvent) {
@@ -58,6 +99,14 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    // Client-side format check for fast feedback. The server re-validates
+    // (format, disposable domains, duplicates) and is the actual gate.
+    if (!isValidEmailFormat(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
 
     // Small delay for perceived loading
@@ -70,12 +119,22 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
         setLoading(false);
         return;
       }
-      toast({ title: "Welcome to LuxProperty.ai", description: "Your account has been created." });
+      toast({
+        title: "Welcome to LuxProperty.ai",
+        description: "Check your inbox — confirm your email to unlock subscribing.",
+      });
     } else {
       const result = await signIn(email, password);
       if (!result.ok) {
         setError(result.error || "Sign in failed.");
         setLoading(false);
+        return;
+      }
+      // Password was exposed — make them replace it before going any further.
+      // They stay signed in; they just can't leave this step.
+      if (result.mustResetPassword) {
+        setLoading(false);
+        setRotateMode(true);
         return;
       }
       toast({ title: "Welcome back", description: "You've signed in successfully." });
@@ -91,12 +150,16 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl tracking-tight">
-            {tab === "signin" ? "Sign in to LuxProperty.ai" : "Create your account"}
+            {rotateMode
+              ? "Security update"
+              : tab === "signin"
+              ? "Sign in to LuxProperty.ai"
+              : "Create your account"}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Tabs */}
-        <div className="flex gap-1 p-1 bg-muted rounded-lg mb-2">
+        {/* Tabs — hidden during a forced password rotation */}
+        <div className={`flex gap-1 p-1 bg-muted rounded-lg mb-2 ${rotateMode ? "hidden" : ""}`}>
           {(["signin", "signup"] as const).map((t) => (
             <button
               key={t}
@@ -114,8 +177,62 @@ export function AuthModal({ open, onClose, defaultTab = "signin" }: AuthModalPro
           ))}
         </div>
 
-        {/* Forgot password mode */}
-        {forgotMode ? (
+        {/* Forced password rotation — this account's old password was exposed */}
+        {rotateMode ? (
+          <form onSubmit={handleRotatePassword} className="space-y-4 mt-2" data-testid="form-rotate-password">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              We've improved how we store passwords, and we're asking everyone with an older
+              account to set a new one. It takes a moment and you'll stay signed in.
+            </p>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password" className="text-xs text-muted-foreground">New password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  id="new-password"
+                  type={showPassword ? "text" : "password"}
+                  className="pl-9"
+                  placeholder="At least 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  data-testid="input-new-password"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-password" className="text-xs text-muted-foreground">Confirm new password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  id="confirm-password"
+                  type={showPassword ? "text" : "password"}
+                  className="pl-9"
+                  placeholder="Repeat your new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  data-testid="input-confirm-password"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-xs text-destructive" data-testid="text-rotate-error">{error}</p>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full font-semibold"
+              disabled={loading || !newPassword || !confirmPassword}
+              data-testid="button-save-new-password"
+            >
+              {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save new password"}
+            </Button>
+          </form>
+        ) : forgotMode ? (
           <div className="mt-2">
             {forgotSent ? (
               <div className="text-center py-4">

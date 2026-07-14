@@ -1,13 +1,201 @@
-// Vercel Serverless Function — Auth Emails
-// Consolidated from: forgot-password.js, reset-password.js, send-welcome.js
-// Route by ?action=forgot | reset | welcome
+// Vercel Serverless Function — Auth
+// Route by ?action=signup | signin | verify-email | force-reset | forgot | reset | welcome | contact
 //
-// POST /api/auth-email?action=forgot   { email }
-// POST /api/auth-email?action=reset    { token, password }
-// POST /api/auth-email?action=welcome  { name, email }
+// POST /api/auth-email?action=signup        { name, email, password }
+// POST /api/auth-email?action=signin        { email, password }
+// POST /api/auth-email?action=verify-email  { token }
+// POST /api/auth-email?action=force-reset   { email, currentPassword, newPassword }
+// POST /api/auth-email?action=forgot        { email }
+// POST /api/auth-email?action=reset         { token, password }
+// POST /api/auth-email?action=welcome       { name, email }
+//
+// ─── WHY SIGN-UP / SIGN-IN ARE SERVER-SIDE ───────────────────────────────────
+// They used to run in the BROWSER against the users table with the public anon
+// key, comparing passwords in plaintext:
+//     if (data.password_hash !== password)
+// The column named `password_hash` actually stored the raw password, and the RLS
+// policy `users_anon_select USING (true)` let any visitor SELECT every row and
+// column — so anyone could read every user's email and password straight out of
+// the client. Credentials must never be reachable from the browser, so both flows
+// now run here behind the service key, and `password_hash` is revoked from anon.
+//
+// ─── PASSWORD FORMAT / DUAL-MODE VERIFY ──────────────────────────────────────
+// Passwords are bcrypt from now on. Legacy rows may still hold plaintext, so
+// verifyPassword() accepts BOTH and transparently re-hashes a legacy password on
+// the user's next successful sign-in. That decoupling is what makes the migration
+// zero-lockout: this code is correct whether the bulk hash migration has run or
+// not, so the deploy and the DB migration can happen in either order.
 
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
+
+const BCRYPT_ROUNDS = 12;
+const MIN_PASSWORD_LENGTH = 6;
+
+// Deliberately pragmatic, not RFC-5322-complete: requires a local part, a single
+// @, a dotted domain, and a 2+ char TLD. Rejects the obviously-invalid without
+// rejecting legitimate addresses.
+const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+
+// Cheap, high-value blocklist. Not exhaustive by design — the verification email
+// is the real guarantee that an address exists; this just stops the laziest abuse.
+const DISPOSABLE_DOMAINS = new Set([
+  "mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com",
+  "temp-mail.org", "throwawaymail.com", "yopmail.com", "trashmail.com",
+  "sharklasers.com", "getnada.com", "dispostable.com", "maildrop.cc",
+  "fakeinbox.com", "mailnesia.com", "tempinbox.com", "spamgourmet.com",
+]);
+
+export function validateEmail(raw) {
+  const email = String(raw || "").toLowerCase().trim();
+  if (!email) return { ok: false, error: "Please enter your email address." };
+  if (email.length > 254) return { ok: false, error: "Please enter a valid email address." };
+  if (!EMAIL_RE.test(email)) return { ok: false, error: "Please enter a valid email address." };
+  const domain = email.split("@")[1];
+  if (DISPOSABLE_DOMAINS.has(domain)) {
+    return { ok: false, error: "Please use a permanent email address — temporary inboxes aren't accepted." };
+  }
+  return { ok: true, email };
+}
+
+function validatePassword(password) {
+  if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+    return { ok: false, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
+  }
+  return { ok: true };
+}
+
+function hashPassword(password) {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+function isBcrypt(stored) {
+  return typeof stored === "string" && stored.startsWith("$2");
+}
+
+// Constant-time compare for the legacy plaintext path, so we don't leak the
+// password via timing while the migration is still in flight.
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Verifies a password against whatever is stored, bcrypt or legacy plaintext.
+ * On a successful legacy match, upgrades the row to bcrypt in place.
+ */
+async function verifyPassword(supabase, userId, password, stored) {
+  if (isBcrypt(stored)) {
+    return bcrypt.compare(password, stored);
+  }
+  // Legacy plaintext row — verify, then upgrade so it never happens again.
+  if (!safeEqual(password, stored)) return false;
+  try {
+    const upgraded = await hashPassword(password);
+    await supabase.from("users").update({ password_hash: upgraded }).eq("id", userId);
+    console.log("Upgraded legacy plaintext password to bcrypt for user", userId);
+  } catch (err) {
+    // Never block a valid sign-in because the upgrade failed.
+    console.error("Password rehash failed for", userId, err.message);
+  }
+  return true;
+}
+
+function serviceClient() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+}
+
+// The shape the client is allowed to see. Never includes password_hash.
+function publicUser(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    plan: row.plan,
+    bonusInvestorBrief: !!row.bonus_investor_brief,
+    emailVerified: !!row.email_verified,
+    mustResetPassword: !!row.must_reset_password,
+    joinedAt: row.created_at,
+  };
+}
+
+const SITE_URL = "https://www.luxproperty.ai";
+
+async function sendEmail({ to, subject, html }) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    console.error("RESEND_API_KEY not set — cannot send email to", to);
+    return false;
+  }
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "LuxProperty.ai <welcome@luxproperty.ai>", to: [to], subject, html }),
+    });
+    if (!res.ok) console.error("Resend failed:", res.status, await res.text());
+    return res.ok;
+  } catch (err) {
+    console.error("Resend threw:", err.message);
+    return false;
+  }
+}
+
+function emailShell(title, body) {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>${title}</title></head>
+<body style="margin:0;padding:0;background:#FAF8F4;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF8F4;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+        <tr><td style="padding-bottom:32px;text-align:center;">
+          <p style="margin:0;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#B8860B;font-weight:600;">LUXPROPERTY.AI</p>
+        </td></tr>
+        <tr><td style="background:#1A1612;border-radius:12px;padding:40px;">${body}</td></tr>
+        <tr><td style="padding-top:24px;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#9A9490;">LuxProperty AI Ltd · Company No. 17158079</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`.trim();
+}
+
+function ctaButton(url, label) {
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;"><tr><td align="center">
+    <a href="${url}" style="display:inline-block;background:#B8860B;color:#FAF8F4;text-decoration:none;font-size:14px;font-weight:600;padding:14px 32px;border-radius:6px;">${label}</a>
+  </td></tr></table>`;
+}
+
+async function issueVerificationEmail(supabase, user) {
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(); // 24h
+  const { error } = await supabase.from("email_verification_tokens").insert({
+    user_id: user.id,
+    token,
+    expires_at: expiresAt,
+  });
+  if (error) {
+    console.error("Could not store verification token:", error.message);
+    return false;
+  }
+  const url = `${SITE_URL}/verify-email?token=${token}`;
+  return sendEmail({
+    to: user.email,
+    subject: "Confirm your email — LuxProperty.ai",
+    html: emailShell(
+      "Confirm your email",
+      `<p style="margin:0 0 8px;font-size:20px;font-weight:600;color:#FAF8F4;">Confirm your email</p>
+       <p style="margin:0 0 28px;font-size:15px;color:#9A9490;line-height:1.6;">
+         Hi ${user.name}, please confirm this address so we can reach you about your account. This link expires in 24 hours.
+       </p>
+       ${ctaButton(url, "Confirm Email")}
+       <p style="margin:0;font-size:12px;color:#9A9490;">If you didn't create a LuxProperty.ai account, you can safely ignore this email.</p>`
+    ),
+  });
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -15,6 +203,182 @@ export default async function handler(req, res) {
   }
 
   const action = req.query.action;
+
+  // ── SIGN UP ──────────────────────────────────────────────────────────────
+  if (action === "signup") {
+    const { name, password } = req.body || {};
+    const emailCheck = validateEmail(req.body?.email);
+    if (!emailCheck.ok) return res.status(400).json({ error: emailCheck.error });
+    const email = emailCheck.email;
+
+    if (!String(name || "").trim()) {
+      return res.status(400).json({ error: "Please enter your name." });
+    }
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error });
+
+    const supabase = serviceClient();
+
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    if (existing) {
+      return res.status(409).json({ error: "An account with this email already exists." });
+    }
+
+    const password_hash = await hashPassword(password);
+
+    const { data, error } = await supabase
+      .from("users")
+      .insert({
+        name: String(name).trim(),
+        email,
+        password_hash,
+        plan: "explorer",
+        email_verified: false,
+      })
+      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, created_at")
+      .single();
+
+    if (error || !data) {
+      console.error("signup insert failed:", error?.message);
+      return res.status(500).json({ error: "Could not create account. Please try again." });
+    }
+
+    // Fire and forget — a failed email must not fail the sign-up.
+    issueVerificationEmail(supabase, data).catch(() => {});
+
+    return res.status(200).json({ ok: true, user: publicUser(data) });
+  }
+
+  // ── SIGN IN ──────────────────────────────────────────────────────────────
+  if (action === "signin") {
+    const { password } = req.body || {};
+    const email = String(req.body?.email || "").toLowerCase().trim();
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const supabase = serviceClient();
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, password_hash, created_at")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (error) {
+      console.error("signin lookup failed:", error.message);
+      return res.status(500).json({ error: "Could not sign in. Please try again." });
+    }
+
+    // Identical response whether the account is missing or the password is wrong —
+    // no account enumeration. (The old client said "No account found with this email.")
+    const INVALID = "Incorrect email or password.";
+    if (!data) return res.status(401).json({ error: INVALID });
+
+    const ok = await verifyPassword(supabase, data.id, password, data.password_hash);
+    if (!ok) return res.status(401).json({ error: INVALID });
+
+    return res.status(200).json({ ok: true, user: publicUser(data) });
+  }
+
+  // ── VERIFY EMAIL ─────────────────────────────────────────────────────────
+  if (action === "verify-email") {
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ error: "Verification token required." });
+
+    const supabase = serviceClient();
+
+    const { data: row } = await supabase
+      .from("email_verification_tokens")
+      .select("user_id, expires_at, used")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (!row) return res.status(400).json({ error: "Invalid or expired verification link." });
+    if (row.used) return res.status(400).json({ error: "This link has already been used. Your email is confirmed — please sign in." });
+    if (new Date(row.expires_at) < new Date()) {
+      return res.status(400).json({ error: "This verification link has expired. Please request a new one." });
+    }
+
+    await supabase.from("users").update({ email_verified: true }).eq("id", row.user_id);
+    await supabase.from("email_verification_tokens").update({ used: true }).eq("token", token);
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, created_at")
+      .eq("id", row.user_id)
+      .maybeSingle();
+
+    return res.status(200).json({ ok: true, user: user ? publicUser(user) : null });
+  }
+
+  // ── RESEND VERIFICATION ──────────────────────────────────────────────────
+  if (action === "resend-verification") {
+    const email = String(req.body?.email || "").toLowerCase().trim();
+    const supabase = serviceClient();
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, name, email, email_verified")
+      .eq("email", email)
+      .maybeSingle();
+    // Always report success — never disclose whether the account exists.
+    if (user && !user.email_verified) {
+      await issueVerificationEmail(supabase, user);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ── FORCED PASSWORD RESET (compromised-credential rotation) ──────────────
+  // For accounts flagged must_reset_password. The user proves ownership with the
+  // password they already have, then sets a new one. No email needed, so a
+  // compromised password is retired at next sign-in with no mass mailout.
+  if (action === "force-reset") {
+    const { currentPassword, newPassword } = req.body || {};
+    const email = String(req.body?.email || "").toLowerCase().trim();
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ error: "All fields are required." });
+    }
+    const pwCheck = validatePassword(newPassword);
+    if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error });
+    if (safeEqual(currentPassword, newPassword)) {
+      return res.status(400).json({ error: "Please choose a different password from your current one." });
+    }
+
+    const supabase = serviceClient();
+    const { data } = await supabase
+      .from("users")
+      .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, password_hash, created_at")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (!data) return res.status(401).json({ error: "Incorrect email or password." });
+
+    const ok = await verifyPassword(supabase, data.id, currentPassword, data.password_hash);
+    if (!ok) return res.status(401).json({ error: "Incorrect email or password." });
+
+    const password_hash = await hashPassword(newPassword);
+    const { error: updErr } = await supabase
+      .from("users")
+      .update({ password_hash, must_reset_password: false })
+      .eq("id", data.id);
+
+    if (updErr) {
+      console.error("force-reset update failed:", updErr.message);
+      return res.status(500).json({ error: "Could not update your password. Please try again." });
+    }
+
+    // Any outstanding reset links are now stale.
+    await supabase.from("password_reset_tokens").update({ used: true }).eq("user_id", data.id).eq("used", false);
+
+    return res.status(200).json({
+      ok: true,
+      user: publicUser({ ...data, must_reset_password: false }),
+    });
+  }
 
   // ── FORGOT PASSWORD ──────────────────────────────────────────────────────
   if (action === "forgot") {
@@ -46,7 +410,11 @@ export default async function handler(req, res) {
       expires_at: expiresAt,
     });
 
-    const resetUrl = `https://luxproperty.ai/#/reset-password?token=${token}`;
+    // NOTE: this used to be `https://luxproperty.ai/#/reset-password?token=...`.
+    // wouter is configured for PATH routing (<Router> with no hash hook), so a
+    // hash URL resolved to path "/" and rendered the homepage — the reset link
+    // never reached the reset page. Must be a real path.
+    const resetUrl = `${SITE_URL}/reset-password?token=${token}`;
 
     const html = `
 <!DOCTYPE html>
@@ -138,9 +506,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "This reset link has expired. Please request a new one." });
     }
 
+    // Hash it. This previously wrote the raw password straight into the column.
+    // Also clears must_reset_password — a completed reset satisfies the forced
+    // rotation, so a user who resets via email isn't asked to do it again.
+    const newHash = await hashPassword(password);
+
     await supabase
       .from("users")
-      .update({ password_hash: password })
+      .update({ password_hash: newHash, must_reset_password: false })
       .eq("id", resetToken.user_id);
 
     await supabase

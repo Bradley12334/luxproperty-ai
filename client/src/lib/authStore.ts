@@ -9,7 +9,32 @@ export interface User {
   email: string;
   plan: "explorer" | "professional" | "investor";
   bonusInvestorBrief: boolean;
+  /** Confirmed via the verification email. Required before subscribing. */
+  emailVerified: boolean;
+  /** Set on accounts whose password was exposed. Forces a rotation at next sign-in. */
+  mustResetPassword: boolean;
   joinedAt: string;
+}
+
+/** Shape returned by /api/auth-email (never contains password_hash). */
+type ApiUser = User;
+
+async function postAuth(
+  action: string,
+  body: Record<string, unknown>
+): Promise<{ ok: boolean; user?: ApiUser; error?: string }> {
+  try {
+    const res = await fetch(`/api/auth-email?action=${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data.error || "Something went wrong. Please try again." };
+    return { ok: true, user: data.user as ApiUser };
+  } catch {
+    return { ok: false, error: "Could not reach the server. Check your connection and try again." };
+  }
 }
 
 type Listener = () => void;
@@ -61,9 +86,11 @@ export async function restoreSession(): Promise<void> {
   const cached = loadSession();
   if (!cached) return;
 
+  // Reads non-sensitive columns only. password_hash is revoked from the anon role,
+  // so it is not selectable from the browser at all — by design.
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, plan, bonus_investor_brief, created_at")
+    .select("id, name, email, plan, bonus_investor_brief, email_verified, must_reset_password, created_at")
     .eq("id", cached.id)
     .maybeSingle();
 
@@ -75,16 +102,32 @@ export async function restoreSession(): Promise<void> {
     return;
   }
 
-  // Update with latest plan from DB (catches Stripe-triggered upgrades)
+  // Update with latest state from DB (catches Stripe-triggered upgrades,
+  // email verification completed in another tab, etc.)
   currentUser = {
     id: data.id,
     name: data.name,
     email: data.email,
     plan: data.plan as User["plan"],
+    bonusInvestorBrief: !!data.bonus_investor_brief,
+    emailVerified: !!data.email_verified,
+    mustResetPassword: !!data.must_reset_password,
     joinedAt: data.created_at,
   };
   saveSession(currentUser);
   notify();
+}
+
+/** Applies an authenticated user returned by the server. */
+function setUser(user: User) {
+  currentUser = user;
+  saveSession(currentUser);
+  notify();
+}
+
+/** Re-reads the signed-in user from the DB (e.g. after email verification). */
+export async function refreshUser(): Promise<void> {
+  await restoreSession();
 }
 
 // ─── Sign Up ────────────────────────────────────────────────────────────────
@@ -93,42 +136,21 @@ export async function signUp(
   email: string,
   password: string
 ): Promise<{ ok: boolean; error?: string }> {
+  // Client-side checks are a UX nicety only. The server re-validates everything
+  // (format, disposable domains, length, duplicate email) and is the real gate —
+  // never trust the browser. See api/auth-email.js ?action=signup.
   const key = email.toLowerCase().trim();
   if (!name.trim()) return { ok: false, error: "Please enter your name." };
-  if (!key.includes("@")) return { ok: false, error: "Please enter a valid email address." };
+  if (!isValidEmailFormat(key)) return { ok: false, error: "Please enter a valid email address." };
   if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
 
-  const { data: existing } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", key)
-    .maybeSingle();
+  const result = await postAuth("signup", { name: name.trim(), email: key, password });
+  if (!result.ok || !result.user) return { ok: false, error: result.error };
 
-  if (existing) return { ok: false, error: "An account with this email already exists." };
+  setUser(result.user);
 
-  const { data, error } = await supabase
-    .from("users")
-    .insert({ name: name.trim(), email: key, password_hash: password, plan: "explorer" })
-    .select("id, name, email, plan, created_at")
-    .single();
-
-  if (error || !data) {
-    console.error("Supabase signUp error:", error);
-    return { ok: false, error: "Could not create account. Please try again." };
-  }
-
-  currentUser = {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    plan: data.plan as User["plan"],
-    bonusInvestorBrief: false,
-    joinedAt: data.created_at,
-  };
-  saveSession(currentUser);
-  notify();
-
-  // Send welcome email (fire and forget — don't block sign-up)
+  // Welcome email (fire and forget — the verification email is sent server-side
+  // as part of signup and is the one that matters).
   fetch("/api/auth-email?action=welcome", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -139,36 +161,43 @@ export async function signUp(
 }
 
 // ─── Sign In ────────────────────────────────────────────────────────────────
+// Runs entirely server-side. The password never touches Supabase from the browser,
+// and password_hash is not readable by the anon role.
 export async function signIn(
   email: string,
   password: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; mustResetPassword?: boolean }> {
   const key = email.toLowerCase().trim();
+  if (!key || !password) return { ok: false, error: "Please enter your email and password." };
 
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, name, email, plan, bonus_investor_brief, password_hash, created_at")
-    .eq("email", key)
-    .maybeSingle();
+  const result = await postAuth("signin", { email: key, password });
+  if (!result.ok || !result.user) return { ok: false, error: result.error };
 
-  if (error) {
-    console.error("Supabase signIn error:", error);
-    return { ok: false, error: "Could not sign in. Please try again." };
-  }
-  if (!data) return { ok: false, error: "No account found with this email." };
-  if (data.password_hash !== password) return { ok: false, error: "Incorrect password." };
+  setUser(result.user);
+  return { ok: true, mustResetPassword: result.user.mustResetPassword };
+}
 
-  currentUser = {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    plan: data.plan as User["plan"],
-    bonusInvestorBrief: !!data.bonus_investor_brief,
-    joinedAt: data.created_at,
-  };
-  saveSession(currentUser);
-  notify();
+// ─── Forced password rotation ───────────────────────────────────────────────
+// For accounts flagged must_reset_password (their old password was exposed).
+// The user proves ownership with their current password, then sets a new one.
+export async function forceResetPassword(
+  email: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<{ ok: boolean; error?: string }> {
+  const result = await postAuth("force-reset", {
+    email: email.toLowerCase().trim(),
+    currentPassword,
+    newPassword,
+  });
+  if (!result.ok || !result.user) return { ok: false, error: result.error };
+  setUser(result.user);
   return { ok: true };
+}
+
+/** Shared with the sign-up form. Mirrors the server regex in api/auth-email.js. */
+export function isValidEmailFormat(email: string): boolean {
+  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(String(email).toLowerCase().trim());
 }
 
 

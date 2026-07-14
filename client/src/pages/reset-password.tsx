@@ -21,9 +21,19 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const hash = window.location.hash;
-    const match = hash.match(/[?&]token=([^&]+)/);
-    if (match) setToken(match[1]);
+    // The reset email now links to a real path: /reset-password?token=...
+    // It previously linked to /#/reset-password?token=..., but wouter is
+    // path-routed, so that URL rendered the homepage and the token was never
+    // read — the reset flow could not complete. Read the query string first, and
+    // keep the hash fallback so any link already sitting in someone's inbox
+    // still works.
+    const fromQuery = new URLSearchParams(window.location.search).get("token");
+    if (fromQuery) {
+      setToken(fromQuery);
+      return;
+    }
+    const match = window.location.hash.match(/[?&]token=([^&]+)/);
+    if (match) setToken(decodeURIComponent(match[1]));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
