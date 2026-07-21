@@ -1637,7 +1637,7 @@ ${offerStrategyHtml}` : ""}
     <p class="body-text" style="font-size:11px;color:#6B7280;margin-top:6px">Confirm exact band: <a href="${ai.councilTax.checkerUrl}" style="color:#B8860B">${ai.councilTax.checkerUrl}</a></p>
   </div>
 
-  <div class="section">
+  ${ai.propertyTypeSplit ? `<div class="section">
     <div class="section-label">Property Type Split</div>
     <p class="body-text" style="margin-bottom:8px">${ai.propertyTypeSplit.dominantType}</p>
     <table><thead><tr><th>Type</th><th style="text-align:right">Share</th></tr></thead>
@@ -1647,7 +1647,7 @@ ${offerStrategyHtml}` : ""}
       <tr><td>Semi-Detached</td><td style="text-align:right">${ai.propertyTypeSplit.semiDetached}%</td></tr>
       <tr><td>Detached Houses</td><td style="text-align:right">${ai.propertyTypeSplit.detached}%</td></tr>
     </tbody></table>
-  </div>
+  </div>` : ""}
 
   <div class="section">
     <div class="section-label">Commute Times</div>
@@ -3288,8 +3288,8 @@ export default function BriefPage() {
                   </>
                 )}
 
-                {/* Property Type Split — Professional+ */}
-                {isPaid && (
+                {/* Property Type Split — Professional+ (only when we hold real per-postcode Census data) */}
+                {isPaid && ai.propertyTypeSplit && (
                   <CollapsibleSection title="Property Type Split" testId="section-property-types" defaultOpen={false}>
                     <div className="flex flex-col gap-4">
                       <p className={`text-sm ${ai.propertyTypeSplit.dominantType.includes("Indicative") || ai.propertyTypeSplit.dominantType.includes("indicative") || ai.propertyTypeSplit.dominantType.includes("limited") ? "text-muted-foreground italic text-xs" : "text-muted-foreground"}`}>{ai.propertyTypeSplit.dominantType}</p>

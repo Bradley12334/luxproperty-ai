@@ -103,7 +103,9 @@ export interface AreaIntelligence {
   };
 
   /** Property Type Split — % breakdown */
-  propertyTypeSplit: {
+  // Optional: only present when we hold real per-postcode Census figures.
+  // Omitted (section hidden) rather than showing national/placeholder data.
+  propertyTypeSplit?: {
     flats: number;
     terraced: number;
     semiDetached: number;

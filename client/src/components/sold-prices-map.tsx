@@ -94,9 +94,13 @@ export function deriveMapInterpretation(
       ? `A moderate price range of ${fmtShort(min)}–${fmtShort(max)} — some variation in property size or condition is likely.`
       : `Wide price variation of ${fmtShort(min)}–${fmtShort(max)} — significantly different property types or conditions are represented in this dataset.`;
 
-  // Context vs area median
+  // Context vs area median.
+  // The "X% above/below the postcode median" claim is only asserted with at least
+  // 3 in-district transactions — below that the sample median is too noisy to
+  // compare reliably (and we no longer backfill comps from outside the district,
+  // so a thin sample now genuinely means few local sales, not bad data).
   let contextNote = "";
-  if (areaMedian && areaMedian > 0 && median > 0) {
+  if (n >= 3 && areaMedian && areaMedian > 0 && median > 0) {
     const diff = ((median - areaMedian) / areaMedian) * 100;
     if (Math.abs(diff) <= 5) {
       contextNote = `Nearby transactions sit in line with the broader area median (${fmtShort(areaMedian)}).`;
@@ -106,7 +110,7 @@ export function deriveMapInterpretation(
       contextNote = `Nearby transactions average ${Math.abs(diff).toFixed(0)}% below the postcode median — the immediate streets may present relative value.`;
     }
   } else if (median > 0) {
-    contextNote = `Transaction median from this dataset: ${fmtShort(median)}.`;
+    contextNote = `Based on ${n} in-postcode sale${n === 1 ? "" : "s"} — too few to compare reliably against the area median; treat as directional only.`;
   }
 
   const dataSourceNote = "HM Land Registry Price Paid data. Reflects completed transactions — not asking prices. Prices are title-deed registered values and may not reflect later negotiation.";

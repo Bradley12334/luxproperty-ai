@@ -1999,11 +1999,18 @@ async function fetchRecentTransactions(district: string, outcode: string): Promi
     const data = await res.json();
     const items: any[] = data?.result?.items || [];
 
-    // Prefer exact outcode matches for comparables; fall back to district-level
-    const filtered = items.filter((item: any) =>
-      (item?.propertyAddress?.postcode || "").startsWith(outcode)
-    );
-    const used = filtered.length >= 3 ? filtered : items;
+    // Keep ONLY comps in the requested outcode. Compare the outcode token exactly
+    // (split on the space) rather than startsWith(outcode): "N1" must NOT match
+    // "N10 3AB"/"N19 2XX", and out-of-district results (e.g. NW3/WC2 that the LA
+    // query can return when a postcode straddles boroughs) are excluded.
+    const inDistrict = items.filter((item: any) => {
+      const pc = String(item?.propertyAddress?.postcode || "").toUpperCase().trim();
+      return pc !== "" && pc.split(" ")[0] === outcode.toUpperCase();
+    });
+    // Never backfill from outside the district. If there are too few in-district
+    // comps, the downstream copy says so honestly rather than padding the list
+    // with transactions from other postcodes.
+    const used = inDistrict;
 
     // Sort by date descending (most recent first) — deterministic given fixed date window
     const sorted = used
@@ -2098,10 +2105,13 @@ async function fetchSoldPricesWithCoords(district: string, outcode: string): Pro
     const data = await res.json();
     const items: any[] = data?.result?.items || [];
 
-    const filtered = items.filter((item: any) =>
-      (item?.propertyAddress?.postcode || "").startsWith(outcode)
-    );
-    const used = (filtered.length >= 4 ? filtered : items).slice(0, 12);
+    // In-district only, exact outcode token match (see fetchRecentTransactions).
+    // No backfill from outside the district — map pins stay within the postcode.
+    const inDistrict = items.filter((item: any) => {
+      const pc = String(item?.propertyAddress?.postcode || "").toUpperCase().trim();
+      return pc !== "" && pc.split(" ")[0] === outcode.toUpperCase();
+    });
+    const used = inDistrict.slice(0, 12);
 
     // Collect unique postcodes for batch geocoding
     const postcodes = [...new Set(used.map((item: any) => item?.propertyAddress?.postcode).filter(Boolean))] as string[];
@@ -2778,6 +2788,14 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   const fiveYearGrowth = (firstValidMedian > 0 && latestMedian > 0)
     ? `${(((latestMedian - firstValidMedian) / firstValidMedian) * 100).toFixed(1)}%`
     : "—";
+  // Canonical SIGNED presentation of the multi-year trajectory. Read this wherever
+  // a "+X%" style figure is shown, so no call site prefixes its own "+" onto a
+  // value that may already be negative (which produced "+-3.6%" / "+-5.1%").
+  // fiveYearGrowth already carries a leading "-" when negative; only positives
+  // need a "+".
+  const fiveYearGrowthSigned = fiveYearGrowth === "—"
+    ? "—"
+    : fiveYearGrowth.startsWith("-") ? fiveYearGrowth : `+${fiveYearGrowth}`;
 
   const totalSalesThisYear = yearData[yearData.length - 1]?.length || 0;
   const demandSignal = totalSalesThisYear > 40 ? "High" : totalSalesThisYear > 15 ? "Moderate" : "Low";
@@ -3283,7 +3301,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     executiveSummary: outsideEnglandWales
       ? scotlandNote
       : hasData
-        ? `${areaName} (${outcode}) is classified as a ${tier} residential market. Median transaction value stands at ${fmt(latestMedian)}, based on ${totalTxns} Land Registry records across ${historyYears} year${historyYears === 1 ? "" : "s"}. The ${historyYears}-year price trajectory is ${fiveYearGrowth !== "—" ? `+${fiveYearGrowth}` : "—"}, with year-on-year movement of ${yoyChange}. ${ward ? `Ward: ${ward}.` : ""} ${constituency ? `Parliamentary constituency: ${constituency}.` : ""} Demand is currently ${demandSignal.toLowerCase()}, with ${totalSalesThisYear} registered transactions in the most recent year on record. ${marketMomentum}.`
+        ? `${areaName} (${outcode}) is classified as a ${tier} residential market. Median transaction value stands at ${fmt(latestMedian)}, based on ${totalTxns} Land Registry records across ${historyYears} year${historyYears === 1 ? "" : "s"}. The ${historyYears}-year price trajectory is ${fiveYearGrowthSigned}, with year-on-year movement of ${yoyChange}. ${ward ? `Ward: ${ward}.` : ""} ${constituency ? `Parliamentary constituency: ${constituency}.` : ""} Demand is currently ${demandSignal.toLowerCase()}, with ${totalSalesThisYear} registered transactions in the most recent year on record. ${marketMomentum}.`
         : `${areaName} (${outcode}) is in ${region}. Transaction volume was below the threshold for full statistical analysis — the report draws on available district-level Land Registry records. Manual verification via Rightmove and Zoopla sold data is advised.`,
     marketOverview: {
       averagePrice: hasData ? fmt(latestMedian) : outsideEnglandWales ? "Scotland/NI — see note" : "Insufficient data",
@@ -3436,25 +3454,15 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
             note: `Council tax data for ${authority} could not be retrieved. The figures above are a regional estimate only — not a confirmed charge. Use the ${checkerName} for the confirmed band and annual cost for any specific property.`,
           };
         })(),
-    propertyTypeSplit: liveDwellingMix
-      ? {
-          flats: liveDwellingMix.dwellingMix.flats,
-          terraced: liveDwellingMix.dwellingMix.terraced,
-          semiDetached: liveDwellingMix.dwellingMix.semiDetached,
-          detached: liveDwellingMix.dwellingMix.detached,
-          other: liveDwellingMix.dwellingMix.other,
-          dominantType: liveDwellingMix.dominantType,
-          source: liveDwellingMix.source,
-          dataYear: liveDwellingMix.dataYear,
-        }
-      : enrichmentProfile?.propertyTypeSplit ?? {
-          flats: isLondon ? 62 : 48,
-          terraced: isLondon ? 22 : 28,
-          semiDetached: isLondon ? 10 : 16,
-          detached: isLondon ? 4 : 6,
-          other: 2,
-          dominantType: `ONS Census dwelling data for ${areaName} could not be retrieved. Figures are based on regional stock patterns for this postcode area — proportions are indicative only.`,
-        },
+    // Property Type Split — real per-postcode Census figures only.
+    // The live ONS census-observations endpoint (fetchDwellingMix) was returning
+    // ENGLAND-NATIONAL aggregates (~32% semi-detached for EVERY postcode, incl.
+    // inner-London E8/N1) instead of per-LA data, so it is no longer used — and it
+    // was previously OVERRIDING the correct curated figures. We now use the curated
+    // per-postcode split where we hold it; otherwise the field is omitted and the
+    // section is hidden rather than showing national/placeholder numbers as if
+    // local. (Re-enable a live source only once it is verified to return per-LA data.)
+    propertyTypeSplit: enrichmentProfile?.propertyTypeSplit,
     commuteTable: (() => {
       if (liveTflCommute && liveTflCommute.length > 0) {
         return liveTflCommute.map(j => ({
@@ -4090,7 +4098,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
           ? `${fmt(latestMedian * 0.9)} – ${fmt(latestMedian * 1.15)} (90–115% of ${areaName} median)`
           : "Insufficient recent sales data for this postcode — instruct a RICS-regulated surveyor for a binding valuation before offering.",
         priceVsAreaAverage: hasData
-          ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · ${historyYears}-yr: +${fiveYearGrowth !== "—" ? fiveYearGrowth : "—"}`
+          ? `${areaName} median: ${fmt(latestMedian)} · Est. ${pricePerSqmEstimate} · YoY: ${yoyChange} · ${historyYears}-yr: ${fiveYearGrowthSigned}`
           : outsideEnglandWales ? "Sold-price data is not available for this region via Land Registry — see ros.gov.uk (Scotland) or Welsh Government data for alternatives." : "Fewer than 5 recent transactions at this postcode level. Treat the area median as a directional anchor; commission a surveyor for a property-specific figure.",
         valueScore: hasData
           ? `${tier === "prime" ? "8.2" : tier === "premium" ? "7.8" : tier === "mid-market" ? "7.4" : "7.0"} / 10`

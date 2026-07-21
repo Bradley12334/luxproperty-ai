@@ -18,18 +18,15 @@ import {
 } from "lucide-react";
 
 // ─── SEO ─────────────────────────────────────────────────────────────────────
-// Sets the exact title tag / meta description, canonical + OG, and a JSON-LD
-// Article schema. Mirrors the SW3 / SE1 guides (with the precise title string,
-// which uses " | LuxProperty AI") and adds structured data for rich results.
-const PAGE_URL = "https://www.luxproperty.ai/guides/e8-hackney-buyers-guide";
-const PAGE_TITLE = "Is E8 (Hackney) a Good Place to Buy? Buyer's Guide 2026 | LuxProperty AI";
+const PAGE_URL = "https://www.luxproperty.ai/guides/n1-islington-buyers-guide";
+const PAGE_TITLE = "Is N1 (Islington) a Good Place to Buy? Buyer's Guide 2026 | LuxProperty AI";
 const PAGE_DESC =
-  "E8 (London Fields, Hackney): £519k median, prices down 1% YoY, an Outstanding primary 4 min away and low flood risk. A data-led 2026 buyer's guide.";
+  "N1 (Islington): £675k median, down 7.9% YoY, King's Cross 4 min, an Outstanding school nearby — but medium flood risk. A data-led 2026 buyer's guide.";
 
 const ARTICLE_LD = {
   "@context": "https://schema.org",
   "@type": "Article",
-  headline: "Is E8 (Hackney) a Good Place to Buy? The 2026 Buyer's Guide",
+  headline: "Is N1 (Islington) a Good Place to Buy? The 2026 Buyer's Guide",
   description: PAGE_DESC,
   datePublished: "2026-07-01",
   dateModified: "2026-07-21",
@@ -40,7 +37,7 @@ const ARTICLE_LD = {
     url: "https://www.luxproperty.ai",
   },
   mainEntityOfPage: { "@type": "WebPage", "@id": PAGE_URL },
-  about: "Buying property in E8 (London Fields, Hackney), London",
+  about: "Buying property in N1 (Islington), London",
 };
 
 function useGuideSeo() {
@@ -72,10 +69,9 @@ function useGuideSeo() {
     }
     canonical.setAttribute("href", PAGE_URL);
 
-    // JSON-LD Article schema
     const ld = document.createElement("script");
     ld.type = "application/ld+json";
-    ld.setAttribute("data-guide-ld", "e8");
+    ld.setAttribute("data-guide-ld", "n1");
     ld.textContent = JSON.stringify(ARTICLE_LD);
     document.head.appendChild(ld);
 
@@ -89,81 +85,69 @@ function useGuideSeo() {
   }, []);
 }
 
-// ─── Data (from the July 2026 brief — refresh periodically) ──────────────────
+// ─── Data (from the July 2026 N1 area report — refresh periodically) ─────────
 const HEADLINE_STATS = [
-  { label: "Median sold price", value: "£519,000", note: "1,000 Land Registry records, 10 years" },
-  { label: "Year-on-year", value: "−1.0%", note: "prices have softened slightly", down: true },
-  { label: "10-year trajectory", value: "−5.1%", note: "a volatile decade, not a steady climb", down: true },
-  { label: "Est. price per m²", value: "£5,463", note: "flats cluster £425k–£590k" },
+  { label: "Median sold price", value: "£675,000", note: "1,000 Land Registry records, 10 years" },
+  { label: "Year-on-year", value: "−7.9%", note: "the market has softened", down: true },
+  { label: "10-year trajectory", value: "−3.6%", note: "a volatile decade, not a steady climb", down: true },
+  { label: "Est. SDLT on median", value: "~£42,500", note: "primary residence, at £675k" },
 ];
 
 const PRICE_HISTORY = [
-  { year: "2016", price: "£547,125", change: "—" },
-  { year: "2019", price: "£607,500", change: "+28.4%" },
-  { year: "2022", price: "£500,000", change: "−16.7%" },
-  { year: "2023", price: "£592,500", change: "+18.5%" },
-  { year: "2024", price: "£524,138", change: "−11.5%" },
-  { year: "2025", price: "£519,000", change: "−1.0%" },
-];
-
-const RECENT_SALES = [
-  { address: "47 Grand Union Crescent", price: "£1,042,500", type: "Terraced", date: "Dec 2025" },
-  { address: "Graham House, 68 Lansdowne Drive", price: "£565,000", type: "Terraced", date: "Dec 2025" },
-  { address: "21 Blackburn House, Prodigal Square", price: "£590,000", type: "Flat", date: "Dec 2025" },
-  { address: "Flat 2, 159 Graham Road", price: "£496,150", type: "Flat", date: "Dec 2025" },
-  { address: "Flat 46, Cordwainer House, 43 Mare Street", price: "£491,000", type: "Flat", date: "Dec 2025" },
-  { address: "Flat 13, Sledge Tower, Dalston Square", price: "£425,000", type: "Flat", date: "Dec 2025" },
-];
-
-const COMMUTES = [
-  { dest: "London Bridge", time: "28 min" },
-  { dest: "City of London (EC2)", time: "30 min" },
-  { dest: "Canary Wharf", time: "31 min" },
-  { dest: "West End (W1)", time: "42 min" },
+  { year: "2016", price: "£700,000", change: "—" },
+  { year: "2017", price: "£770,625", change: "+10.1%" },
+  { year: "2018", price: "£883,250", change: "+14.6%" },
+  { year: "2019", price: "£767,250", change: "−13.1%" },
+  { year: "2020", price: "£786,700", change: "+2.5%" },
+  { year: "2021", price: "£855,000", change: "+8.7%" },
+  { year: "2022", price: "£889,500", change: "+4.0%" },
+  { year: "2023", price: "£715,000", change: "−19.6%" },
+  { year: "2024", price: "£732,750", change: "+2.5%" },
+  { year: "2025", price: "£675,000", change: "−7.9%" },
 ];
 
 const CHECKS = [
   {
     icon: GraduationCap,
-    title: "Schools — E8's strongest card",
+    title: "Schools — an Outstanding option nearby",
     body:
-      "3 Outstanding and 3 Good-rated schools within a 20-minute walk — Gayhurst Community School (Outstanding, 4 minutes), Morningside and St John & St James CofE (both Outstanding), plus Mossbourne Parkside Academy (Good) for secondary. Proximity doesn't guarantee catchment placement — confirm with the school or Hackney Council.",
+      "Frank Barnes School for Deaf Children is rated Outstanding by Ofsted, about a 6-minute walk. Overall school provision in the area is reasonable, but it's a specialist setting — confirm mainstream catchment options with Islington Council before relying on any single school.",
   },
   {
     icon: Train,
-    title: "Commuting — excellent, even without a tube",
+    title: "Commuting — one of the stronger positions in London",
     body:
-      "London Fields Overground is a 2-minute walk, with Hackney Central (8 min) and Hackney Downs (10 min, National Rail) close behind — three stations within ten minutes. Walk Score 85, Very Walkable.",
+      "London King's Cross (National Rail) is a 4-minute walk, with multiple stations in range — a genuinely strong commuter position. Coverage varies across N1, so confirm the exact stations and walk times for any specific property.",
   },
   {
     icon: Wifi,
     title: "Broadband — excellent",
     body:
-      "174 Mbps average download, with full fibre available to 73% of premises (Ofcom 2024). Check your specific address at checker.ofcom.org.uk.",
+      "Average download speeds around 171 Mbps, with 72% full-fibre availability. Check your specific address at checker.ofcom.org.uk.",
   },
   {
     icon: ShieldAlert,
-    title: "Crime — the number, and the context",
+    title: "Crime — understand it honestly",
     body:
-      "1,786 crimes recorded in the Hackney area in May 2026 — significantly above the national average, led by violence and sexual offences (25%) and anti-social behaviour (22%). Incidents concentrate on high-footfall commercial streets (the Dalston nightlife corridor); residential streets are generally safer than the aggregate suggests. Visit the specific street at different times, including weekend evenings.",
+      "Around 2,401 crimes were recorded in the Islington area in May 2026 — significantly above the national average, led by violence and sexual offences (20%). Incidents concentrate on high-footfall commercial streets; residential streets are generally safer than the borough-wide figure suggests. Visit the specific street at different times, including weekend evenings.",
   },
   {
     icon: Waves,
-    title: "Flood & climate — low flood risk, watch subsidence",
+    title: "Flood & environmental risk — the key check for N1",
     body:
-      "Flood risk is Low — E8 is predominantly Environment Agency Flood Zone 1, a genuine plus for insurability and resale (confirm at property level via the EA Flood Map). But E8 sits on London clay: subsidence sensitivity is moderate, mature trees within 10m of foundations are the classic watch-out, so commission a RICS Level 3 Building Survey and get a buildings-insurance quote before exchange.",
+      "N1 carries medium flood risk — Environment Agency Flood Zone 2 (Medium Probability). This can raise buildings-insurance excess and premiums, so request the seller's insurance renewal history, check the EA flood map for the specific plot, and factor a specialist quote in before you offer. This is the single most important due-diligence item here.",
   },
   {
     icon: Building2,
-    title: "Developments worth knowing about",
+    title: "Planning & nearby development",
     body:
-      "London Fields Lido's £5m refurbishment (completed 2024) is a value driver for park-adjacent streets. Hackney Walk's designer-outlet expansion on Mare Street has planning approval. 31 planning applications were recorded nearby in the past 12 months — check Hackney's planning portal before exchange.",
+      "45 planning applications were recorded nearby in the past 12 months. Two notable schemes: Angel Central (commercial refurbishment, mixed impact) and the King's Cross ripple effect (regeneration-led, likely upside). New development can add amenity but also construction disruption — check proximity and timelines on Islington's planning portal.",
   },
   {
     icon: Wallet,
-    title: "Running costs & the rental angle",
+    title: "Running costs & the market",
     body:
-      "Council tax is typically Band C–D (~£1,632–£2,244/yr). SDLT on the £519k median is around £26,900 for a primary residence. Rents run ~£1,950 (1-bed) to ~£3,400 (3-bed) pcm with very high demand; gross yields 3.8–5.0%. Stress-test your mortgage at base rate +2%, and verify lease terms if leasehold.",
+      "Estimated SDLT on the £675k median is around £42,500 for a primary residence. Supply is tight and homes take ~38 days to sell on average. Stress-test your mortgage at base rate +2%, and if buying leasehold, verify remaining lease length, ground rent and service charges before offering.",
   },
 ];
 
@@ -177,13 +161,13 @@ const BRIEF_INCLUDES = [
 const RELATED_GUIDES = [
   { href: "/guides/sw3-chelsea-buyers-guide", label: "SW3 — Chelsea buyer's guide" },
   { href: "/guides/se1-southwark-buyers-guide", label: "SE1 — Southwark buyer's guide" },
-  { href: "/guides/n1-islington-buyers-guide", label: "N1 — Islington buyer's guide" },
+  { href: "/guides/e8-hackney-buyers-guide", label: "E8 — Hackney buyer's guide" },
 ];
 
-export default function GuideE8HackneyPage() {
+export default function GuideN1IslingtonPage() {
   useGuideSeo();
   const [, navigate] = useLocation();
-  const goToBrief = () => navigate("/?q=E8");
+  const goToBrief = () => navigate("/?q=N1");
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -194,48 +178,49 @@ export default function GuideE8HackneyPage() {
           {/* ── Hero ─────────────────────────────────────────────────────── */}
           <div className="mb-10">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-3">
-              E8 · Hackney · Buyer's Guide 2026
+              N1 · Islington · Buyer's Guide 2026
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl tracking-tight leading-tight mb-4">
-              Is E8 (Hackney) a Good Place to Buy? The 2026 Buyer's Guide
+              Is N1 (Islington) a Good Place to Buy? The 2026 Buyer's Guide
             </h1>
             <p className="text-base text-muted-foreground leading-relaxed">
-              <strong className="text-foreground font-semibold">Yes — with your eyes open.</strong> E8
-              is one of the strongest lifestyle purchases in East London: London Fields station is on
-              the doorstep, Broadway Market anchors the weekend, an Outstanding-rated primary is a
-              four-minute walk, and flood risk is genuinely low. The median transaction price sits at
-              £519,000, and prices have softened slightly (−1.0% year-on-year), which puts negotiating
-              power with the buyer rather than the seller right now. The trade-offs are real — crime
-              runs above the national average (concentrated on commercial streets), and the recent
-              dip means you should benchmark comparables carefully — but neither is a dealbreaker.
+              N1 — Islington, Barnsbury and the Angel — is one of central-north London's most
+              connected postcodes, minutes from King's Cross and the City. It suits families
+              prioritising schools and daily commuters most strongly. The median transaction price
+              sits at £675,000, and prices have fallen sharply over the past year (−7.9%
+              year-on-year), which puts negotiating power firmly with the buyer right now. Two things
+              to price in with your eyes open: much of the area carries medium flood risk that affects
+              insurance, and recorded crime runs above the national average. Neither is a dealbreaker
+              — but both should shape how you view, negotiate and survey.
             </p>
           </div>
 
-          {/* ── What E8 is actually like ─────────────────────────────────── */}
-          <Section title="What E8 is actually like">
+          {/* ── What N1 is actually like ─────────────────────────────────── */}
+          <Section title="What N1 is actually like">
             <p>
-              E8 covers London Fields, Broadway Market, and the streets between Dalston and Hackney
-              Central. It's the part of Hackney people mean when they say Hackney has changed — and
-              residents here are famously evangelical about it. Broadway Market on a Saturday comes up
-              in almost every buyer and resident review as the reason people bought locally, and the
-              £5m refurbishment of London Fields Lido (completed 2024) has only strengthened the
-              park's pull.
+              N1 is a mid-market central-London market in the London Borough of Islington (ward:
+              Caledonian; constituency: Islington South and Finsbury). It's a genuinely mixed,
+              well-established postcode — Georgian and Victorian terraces around Barnsbury, the
+              canal and Angel's shopping and nightlife, and the regeneration pull of neighbouring
+              King's Cross. Demand is currently high, with 100 registered transactions in the most
+              recent year, yet prices are softening — an unusual combination that favours a prepared
+              buyer.
             </p>
             <p>
-              The recurring criticisms are worth knowing too: weekend noise from Dalston reaches the
-              northern E8 streets, and there's genuine local anxiety that rising prices and commercial
-              pressure on Broadway Market are eroding the independent character that made the area
-              desirable in the first place. Who it suits best: families prioritising schools, and
-              daily commuters — the two strongest buyer signals in the data.
+              The honest questions are: does the central-London lifestyle fit, do the numbers work at
+              today's falling prices, and are you paying a fair price for the specific property — not
+              just for the N1 postcode. Because N1 straddles borough boundaries, always confirm
+              comparables from genuine N1 sales rather than the wider area.
             </p>
           </Section>
 
           {/* ── Prices ───────────────────────────────────────────────────── */}
-          <Section title="Prices: what homes in E8 actually sell for">
+          <Section title="Prices: what homes in N1 actually sell for">
             <p>
-              The median transaction value in E8 is £519,000, based on 1,000 Land Registry records
-              over ten years. The market has softened — −1.0% year-on-year, with a 10-year trajectory
-              of −5.1% — a volatile decade rather than a steady climb.
+              The median transaction value in N1 is £675,000, based on 1,000 Land Registry records
+              over ten years. The market has softened notably — −7.9% year-on-year, with a 10-year
+              trajectory of −3.6%. As the year-by-year figures show, this has been a volatile decade
+              rather than a steady climb.
             </p>
             <div className="not-prose grid grid-cols-1 sm:grid-cols-2 gap-3 my-6">
               {HEADLINE_STATS.map((s) => (
@@ -262,28 +247,15 @@ export default function GuideE8HackneyPage() {
               alignLast
             />
 
-            <DataTable
-              caption="Recent sold prices — completed sales (HM Land Registry)"
-              head={["Address", "Price", "Type", "Date"]}
-              rows={RECENT_SALES.map((r) => [r.address, r.price, r.type, r.date])}
-            />
-
-            <p>
-              The spread is wide — from a £425k Dalston Square flat to a £1m+ terraced house near the
-              park — so anchor your offer to sales of the same property type, not the area average.
-              Flats cluster around £425k–£590k; period terraces near London Fields command a
-              significant premium.
-            </p>
-
             <div className="not-prose my-5 rounded-lg border border-border/50 bg-muted/30 p-4">
               <p className="text-sm font-semibold text-foreground mb-2">Your negotiating position</p>
               <ul className="space-y-2">
                 {[
-                  "Prices are trending −1.0% YoY — a seller can't credibly argue values are rising.",
-                  "100 transactions in the most recent year with soft demand means competing offers are less likely.",
-                  "Fair value on a median-type property sits around £503k–£590k, with a sensible opening range of £470k–£514k.",
-                  "Ask the agent about time on market and prior price reductions — both signal motivation.",
-                  "Look up the seller's original purchase price at gov.uk/search-property-information — their equity position guides their floor.",
+                  "Prices are trending −7.9% YoY — a seller can't credibly argue values are rising.",
+                  "Fair value on a median-type property sits around £595k–£698k, with a sensible opening range of £556k–£608k (based on registered comparables and 100 recent transactions).",
+                  "Demand is soft: sellers are unlikely to receive competing offers, giving patient buyers real room to negotiate.",
+                  "Medium flood risk and above-average crime are legitimate pricing points — an insurance uplift and survey findings can support a lower offer.",
+                  "Ask the agent about time on market and prior price reductions, and look up the seller's original purchase price at gov.uk/search-property-information — their equity position guides their floor.",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2 text-sm text-muted-foreground leading-relaxed">
                     <TrendingDown className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
@@ -292,20 +264,15 @@ export default function GuideE8HackneyPage() {
                 ))}
               </ul>
             </div>
-          </Section>
-
-          {/* ── Commuting table ──────────────────────────────────────────── */}
-          <Section title="Commuting: live TfL journey times from E8">
-            <DataTable
-              caption="Live TfL journey times from E8"
-              head={["Destination", "Time"]}
-              rows={COMMUTES.map((r) => [r.dest, r.time])}
-              alignLast
-            />
+            <p>
+              N1's registered sales span an enormous range once you look borough-wide, so anchor your
+              offer to sales of the same property type on genuinely N1 streets — a full brief resolves
+              those street-level comparables for the specific property.
+            </p>
           </Section>
 
           {/* ── Practical checks ─────────────────────────────────────────── */}
-          <Section title="The practical buyer checks for E8">
+          <Section title="The practical buyer checks for N1">
             <div className="not-prose space-y-3 mt-2">
               {CHECKS.map(({ icon: Icon, title, body }) => (
                 <Card key={title} className="p-4 flex items-start gap-3">
@@ -322,29 +289,28 @@ export default function GuideE8HackneyPage() {
           {/* ── Verdict ──────────────────────────────────────────────────── */}
           <Section title="The honest verdict">
             <p>
-              E8 delivers what most inner-London postcodes only promise: a genuinely walkable
-              neighbourhood (Walk Score 85), an Outstanding school four minutes away, three stations
-              within ten minutes, low flood risk, and one of the strongest community identities in the
-              capital. What you're pricing in: above-average crime concentrated on the commercial
-              corridors, a market that's dipped −1.0% over the past year, and London-clay subsidence
-              sensitivity that makes a Level 3 survey non-negotiable.
+              N1 rewards buyers who want a genuinely central, superbly connected London base — minutes
+              from King's Cross and the City — and who negotiate from real data rather than paying
+              asking on location alone. With prices down 7.9% year-on-year and soft demand, patient,
+              informed buyers have real leverage in the current market. What you're pricing in: medium
+              flood risk that affects insurance, and above-average crime concentrated on the
+              commercial corridors.
             </p>
             <div className="not-prose my-5 flex items-start gap-3 rounded-lg border-l-2 border-primary bg-primary/5 p-4">
               <TrendingDown className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-foreground/90 leading-relaxed">
-                For a patient buyer, that softening is arguably the opportunity — pricing power
-                currently sits with informed buyers. Anchor your offer to comparables, raise the
-                market trend in negotiation, and do the street-level homework on crime and subsidence
-                before exchange. Bottom line: proceed — carefully, and from a position of leverage.
+                Proceed — carefully, and from a position of leverage. Commission an independent flood
+                risk assessment and confirm insurance terms before exchange, anchor your offer to
+                genuine N1 comparables, and use the softening market in negotiation.
               </p>
             </div>
           </Section>
 
           {/* ── CTA ──────────────────────────────────────────────────────── */}
           <div className="mt-12 rounded-xl border border-primary/25 bg-primary/5 px-5 py-6 sm:px-7 sm:py-7">
-            <h2 className="font-serif text-2xl tracking-tight mb-2">Get the full data brief for E8 — free</h2>
+            <h2 className="font-serif text-2xl tracking-tight mb-2">Get the full data brief for N1 — free</h2>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4 max-w-2xl">
-              This guide covers E8 at area level — but street-level risk, catchments and comparables
+              This guide covers N1 at area level — but street-level risk, catchments and comparables
               vary. Get the complete picture for the specific property in under 60 seconds:
             </p>
             <ul className="grid grid-cols-1 gap-2 mb-6">
@@ -359,9 +325,9 @@ export default function GuideE8HackneyPage() {
               size="lg"
               className="w-full sm:w-auto font-semibold gap-1.5"
               onClick={goToBrief}
-              data-testid="button-generate-e8-brief"
+              data-testid="button-generate-n1-brief"
             >
-              Generate your free E8 brief
+              Generate your free N1 brief
               <ArrowRight className="h-4 w-4" />
             </Button>
             <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
