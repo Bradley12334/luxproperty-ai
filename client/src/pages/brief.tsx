@@ -3289,6 +3289,18 @@ export default function BriefPage() {
                 )}
 
                 {/* Property Type Split — Professional+ (only when we hold real per-postcode Census data) */}
+                {isPaid && !ai.propertyTypeSplit && (
+                  /* ISSUE 2: render an explicit unavailable state rather than hiding
+                     the section when we don't hold verified per-postcode data. */
+                  <CollapsibleSection title="Property Type Split" testId="section-property-types" defaultOpen={false}>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Verified dwelling-type figures aren't available for this postcode yet. We only
+                      show this breakdown where we hold real Census-based data for the specific area —
+                      we don't display national averages as if they were local. Check ONS Census 2021
+                      dwelling-type data for your local authority in the meantime.
+                    </p>
+                  </CollapsibleSection>
+                )}
                 {isPaid && ai.propertyTypeSplit && (
                   <CollapsibleSection title="Property Type Split" testId="section-property-types" defaultOpen={false}>
                     <div className="flex flex-col gap-4">
@@ -4265,7 +4277,20 @@ export default function BriefPage() {
                       </div>
                     </div>
                   </div>
-                ) : null /* paid but no sold price data — render nothing */}
+                ) : (
+                  /* ISSUE 2: paid user, but no in-district sold prices after the
+                     strict outcode filter — render an explicit unavailable state
+                     rather than silently hiding the section. */
+                  <CollapsibleSection title="Nearby Sold Prices" testId="section-sold-prices-map" defaultOpen={false}>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Fewer than the minimum number of registered sales were found within this exact
+                      postcode ({ai.location}) for the comparison window. We only show sales from the
+                      requested postcode — we don't backfill from neighbouring postcodes — so a
+                      reliable nearby-sold-prices map isn't available here. Search street-level sold
+                      prices on HM Land Registry, Rightmove or Zoopla for the specific street.
+                    </p>
+                  </CollapsibleSection>
+                )}
 
                 {/* Street Price Ranking — Investor */}
                 {user?.plan === "investor" && (
