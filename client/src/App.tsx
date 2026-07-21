@@ -19,6 +19,7 @@ import AccountPage from "@/pages/account";
 import AreaPage from "@/pages/area";
 import GuideSW3ChelseaPage from "@/pages/guide-sw3-chelsea";
 import GuideSE1SouthwarkPage from "@/pages/guide-se1-southwark";
+import GuideE8HackneyPage from "@/pages/guide-e8-hackney";
 import ComparePage from "@/pages/compare";
 import FeedbackPage from "@/pages/feedback";
 import ValuationPage from "@/pages/valuation";
@@ -38,6 +39,7 @@ function AppRouter() {
       <Route path="/area/:postcode" component={AreaPage} />
       <Route path="/guides/sw3-chelsea-buyers-guide" component={GuideSW3ChelseaPage} />
       <Route path="/guides/se1-southwark-buyers-guide" component={GuideSE1SouthwarkPage} />
+      <Route path="/guides/e8-hackney-buyers-guide" component={GuideE8HackneyPage} />
       <Route path="/compare" component={ComparePage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
