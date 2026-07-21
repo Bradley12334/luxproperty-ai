@@ -299,99 +299,79 @@ function deriveResidentSentimentBullets(
     const p = rawSentiment;
     const bullets: Bullet[] = [];
 
-    // POSITIVE: first strong positive claim
-    const positivePatterns = [
+    // BUG 6c: accept an extracted fragment ONLY if it reads as a complete
+    // standalone sentence (sentence-initial capital, reasonable length). The
+    // curated sentence is emitted VERBATIM — the UI type chip supplies the framing
+    // — so we do NOT prepend "Residents often describe " + a lowercased first word,
+    // which produced garbled stitching like "Residents often describe notting Hill
+    // polarises residents". Bullets are de-duplicated by text, so the Note field
+    // can no longer repeat the Positive.
+    const cleanSentence = (s: string): string | null => {
+      let t = (s || "").trim().replace(/^["'“”]+/, "").trim();
+      if (t.length < 25) return null;
+      if (!/^[A-Z0-9]/.test(t)) return null;            // reject mid-clause fragments
+      if (!/[.!?]["'”)]?$/.test(t)) t = t.replace(/[;,:\s]+$/, "") + ".";
+      return t;
+    };
+    const pushUnique = (type: Bullet["type"], text: string | null) => {
+      if (!text) return;
+      const key = normaliseName(text);
+      if (bullets.some(b => normaliseName(b.text) === key)) return;
+      bullets.push({ type, text });
+    };
+    const firstMatch = (patterns: RegExp[]): string => {
+      for (const pat of patterns) { const m = p.match(pat); if (m) return m[0].trim(); }
+      return "";
+    };
+
+    // POSITIVE
+    let positiveText = firstMatch([
       /(?:residents|buyers|locals|people)\s+(?:consistently\s+)?(?:describe|cite|praise|love|speak\s+about)[^.]+\./i,
       /(?:most\s+common|top|consistently\s+cited|primary|key)\s+(?:draw|reason|appeal)[^.]+\./i,
       /[^.]*(?:renowned|celebrated|outstanding|exceptional|world[- ]class|best[- ]value|smug\s+contentment|intense\s+loyalty)[^.]*\./i,
-    ];
-    let positiveText = "";
-    for (const pat of positivePatterns) {
-      const m = p.match(pat);
-      if (m) { positiveText = m[0].trim(); break; }
-    }
+    ]);
     if (!positiveText) {
       const sentences = p.split(/(?<=\.)\s+/);
       positiveText = sentences[0] || "";
     }
-    if (positiveText) {
-      if (!positiveText.match(/^Residents|^Local|^Sentiment|^Coverage/i)) {
-        positiveText = "Residents often describe " + positiveText.charAt(0).toLowerCase() + positiveText.slice(1);
-      }
-      bullets.push({ type: "positive", text: positiveText });
-    }
+    pushUnique("positive", cleanSentence(positiveText));
 
-    // LIFESTYLE: lived-experience / daily-ritual sentence
-    const lifestylePatterns = [
+    // LIFESTYLE
+    pushUnique("lifestyle", cleanSentence(firstMatch([
       /[^.]*(?:morning|daily|weekend\s+market|farmers.{0,8}market|canal\s+walk|cycling\s+culture|school\s+run|Portobello|Broadway\s+Market|Broadway\s+market|Mill\s+Road|Exmouth\s+Market)[^.]*\./i,
       /[^.]*(?:village\s+feel|village-like|community\s+feel|neighbourhood\s+feel|village\s+within|feels\s+like\s+a\s+village)[^.]*\./i,
       /[^.]*(?:Heath|Harbour|harbour|river|park|outdoor|walking\s+distance)[^.]*(?:daily|everyday|routine|life)[^.]*\./i,
-    ];
-    let lifestyleText = "";
-    for (const pat of lifestylePatterns) {
-      const m = p.match(pat);
-      if (m) { lifestyleText = m[0].trim(); break; }
-    }
-    if (lifestyleText) {
-      if (!lifestyleText.match(/^Residents|^Local|^Sentiment|^Coverage/i)) {
-        lifestyleText = "Local feedback suggests " + lifestyleText.charAt(0).toLowerCase() + lifestyleText.slice(1);
-      }
-      bullets.push({ type: "lifestyle", text: lifestyleText });
-    }
+    ])));
 
-    // TRADE-OFF: friction / complaint sentences
-    const tradeoffPatterns = [
+    // TRADE-OFF
+    pushUnique("trade-off", cleanSentence(firstMatch([
       /[^.]*(?:most\s+common\s+(?:criticism|complaint|frustration)|recurring\s+(?:criticism|complaint)|the\s+main\s+(?:criticism|complaint|frustration|gripe|downside))[^.]*\./i,
       /[^.]*(?:main\s+frustrat|central\s+complaint|key\s+downside|the\s+criticism)[^.]*\./i,
       /[^.]*(?:frustrat|compla|downside|trade[- ]off|caveat|issue|compromis)[^.]*\.(?!\s*$)/i,
-    ];
-    let tradeoffText = "";
-    for (const pat of tradeoffPatterns) {
-      const m = p.match(pat);
-      if (m) { tradeoffText = m[0].trim(); break; }
-    }
-    if (tradeoffText && tradeoffText !== positiveText) {
-      if (!tradeoffText.match(/^The|^A\s|^Residents|^Local|^Sentiment/i)) {
-        tradeoffText = "Sentiment appears mixed on " + tradeoffText.charAt(0).toLowerCase() + tradeoffText.slice(1);
-      }
-      bullets.push({ type: "trade-off", text: tradeoffText });
-    }
+    ])));
 
-    // CAUTION: buyer-specific warning
-    const cautionPatterns = [
+    // CAUTION
+    pushUnique("caution", cleanSentence(firstMatch([
       /[^.]*(?:anxiety|anxious|worried|parking\s+is|crime\s+(?:is|statistics)|school\s+competi|catchment\s+anxiet|noise\s+from)[^.]*\./i,
       /[^.]*(?:verify|check\s+before|instruct|independent|caveat|caution|warrants)[^.]*\./i,
-    ];
-    let cautionText = "";
-    for (const pat of cautionPatterns) {
-      const m = p.match(pat);
-      if (m && m[0].trim() !== tradeoffText && m[0].trim() !== positiveText) {
-        cautionText = m[0].trim();
-        break;
-      }
-    }
-    if (cautionText) {
-      bullets.push({ type: "caution", text: cautionText });
-    }
+    ])));
 
-    // NOTE: fifth bullet — named source or named event reference
+    // NOTE — named source/event, only if a bullet is still needed.
     if (bullets.length < 4) {
       const noteMatch = p.match(/[^.]*(?:Mumsnet|r\/london|r\/|estate\s+agent|Time\s+Out|annual|festival|carnival|Flower\s+Show)[^.]*\./i);
-      if (noteMatch && !bullets.some(b => b.text === noteMatch[0].trim())) {
-        bullets.push({ type: "note", text: noteMatch[0].trim() });
-      }
+      if (noteMatch) pushUnique("note", cleanSentence(noteMatch[0]));
     }
 
-    // Ensure at least one trade-off/caution if none found
+    // Ensure at least one trade-off/caution.
     if (!bullets.some(b => b.type === "trade-off" || b.type === "caution")) {
       const sentences = p.split(/(?<=\.)\s+/);
       const lastSent = sentences[sentences.length - 1] || sentences[sentences.length - 2] || "";
-      if (lastSent && lastSent !== positiveText) {
-        bullets.push({ type: "trade-off", text: lastSent });
-      }
+      pushUnique("trade-off", cleanSentence(lastSent));
     }
 
-    return bullets.slice(0, 5);
+    // Only trust the curated parse if it yielded >= 2 clean bullets; otherwise fall
+    // through to the data-driven path rather than render a thin/garbled section.
+    if (bullets.length >= 2) return bullets.slice(0, 5);
   }
 
   // -- FALLBACK / DATA-DRIVEN PATH --------------------------------------------
@@ -1074,7 +1054,7 @@ function deriveWorryBox(
   if (resLabel === "High risk") {
     items.push({
       headline: "High flood and climate risk",
-      detail: `${areaName} is in ${fr.zone} with surface water risk rated ${fr.surfaceWater}. Buildings insurance may be restricted or significantly more expensive — check the EA flood map for the specific plot and ask the seller for their insurance history.`,
+      detail: `This postcode is in ${fr.zone} with surface water risk rated ${fr.surfaceWater}. Buildings insurance may be restricted or significantly more expensive — check the EA flood map for the specific plot and ask the seller for their insurance history.`,
       severity: "high",
       category: "flood",
     });
@@ -1082,7 +1062,7 @@ function deriveWorryBox(
     items.push({
       headline: "Elevated environmental exposure",
       detail: fr.riskBadge === "Medium"
-        ? `${areaName} carries medium flood risk (${fr.zone}). Insurance excess and premiums can be elevated — request the seller's renewal history before offering.`
+        ? `This postcode carries medium flood risk (${fr.zone}). Insurance excess and premiums can be elevated — request the seller's renewal history before offering.`
         : `Multiple climate signals flag this area: ${fr.climateSignals.filter(s => s.flagged).map(s => s.label.toLowerCase()).join(", ")}. Factor these into due diligence.`,
       severity: "medium",
       category: "flood",
@@ -1966,16 +1946,51 @@ async function fetchPostcodeMeta(postcode: string): Promise<{
   return null;
 }
 
+// ─── BUG 1: reverse-geocode integrity check ──────────────────────────────────
+// Confirms resolved coordinates actually fall in the requested postcode. Reverse-
+// geocodes lat/lng via postcodes.io and returns the nearest postcode's outcode and
+// district, so generation can abort when the centroid resolved to the wrong place
+// (a silent fallback to an outcode/borough centroid, a cache slip, or a lat/lng
+// swap) instead of emitting a confident brief for the wrong location.
+async function reverseGeocode(lat: number, lng: number): Promise<{ outcode: string; district: string } | null> {
+  try {
+    const res = await fetch(`https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1`);
+    if (!res.ok) return null;
+    const d = await res.json();
+    const nr = d?.result?.[0];
+    if (!nr) return null;
+    return {
+      outcode: String(nr.outcode || "").toUpperCase(),
+      district: String(nr.admin_district || "").toUpperCase(),
+    };
+  } catch { return null; }
+}
+
 // ─── Land Registry: prices for a district + year ─────────────────────────────
-async function fetchLandRegistryYear(district: string, year: number): Promise<number[]> {
+async function fetchLandRegistryYear(district: string, year: number, outcode: string): Promise<number[]> {
   if (!district) return [];
   try {
-    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=100&propertyAddress.district=${encodeURIComponent(district)}&min-transactionDate=${year}-01-01&max-transactionDate=${year}-12-31&_sort=-transactionDate`;
+    // ISSUE 1: the median / YoY / 10-year trend / £-per-m² / fair-value ranges are
+    // all derived from these yearly prices. They MUST be filtered to the requested
+    // outcode — the same filter the comps table uses — or the borough is used as a
+    // proxy for the postcode (e.g. all of Kensington & Chelsea diluting W11 to
+    // ~£500k). The LR API filters by district, so we page a larger district window
+    // and then keep only the requested outcode (exact token match, trailing space —
+    // "W11" must not match W1/W10/W12/W13/W14). Volume drops but the figure is now
+    // the true postcode median rather than a blended borough one.
+    const url = `https://landregistry.data.gov.uk/data/ppi/transaction-record.json?_pageSize=500&propertyAddress.district=${encodeURIComponent(district)}&min-transactionDate=${year}-01-01&max-transactionDate=${year}-12-31&_sort=-transactionDate`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
     const items = data?.result?.items || [];
-    return items.map((item: any) => item.pricePaid as number).filter((p: number) => p > 0);
+    const oc = outcode.toUpperCase();
+    return items
+      .filter((item: any) => {
+        const pc = String(item?.propertyAddress?.postcode || "").toUpperCase().trim();
+        return pc !== "" && pc.split(" ")[0] === oc;
+      })
+      .map((item: any) => item.pricePaid as number)
+      .filter((p: number) => p > 0);
   } catch { return []; }
 }
 
@@ -2013,9 +2028,23 @@ async function fetchRecentTransactions(district: string, outcode: string): Promi
     const used = inDistrict;
 
     // Sort by date descending (most recent first) — deterministic given fixed date window
-    const sorted = used
+    const sortedAll = used
       .filter((item: any) => item.transactionDate)
       .sort((a: any, b: any) => b.transactionDate.localeCompare(a.transactionDate));
+
+    // BUG 2: dedupe rows. Land Registry can return the same transaction more than
+    // once; prefer the stable transaction id, falling back to address+price+date.
+    const seenTxn = new Set<string>();
+    const sorted = sortedAll.filter((item: any) => {
+      const a = item.propertyAddress || {};
+      const key = String(
+        item.transactionId || item["@id"] ||
+        `${a.paon || ""}|${a.saon || ""}|${a.street || ""}|${a.postcode || ""}|${item.pricePaid || ""}|${item.transactionDate || ""}`
+      ).toLowerCase();
+      if (seenTxn.has(key)) return false;
+      seenTxn.add(key);
+      return true;
+    });
 
     return sorted.slice(0, 6).map((item: any) => {
       const addr = item.propertyAddress || {};
@@ -2111,7 +2140,19 @@ async function fetchSoldPricesWithCoords(district: string, outcode: string): Pro
       const pc = String(item?.propertyAddress?.postcode || "").toUpperCase().trim();
       return pc !== "" && pc.split(" ")[0] === outcode.toUpperCase();
     });
-    const used = inDistrict.slice(0, 12);
+    // BUG 2: dedupe (txn id, else address+price+date) so the same sale can't appear
+    // twice as a row or a duplicate map pin.
+    const seenSold = new Set<string>();
+    const used = inDistrict.filter((item: any) => {
+      const a = item.propertyAddress || {};
+      const key = String(
+        item.transactionId || item["@id"] ||
+        `${a.paon || ""}|${a.saon || ""}|${a.street || ""}|${a.postcode || ""}|${item.pricePaid || ""}|${item.transactionDate || ""}`
+      ).toLowerCase();
+      if (seenSold.has(key)) return false;
+      seenSold.add(key);
+      return true;
+    }).slice(0, 12);
 
     // Collect unique postcodes for batch geocoding
     const postcodes = [...new Set(used.map((item: any) => item?.propertyAddress?.postcode).filter(Boolean))] as string[];
@@ -2293,7 +2334,16 @@ async function fetchNearbyStations(lat: number, lng: number): Promise<Array<{
       else if (tags.amenity === "bus_station") modes.push("bus");
       if (modes.length === 0) continue;
       const lineRefs = [tags.network || "", tags.operator || "", tags.route_ref || "", tags.ref || ""].filter(Boolean);
-      const lines = lineRefs.flatMap((r: string) => r.split(/[;,]/)).map((r: string) => r.trim()).filter((r: string) => r.length > 1 && r.length < 40).slice(0, 4);
+      // BUG 6b: dedupe the lines — network and operator tags are frequently the
+      // same value (e.g. both "London Overground"), which rendered as
+      // "London Overground London Overground". Case-insensitive unique, order kept.
+      const seenLine = new Set<string>();
+      const lines = lineRefs
+        .flatMap((r: string) => r.split(/[;,]/))
+        .map((r: string) => r.trim())
+        .filter((r: string) => r.length > 1 && r.length < 40)
+        .filter((r: string) => { const k = r.toLowerCase(); if (seenLine.has(k)) return false; seenLine.add(k); return true; })
+        .slice(0, 4);
       stations.push({ name: name.replace(/ (Railway )?Station$/, " Station"), lines, modes, distanceMetres: dist, walkMins: Math.ceil(dist / 80), lat: el.lat, lng: el.lon });
     }
     const seen = new Map<string, typeof stations[0]>();
@@ -2627,6 +2677,29 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     getDistrict(postcode),
   ]);
 
+  // ── BUG 1: geolocation integrity gate ──────────────────────────────────────
+  // Never generate a confident brief from an unverified location. For an
+  // England/Wales postcode with coordinates, reverse-geocode them and confirm they
+  // land in the REQUESTED outcode. A mismatch means the centroid resolved to the
+  // wrong place (e.g. W11 2ED landing near the River Brent in Ealing) — abort with
+  // a clear error rather than emit a wrong brief. `geoVerified` also feeds the
+  // verdict guardrail (Bug 7): if the check can't run (reverse-geocode unavailable)
+  // the brief downgrades confidence instead of over-claiming.
+  let geoVerified = false;
+  if (!outsideEnglandWales && meta?.lat != null && meta?.lng != null) {
+    const rev = await reverseGeocode(meta.lat, meta.lng);
+    if (rev && rev.outcode) {
+      if (rev.outcode !== outcode.toUpperCase()) {
+        throw new Error(
+          `LOCATION_MISMATCH: ${postcode} resolved to coordinates in ${rev.outcode}` +
+          `${rev.district ? ` (${rev.district})` : ""}, not ${outcode}. ` +
+          `Aborting to avoid generating a brief for the wrong location — please re-check the postcode.`
+        );
+      }
+      geoVerified = true;
+    }
+  }
+
   const areaName = meta?.district || district || outcode;
   const region = meta?.region || "England";
   const ward = meta?.ward || "";
@@ -2682,7 +2755,7 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   let liveDwellingMix: Awaited<ReturnType<typeof fetchDwellingMix>> = null;
 
   if (!outsideEnglandWales && district) {
-    const lrFetches = years.map(yr => fetchLandRegistryYear(district, yr));
+    const lrFetches = years.map(yr => fetchLandRegistryYear(district, yr, outcode));
     const [, ...lrResults] = await Promise.all([
       Promise.resolve(null), // placeholder so index 0 aligns
       ...lrFetches,
@@ -2777,6 +2850,33 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     date: formatDate(t.date),
     type: t.type,
   }));
+
+  // ── ISSUE 1: price-stats consistency assert ─────────────────────────────────
+  // The headline median (executive summary) and the comps table must come from the
+  // SAME outcode-filtered transaction set. This asserts that: (a) every comp is in
+  // the requested outcode, and (b) the headline median and the comps' own median
+  // are in the same order of magnitude (they use different date windows, so they
+  // won't be identical, but a large divergence means the two queries disagreed on
+  // district). Logged loudly rather than thrown, so a valid thin-data brief still
+  // renders — but the flag surfaces any regression where the sets drift apart.
+  if (!outsideEnglandWales) {
+    const compOutOfDistrict = recentTxns.filter(t => {
+      const oc = String(t.address || "").toUpperCase().match(/\b([A-Z]{1,2}\d[A-Z\d]?)\s+\d[A-Z]{2}\b/);
+      return oc ? oc[1] !== outcode.toUpperCase() : false;
+    });
+    if (compOutOfDistrict.length > 0) {
+      console.error(`[LuxProperty] CONSISTENCY: ${compOutOfDistrict.length}/${recentTxns.length} comps are NOT in ${outcode} — comps and district disagree.`);
+    }
+    const compPrices = recentTxns.map(t => t.price).filter(p => p > 0).sort((a, b) => a - b);
+    const compMedian = compPrices.length ? compPrices[Math.floor(compPrices.length / 2)] : 0;
+    if (latestMedian > 0 && compMedian > 0) {
+      const ratio = compMedian / latestMedian;
+      if (ratio < 0.4 || ratio > 2.5) {
+        console.error(`[LuxProperty] CONSISTENCY: ${outcode} headline median ${fmt(latestMedian)} vs comps median ${fmt(compMedian)} (ratio ${ratio.toFixed(2)}) — trend and comps sets diverge; check the outcode filter.`);
+      }
+    }
+    console.log(`[LuxProperty] price stats | ${outcode} headline median=${fmt(latestMedian)} | comps=${recentTxns.length} | comps median=${fmt(compMedian)}`);
+  }
 
   // Scotland/NI message
   const scotlandNote = outsideEnglandWales
@@ -3412,8 +3512,18 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
           const mostLikelyBand = ct.mostLikelyBandRange || "—";
           const bandD = ct.bandD;
           const bandCosts = ct.bandCosts || {};
-          const typicalMin = bandCosts["C"] || bandCosts["D"] || null;
-          const typicalMax = bandCosts["E"] || bandCosts["F"] || null;
+          // BUG 4: derive the displayed cost range from the ACTUAL band range label,
+          // not a hardcoded C–E. Previously typicalMin/Max were fixed to bands C/E
+          // regardless of the label, so an "E–G" postcode showed C–E costs — making
+          // higher bands appear to cost LESS than Band D. Parse the range (e.g.
+          // "E–G", "C-E", "D") and read the matching bands, ascending.
+          const rangeMatch = mostLikelyBand.toUpperCase().match(/([A-H])(?:\s*[–—-]\s*([A-H]))?/);
+          const loBand = rangeMatch ? rangeMatch[1] : "C";
+          const hiBand = rangeMatch ? (rangeMatch[2] || rangeMatch[1]) : "E";
+          const loCost = bandCosts[loBand] ?? bandCosts["D"] ?? null;
+          const hiCost = bandCosts[hiBand] ?? bandCosts["D"] ?? null;
+          const typicalMin = (loCost != null && hiCost != null) ? Math.min(loCost, hiCost) : loCost;
+          const typicalMax = (loCost != null && hiCost != null) ? Math.max(loCost, hiCost) : hiCost;
           const annualCostRange = typicalMin && typicalMax
             ? `£${typicalMin.toLocaleString("en-GB")}–£${typicalMax.toLocaleString("en-GB")}/yr (${mostLikelyBand} range, ${ct.authority})`
             : bandD
@@ -3793,13 +3903,13 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
     if (fr.riskBadge === "High") {
       flags.push({
         label: "High flood risk",
-        detail: `${areaName} is in ${fr.zone}. Standard building insurance may be restricted or significantly more expensive. Confirm mortgage lender's appetite and request the seller's insurance history before offering.`,
+        detail: `This postcode is in ${fr.zone}. Standard building insurance may be restricted or significantly more expensive. Confirm mortgage lender's appetite and request the seller's insurance history before offering.`,
         severity: "high",
       });
     } else if (fr.riskBadge === "Medium") {
       flags.push({
         label: "Medium flood risk",
-        detail: `${areaName} carries medium flood risk (${fr.zone}). Insurance excess and premiums can be elevated. Request the seller's renewal history and check the EA flood map for the specific plot.`,
+        detail: `This postcode carries medium flood risk (${fr.zone}). Insurance excess and premiums can be elevated. Request the seller's renewal history and check the EA flood map for the specific plot.`,
         severity: "medium",
       });
     }
@@ -4089,6 +4199,37 @@ export async function generateBrief(query: string, plan?: string): Promise<Brief
   // ─── Shortlist Verdict ─────────────────────────────────────────────────────────────
   // Runs after briefConfidence — needs buyerVerdict + redFlags + briefConfidence all resolved
   areaIntelligence.shortlistVerdict = deriveShortlistVerdict(areaIntelligence);
+
+  // ── BUG 7: guardrail on incomplete / unverified data ────────────────────────
+  // A confirmed geocode mismatch already aborts generation (Bug 1). Here we catch
+  // the softer case: key datasets came back EMPTY for a dense urban (London)
+  // postcode — schools AND flood both missing — which almost always means upstream
+  // data failed, not that the area is genuinely poor. Don't issue a strong negative
+  // verdict off that; downgrade confidence and reframe as provisional.
+  {
+    const denseUrbanDataGap =
+      isLondon && (liveSchools?.length ?? 0) === 0 && liveFloodRisk == null;
+    // E&W postcode whose coordinates we couldn't positively re-verify (reverse-
+    // geocode unavailable — a confirmed mismatch would already have aborted).
+    const locationUnverified = !outsideEnglandWales && !geoVerified;
+
+    if (denseUrbanDataGap || locationUnverified) {
+      const bc = areaIntelligence.briefConfidence;
+      if (denseUrbanDataGap) bc.overall = "Low";
+      const caveat = denseUrbanDataGap
+        ? "Key datasets (schools and flood) returned empty for this dense urban postcode — likely a data-availability gap rather than a genuine absence."
+        : "The postcode location could not be independently re-verified for this brief.";
+      bc.overallNote =
+        `${bc.overallNote ? bc.overallNote + " " : ""}${caveat} Treat this brief as provisional and confirm details independently.`;
+
+      const sv = areaIntelligence.shortlistVerdict;
+      if (sv.label === "Probably not worth pursuing") {
+        sv.label = "Proceed carefully";
+        sv.reasoning =
+          `Key local data was incomplete or unverified for this location, so a firm negative isn't warranted — verify schools, flood risk and comparables directly. ${sv.reasoning || ""}`.trim();
+      }
+    }
+  }
 
   let propertyDeepDive: PropertyDeepDive | undefined;
   if (queryType === "address") {
