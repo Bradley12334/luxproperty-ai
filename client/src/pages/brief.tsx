@@ -3091,8 +3091,8 @@ export default function BriefPage() {
                 {/* Price Trend */}
                 <Card className="p-5 sm:p-6" data-testid="section-price-trend">
                   <SectionHeading>
-                    {ai.priceTrend.length > 1
-                      ? `${ai.priceTrend.length}-Year Price Trend`
+                    {(ai.priceTrend ?? []).length > 1
+                      ? `${(ai.priceTrend ?? []).length}-Year Price Trend`
                       : "1-Year Price Trend"}
                   </SectionHeading>
                   {!isPaid && (
@@ -3100,30 +3100,44 @@ export default function BriefPage() {
                       Showing the most recent Land Registry data. Professional unlocks 5-year history; Investor unlocks 10 years of registered price trends.
                     </p>
                   )}
-                  <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
-                    <table className="w-full text-xs sm:text-sm whitespace-nowrap" data-testid="table-price-trend">
-                      <thead>
-                        <tr className="border-b border-border/60">
-                          <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Year</th>
-                          <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Average Price</th>
-                          <th className="text-right font-medium text-muted-foreground py-2.5">Change</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ai.priceTrend.map((row) => (
-                          <tr key={row.year} className="border-b border-border/30 last:border-0">
-                            <td className="py-2.5 pr-4 tabular-nums">{row.year}</td>
-                            <td className="py-2.5 pr-4 font-serif text-lg">{row.averagePrice}</td>
-                            <td className={`py-2.5 text-right tabular-nums ${
-                              row.change.startsWith("+") ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                            }`}>
-                              {row.change}
-                            </td>
+                  {/* If at least one year has a real median, show the table. If EVERY year is
+                      "Insufficient data" (low-volume/rural/rental postcode), render an explicit
+                      unavailable message instead of a wall of "Insufficient data" rows — the
+                      section must never silently disappear or look broken. */}
+                  {(ai.priceTrend ?? []).some((row) => row.averagePrice !== "Insufficient data") ? (
+                    <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
+                      <table className="w-full text-xs sm:text-sm whitespace-nowrap" data-testid="table-price-trend">
+                        <thead>
+                          <tr className="border-b border-border/60">
+                            <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Year</th>
+                            <th className="text-left font-medium text-muted-foreground py-2.5 pr-4">Average Price</th>
+                            <th className="text-right font-medium text-muted-foreground py-2.5">Change</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {(ai.priceTrend ?? []).map((row) => (
+                            <tr key={row.year} className="border-b border-border/30 last:border-0">
+                              <td className="py-2.5 pr-4 tabular-nums">{row.year}</td>
+                              <td className="py-2.5 pr-4 font-serif text-lg">{row.averagePrice}</td>
+                              <td className={`py-2.5 text-right tabular-nums ${
+                                row.change.startsWith("+") ? "text-green-700 dark:text-green-400"
+                                  : row.change === "—" ? "text-muted-foreground"
+                                  : "text-red-600 dark:text-red-400"
+                              }`}>
+                                {row.change}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-border/50 bg-muted/30 p-4" data-testid="price-trend-unavailable">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        HM Land Registry has too few registered sales in {ai.location} across {(ai.priceTrend ?? []).length > 1 ? `these ${(ai.priceTrend ?? []).length} years` : "this period"} to build a reliable year-by-year price trend. This is normal for low-volume, predominantly rental, or newly-built postcodes — we don't substitute borough-wide or neighbouring-postcode figures. Use the area median and comparables above as your pricing anchors.
+                      </p>
+                    </div>
+                  )}
                   {!isPaid && (
                     <Link href="/pricing">
                       <p className="text-xs text-primary underline underline-offset-2 mt-3">See 5 years of price history with Professional — or 10 years with Investor. £4.99/month. →</p>
@@ -3289,6 +3303,18 @@ export default function BriefPage() {
                 )}
 
                 {/* Property Type Split — Professional+ (only when we hold real per-postcode Census data) */}
+                {isPaid && !ai.propertyTypeSplit && (
+                  /* ISSUE 2: render an explicit unavailable state rather than hiding
+                     the section when we don't hold verified per-postcode data. */
+                  <CollapsibleSection title="Property Type Split" testId="section-property-types" defaultOpen={false}>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Verified dwelling-type figures aren't available for this postcode yet. We only
+                      show this breakdown where we hold real Census-based data for the specific area —
+                      we don't display national averages as if they were local. Check ONS Census 2021
+                      dwelling-type data for your local authority in the meantime.
+                    </p>
+                  </CollapsibleSection>
+                )}
                 {isPaid && ai.propertyTypeSplit && (
                   <CollapsibleSection title="Property Type Split" testId="section-property-types" defaultOpen={false}>
                     <div className="flex flex-col gap-4">
@@ -4265,7 +4291,20 @@ export default function BriefPage() {
                       </div>
                     </div>
                   </div>
-                ) : null /* paid but no sold price data — render nothing */}
+                ) : (
+                  /* ISSUE 2: paid user, but no in-district sold prices after the
+                     strict outcode filter — render an explicit unavailable state
+                     rather than silently hiding the section. */
+                  <CollapsibleSection title="Nearby Sold Prices" testId="section-sold-prices-map" defaultOpen={false}>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Fewer than the minimum number of registered sales were found within this exact
+                      postcode ({ai.location}) for the comparison window. We only show sales from the
+                      requested postcode — we don't backfill from neighbouring postcodes — so a
+                      reliable nearby-sold-prices map isn't available here. Search street-level sold
+                      prices on HM Land Registry, Rightmove or Zoopla for the specific street.
+                    </p>
+                  </CollapsibleSection>
+                )}
 
                 {/* Street Price Ranking — Investor */}
                 {user?.plan === "investor" && (
