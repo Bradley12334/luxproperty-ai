@@ -53,7 +53,7 @@ interface BriefSection {
   data: any;
 }
 interface BriefMeta {
-  postcode: string; outcode: string; ward: string; localAuthority: string;
+  postcode: string; outcode: string; outcodeOnly?: boolean; ward: string; localAuthority: string;
   region: string | null; country: string; tier: string;
   window: { startYear: number; endYear: number };
   transactionCount: number; truncated: boolean; cached: boolean; generatedAt: string;
@@ -664,12 +664,22 @@ function BriefHeader({ meta }: { meta: BriefMeta }) {
     <div className="mb-6">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <Badge variant="outline" className="uppercase tracking-wide">{meta.outcode}</Badge>
-        {meta.ward && <span>{meta.ward}</span>}
+        {meta.outcodeOnly ? (
+          <span>District-wide</span>
+        ) : (
+          meta.ward && <span>{meta.ward}</span>
+        )}
         {meta.localAuthority && <span>· {meta.localAuthority}</span>}
         {meta.region && <span>· {meta.region}</span>}
       </div>
-      <h1 className="mt-2 font-serif text-3xl tracking-tight">{meta.postcode}</h1>
+      <h1 className="mt-2 font-serif text-3xl tracking-tight">
+        {meta.postcode}
+        {meta.outcodeOnly && <span className="ml-2 text-base font-normal text-muted-foreground">· district-wide</span>}
+      </h1>
       <p className="mt-1 text-sm text-muted-foreground">
+        {meta.outcodeOnly
+          ? "Based on the postcode-district centroid — enter a full postcode for a location-specific brief. "
+          : ""}
         {meta.transactionCount.toLocaleString()} in-district sold prices · {meta.window.startYear}–{meta.window.endYear}
         {meta.cached ? " · cached" : ""}
       </p>

@@ -143,6 +143,18 @@ async function main() {
   // garbage input — invalid
   await runRejectCase("NOTAPOSTCODE", ErrorCodes.INVALID_POSTCODE);
 
+  // ── Bare outcodes (district-wide) ──────────────────────────────────────────
+  // "E8" with no incode must resolve district-wide (centroid), not hit the invalid
+  // card — the SEO guides tell users to "generate your E8 brief".
+  hr();
+  console.log(`▶ E8 (bare outcode — expect district-wide resolve)`);
+  const e8 = await resolve("E8");
+  console.log(`   location: outcode=${e8.outcode}  outcodeOnly=${e8.outcodeOnly}  LA=${e8.localAuthority}  country=${e8.country}  (${e8.lat}, ${e8.lng})`);
+  check("bare E8: resolves as outcode-only (district-wide)", e8.outcodeOnly === true);
+  check("bare E8: outcode is E8, postcode display is the district", e8.outcode === "E8" && e8.postcode === "E8");
+  // A bare Scottish outcode must still be rejected as unsupported nation.
+  await runRejectCase("EH1", ErrorCodes.UNSUPPORTED_NATION);
+
   hr();
   console.log(`\nRESULT: ${passed} passed, ${failures.length} failed`);
   if (failures.length) {
