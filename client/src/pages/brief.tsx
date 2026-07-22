@@ -1927,6 +1927,51 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Pre-offer Questions (PRO) ────────────────────────────────────────────────
+interface QuestionGroup { key: string; heading: string; trigger: string; questions: string[] }
+interface PreOfferQuestionsData { triggeredCount: number; groups: QuestionGroup[] }
+
+function PreOfferQuestionsSection({ section }: { section: BriefSection }) {
+  const d = section.data as PreOfferQuestionsData | null;
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<FileText className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        {section.note && (
+          <div className="mb-4">
+            <Callout tone="info" icon={<Info className="h-4 w-4 text-primary" />}>{section.note}</Callout>
+          </div>
+        )}
+      </div>
+      <div className="space-y-4">
+        {(d?.groups ?? []).map((g) => {
+          const isUniversal = g.key === "universal";
+          return (
+            <div key={g.key} className={`rounded-lg border p-4 ${isUniversal ? "border-dashed border-border/70" : "border-border/60"}`}>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">{g.heading}</span>
+                {!isUniversal && <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Triggered</Badge>}
+              </div>
+              <p className="mb-3 text-xs text-muted-foreground">{isUniversal ? g.trigger : <><span className="font-medium text-foreground">Why: </span>{g.trigger}</>}</p>
+              <ul className="space-y-2">
+                {g.questions.map((q, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary/60" />
+                    <span>{q}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -2114,6 +2159,7 @@ export default function BriefPage() {
   const rentalSnapshot = payload?.sections.find((s) => s.key === "rentalSnapshot");
   const crimeBreakdown = payload?.sections.find((s) => s.key === "crimeBreakdown");
   const neighbourhood = payload?.sections.find((s) => s.key === "neighbourhood");
+  const preOfferQuestions = payload?.sections.find((s) => s.key === "preOfferQuestions");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -2174,6 +2220,7 @@ export default function BriefPage() {
             {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
             {rentalSnapshot && <RentalSnapshotSection section={rentalSnapshot} />}
             {crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}
+            {preOfferQuestions && <PreOfferQuestionsSection section={preOfferQuestions} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
