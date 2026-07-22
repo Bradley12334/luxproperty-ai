@@ -23,6 +23,11 @@ import {
   Sparkles,
   ListOrdered,
   MapPin,
+  Droplets,
+  CheckCircle2,
+  ShieldAlert,
+  CloudRain,
+  Waves,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -616,6 +621,257 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Flood, Climate & Resilience (EXP / free) ─────────────────────────────────
+type RiskBand = "High" | "Medium" | "Low" | "Very Low";
+interface FloodNearby { name: string; watercourse: string | null; approxMeters: number | null; approxLabel: string | null; kind: "warning" | "alert" }
+interface FloodWarning { name: string; severity: number | null; severityLabel: string | null; message: string | null }
+interface FloodData {
+  scope: "point" | "district";
+  riskBand: RiskBand | null;
+  riskBandMeaning?: string | null;
+  planningZone: 1 | 2 | 3 | null;
+  planningZoneMeaning?: string | null;
+  proximity: { bufferM: number; zone3Within: boolean; zone2Within: boolean; text: string } | null;
+  headline: string | null;
+  defencesNote?: string | null;
+  insuranceNote?: string;
+  nearby: { count: number; items: FloodNearby[]; text: string };
+  warnings: { active: boolean; checked: boolean; count: number; items: FloodWarning[]; text: string };
+  historic: { flooded: boolean; scope: string; text: string } | null;
+  guidance: { surfaceWater: string; subsidence: string };
+  nextSteps: string[];
+}
+
+// Risk-band colour, echoing the up/down palette used elsewhere: elevated = warm/red,
+// benign = cool/green. Kept as full class strings so Tailwind's JIT can see them.
+const BAND_STYLE: Record<RiskBand, { text: string; chip: string }> = {
+  High: { text: "text-red-600 dark:text-red-400", chip: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300" },
+  Medium: { text: "text-orange-600 dark:text-orange-400", chip: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300" },
+  Low: { text: "text-amber-600 dark:text-amber-400", chip: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  "Very Low": { text: "text-emerald-600 dark:text-emerald-400", chip: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+};
+const ZONE_ELEVATED = new Set([2, 3]);
+
+/** A soft callout box. Tone drives the colour; icon is caller-supplied. */
+function Callout({ tone, icon, children }: { tone: "info" | "warn" | "danger" | "ok"; icon: React.ReactNode; children: React.ReactNode }) {
+  const cls =
+    tone === "danger"
+      ? "border-red-500/30 bg-red-500/5"
+      : tone === "warn"
+      ? "border-amber-500/40 bg-amber-500/5"
+      : tone === "ok"
+      ? "border-emerald-500/30 bg-emerald-500/5"
+      : "border-primary/30 bg-primary/5";
+  return (
+    <div className={`flex items-start gap-3 rounded-md border ${cls} p-3 text-sm`}>
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <div className="text-muted-foreground [&_strong]:text-foreground">{children}</div>
+    </div>
+  );
+}
+
+/** The three-way active-warnings distinction — the whole point of the state model:
+ *  a live warning, a confirmed all-clear, and a check that couldn't be completed are
+ *  visually and semantically different. "Couldn't confirm" must never read as safe. */
+function WarningsBlock({ warnings }: { warnings: FloodData["warnings"] }) {
+  if (warnings.active) {
+    return (
+      <Callout tone="danger" icon={<ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />}>
+        <p className="font-medium text-red-700 dark:text-red-300">{warnings.text}</p>
+        <ul className="mt-2 space-y-1">
+          {warnings.items.map((w, i) => (
+            <li key={i}>
+              {w.severityLabel && <span className="font-medium text-foreground">{w.severityLabel}: </span>}
+              {w.name}
+              {w.message ? ` — ${w.message}` : ""}
+            </li>
+          ))}
+        </ul>
+      </Callout>
+    );
+  }
+  if (!warnings.checked) {
+    // Distinct amber "couldn't confirm" — an unreached live service is NOT an all-clear.
+    return (
+      <Callout tone="warn" icon={<Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>
+        {warnings.text}
+      </Callout>
+    );
+  }
+  // Confirmed: none in force.
+  return (
+    <Callout tone="ok" icon={<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}>
+      {warnings.text}
+    </Callout>
+  );
+}
+
+function NearbyAreas({ nearby }: { nearby: FloodData["nearby"] }) {
+  return (
+    <div>
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nearby Environment Agency flood areas</div>
+      <p className="text-sm text-muted-foreground">{nearby.text}</p>
+      {nearby.items.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {nearby.items.map((a, i) => (
+            <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
+              <div className="min-w-0">
+                <div className="truncate text-sm text-foreground">{a.name}</div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                  {a.watercourse && <span>{a.watercourse}</span>}
+                  <span className="uppercase tracking-wide text-[10px] text-primary/70">{a.kind}</span>
+                </div>
+              </div>
+              {a.approxLabel && <div className="shrink-0 text-sm tabular-nums text-muted-foreground">{a.approxLabel}</div>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function GuidanceBlocks({ guidance }: { guidance: FloodData["guidance"] }) {
+  return (
+    <div className="space-y-3">
+      <Callout tone="info" icon={<CloudRain className="h-4 w-4 text-primary" />}>
+        <strong>Surface water — </strong>{guidance.surfaceWater}
+      </Callout>
+      <Callout tone="info" icon={<Info className="h-4 w-4 text-primary" />}>
+        <strong>Subsidence & ground stability — </strong>{guidance.subsidence}
+      </Callout>
+    </div>
+  );
+}
+
+function FloodClimateSection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE") {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<Droplets className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+      </Card>
+    );
+  }
+
+  const d = section.data as FloodData;
+  const band = d.riskBand;
+  const zone = d.planningZone;
+  const bandStyle = band ? BAND_STYLE[band] : null;
+  const zoneElevated = zone != null && ZONE_ELEVATED.has(zone);
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<Droplets className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {/* SPARSE / district-wide framing note */}
+        {section.state === "SPARSE" && section.note && (
+          <div className="mb-5">
+            <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{section.note}</Callout>
+          </div>
+        )}
+        {section.state === "DATA" && section.note && (
+          <div className="mb-5">
+            <Callout tone="info" icon={<Info className="h-4 w-4 text-primary" />}>{section.note}</Callout>
+          </div>
+        )}
+
+        {d.headline && <p className="text-sm text-foreground">{d.headline}</p>}
+      </div>
+
+      {/* Point-level risk band + planning zone (suppressed district-wide) */}
+      {d.scope === "point" && (band || zone) && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-border p-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Flood risk · rivers & sea</div>
+            {band ? (
+              <>
+                <div className={`inline-flex items-center rounded-md border px-2 py-0.5 font-serif text-lg ${bandStyle?.chip}`}>{band}</div>
+                {d.riskBandMeaning && <div className="mt-2 text-xs text-muted-foreground">{d.riskBandMeaning}</div>}
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">—</div>
+            )}
+          </div>
+          <div className="rounded-lg border border-border p-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Planning flood zone</div>
+            {zone != null ? (
+              <>
+                <div className={`font-serif text-lg ${zoneElevated ? "text-orange-600 dark:text-orange-400" : "text-foreground"}`}>Zone {zone}</div>
+                {d.planningZoneMeaning && <div className="mt-2 text-xs text-muted-foreground">{d.planningZoneMeaning}</div>}
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">—</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edge-of-floodplain proximity nuance */}
+      {d.proximity?.text && (
+        <Callout tone="warn" icon={<Waves className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.proximity.text}</Callout>
+      )}
+
+      {/* Zone-vs-band (undefended vs defended) reconciliation */}
+      {d.defencesNote && (
+        <Callout tone="info" icon={<ShieldAlert className="h-4 w-4 text-primary" />}>{d.defencesNote}</Callout>
+      )}
+
+      {/* Insurance & lending line */}
+      {d.insuranceNote && (
+        <p className={`text-sm ${d.scope === "point" && (band === "High" || band === "Medium" || zoneElevated) ? "text-foreground" : "text-muted-foreground"}`}>
+          {d.insuranceNote}
+        </p>
+      )}
+
+      {/* Live warnings — three distinct states */}
+      <WarningsBlock warnings={d.warnings} />
+
+      {/* Nearby named areas with distances */}
+      <NearbyAreas nearby={d.nearby} />
+
+      {/* Historic flooding */}
+      {d.historic?.text && (
+        d.historic.flooded ? (
+          <Callout tone="warn" icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.historic.text}</Callout>
+        ) : (
+          <p className="text-sm text-muted-foreground">{d.historic.text}</p>
+        )
+      )}
+
+      {/* Surface water + subsidence guidance (labelled, no fabricated rating) */}
+      <GuidanceBlocks guidance={d.guidance} />
+
+      {/* Next steps */}
+      {d.nextSteps?.length > 0 && (
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Before you offer</div>
+          <ul className="space-y-2">
+            {d.nextSteps.map((s, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -791,6 +1047,7 @@ export default function BriefPage() {
   const nearby = payload?.sections.find((s) => s.key === "nearbySoldPrices");
   const streets = payload?.sections.find((s) => s.key === "streetPriceRanking");
   const soldMap = payload?.sections.find((s) => s.key === "soldPricesMap");
+  const flood = payload?.sections.find((s) => s.key === "floodClimate");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -839,6 +1096,7 @@ export default function BriefPage() {
             {nearby && <NearbySoldPricesSection section={nearby} />}
             {streets && <StreetRankingSection section={streets} />}
             {soldMap && <SoldPricesMapSection section={soldMap} />}
+            {flood && <FloodClimateSection section={flood} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
