@@ -40,6 +40,9 @@ import {
   Store,
   Wifi,
   Wind,
+  Receipt,
+  Landmark,
+  Coins,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1401,6 +1404,117 @@ function AirQualitySection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Buying Costs (EXP council tax + PRO stamp duty) ──────────────────────────
+// StampDutyData shape + StampDutyBlock component land in Phase 2e Unit 2; the field
+// is present (null) here so the section shape is stable across the two commits.
+type StampDutyData = Record<string, unknown>;
+interface CtBand { band: string; cost: number; formatted: string; isBandD: boolean }
+interface CouncilTaxData {
+  authority: string; country: string; dataYear: string;
+  bandD: Money; bands: CtBand[]; checkerUrl: string;
+}
+interface BuyingCostsData {
+  councilTax: CouncilTaxData | null;
+  stampDuty: StampDutyData | null; // populated in Unit 2
+  stampDutyEntitled: boolean;
+}
+
+function CouncilTaxBlock({ ct }: { ct: CouncilTaxData }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Receipt className="h-3.5 w-3.5" />
+        Council tax · {ct.authority}
+        <span className="font-normal normal-case tracking-normal text-muted-foreground/70">{ct.dataYear}</span>
+      </div>
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-2">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">Band D</span>
+        <span className="font-serif text-2xl tabular-nums text-foreground">{ct.bandD.formatted}</span>
+        <span className="text-xs text-muted-foreground">/ year</span>
+      </div>
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+        {ct.bands.map((b) => (
+          <div
+            key={b.band}
+            className={`rounded-md border p-2 text-center ${
+              b.isBandD ? "border-primary/50 bg-primary/5" : "border-border"
+            }`}
+          >
+            <div className={`text-[11px] font-semibold uppercase ${b.isBandD ? "text-primary" : "text-muted-foreground"}`}>
+              {b.band}
+            </div>
+            <div className="mt-0.5 text-[11px] tabular-nums text-foreground">{b.formatted}</div>
+          </div>
+        ))}
+      </div>
+      <a
+        href={ct.checkerUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+      >
+        <ExternalLink className="h-3.5 w-3.5" /> Confirm the band & current charge at gov.uk
+      </a>
+    </div>
+  );
+}
+
+function BuyingCostsSection({ section }: { section: BriefSection }) {
+  const d = section.data as BuyingCostsData;
+
+  if (section.state === "UNAVAILABLE" || !d.councilTax) {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<Coins className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+        {section.sourceFootnote && (
+          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        )}
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<Coins className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        {section.note && (
+          <div className="mb-5">
+            <Callout tone="info" icon={<Info className="h-4 w-4 text-primary" />}>{section.note}</Callout>
+          </div>
+        )}
+      </div>
+
+      <CouncilTaxBlock ct={d.councilTax} />
+
+      {/* Stamp duty (PRO block) — the computed block is wired in Unit 2. Until then,
+          a non-entitled plan still sees a titled upgrade preview (never a gap). */}
+      {!d.stampDutyEntitled ? (
+        <div className="rounded-lg border border-dashed border-border p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Landmark className="h-3.5 w-3.5" /> Stamp duty estimate
+            <TierBadge tier="PRO" />
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Estimated SDLT at the area median, with the additional-property surcharge and leasehold checks. Upgrade to Professional to unlock.
+          </p>
+        </div>
+      ) : null}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1583,6 +1697,7 @@ export default function BriefPage() {
   const amenities = payload?.sections.find((s) => s.key === "amenities");
   const broadband = payload?.sections.find((s) => s.key === "broadband");
   const airQuality = payload?.sections.find((s) => s.key === "airQuality");
+  const buyingCosts = payload?.sections.find((s) => s.key === "buyingCosts");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1638,6 +1753,7 @@ export default function BriefPage() {
             {amenities && <AmenitiesSection section={amenities} />}
             {broadband && <BroadbandSection section={broadband} />}
             {airQuality && <AirQualitySection section={airQuality} />}
+            {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
