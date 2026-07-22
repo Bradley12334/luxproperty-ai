@@ -1831,6 +1831,102 @@ function CrimeBreakdownSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Neighbourhood Profile / Lifestyle Fit (EXP) ──────────────────────────────
+interface LifestyleDim {
+  key: string; title: string; tier: string; label: string;
+  summary: string; inputs: { label: string; value: string }[]; note: string | null;
+}
+interface SentimentBlock {
+  available: boolean; asOf: string | null; text: string | null; label: string; disclaimer: string;
+}
+interface NeighbourhoodData {
+  scope: string; ratedCount: number; dimensions: LifestyleDim[]; sentiment: SentimentBlock;
+}
+
+function tierClasses(tier: string): string {
+  switch (tier) {
+    case "excellent": return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    case "good": return "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300";
+    case "fair": return "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300";
+    case "limited": return "border-red-500/30 bg-red-500/5 text-red-700 dark:text-red-300";
+    default: return "border-border bg-muted/40 text-muted-foreground"; // insufficient
+  }
+}
+
+function NeighbourhoodSection({ section }: { section: BriefSection }) {
+  const d = section.data as NeighbourhoodData | null;
+  if (!d) {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<Home className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note ?? "Neighbourhood profile is unavailable for this postcode."}</p>
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<Home className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        {section.note && (
+          <div className="mb-4">
+            <Callout tone="info" icon={<Info className="h-4 w-4 text-primary" />}>{section.note}</Callout>
+          </div>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {d.dimensions.map((dim) => (
+            <div key={dim.key} className="rounded-lg border border-border/60 p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-foreground">{dim.title}</span>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tierClasses(dim.tier)}`}>
+                  {dim.label}
+                </span>
+              </div>
+              {dim.tier === "insufficient" ? (
+                <p className="text-xs text-muted-foreground">{dim.note}</p>
+              ) : (
+                <dl className="space-y-1">
+                  {dim.inputs.map((inp, i) => (
+                    <div key={i} className="flex items-baseline justify-between gap-2 text-xs">
+                      <dt className="text-muted-foreground">{inp.label}</dt>
+                      <dd className="text-right text-foreground">{inp.value}</dd>
+                    </div>
+                  ))}
+                  {dim.note && <p className="pt-1 text-[11px] text-muted-foreground">{dim.note}</p>}
+                </dl>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Resident sentiment — folded, labelled, dated qualitative sub-block */}
+      <div className="rounded-lg border border-dashed border-border/70 p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-primary">Resident sentiment</span>
+          {d.sentiment.available && d.sentiment.asOf && (
+            <Badge variant="outline" className="text-[10px]">Curated · as of {d.sentiment.asOf}</Badge>
+          )}
+        </div>
+        {d.sentiment.available ? (
+          <>
+            <p className="text-sm leading-relaxed text-foreground">{d.sentiment.text}</p>
+            <p className="mt-3 text-[11px] text-muted-foreground">{d.sentiment.disclaimer}</p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">{d.sentiment.disclaimer}</p>
+        )}
+      </div>
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -2017,6 +2113,7 @@ export default function BriefPage() {
   const buyingCosts = payload?.sections.find((s) => s.key === "buyingCosts");
   const rentalSnapshot = payload?.sections.find((s) => s.key === "rentalSnapshot");
   const crimeBreakdown = payload?.sections.find((s) => s.key === "crimeBreakdown");
+  const neighbourhood = payload?.sections.find((s) => s.key === "neighbourhood");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -2062,6 +2159,7 @@ export default function BriefPage() {
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
             <BriefHeader meta={payload.meta} />
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
+            {neighbourhood && <NeighbourhoodSection section={neighbourhood} />}
             <PricesSection section={prices} />
             {nearby && <NearbySoldPricesSection section={nearby} />}
             {streets && <StreetRankingSection section={streets} />}
