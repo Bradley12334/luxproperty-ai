@@ -9,7 +9,7 @@ import NotFound from "@/pages/not-found";
 import ResetPasswordPage from "@/pages/reset-password";
 import VerifyEmailPage from "@/pages/verify-email";
 import Home from "@/pages/home";
-import BriefRebuildingPage from "@/pages/brief-rebuilding";
+import BriefPage from "@/pages/brief";
 import PricingPage from "@/pages/pricing";
 import PortfolioPage from "@/pages/portfolio";
 import AboutPage from "@/pages/about";
@@ -30,7 +30,8 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/brief/:id" component={BriefRebuildingPage} />
+      <Route path="/brief" component={BriefPage} />
+      <Route path="/brief/:id" component={BriefPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/portfolio" component={PortfolioPage} />
       <Route path="/about" component={AboutPage} />
