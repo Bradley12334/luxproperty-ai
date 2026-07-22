@@ -406,6 +406,107 @@ function NearbySoldPricesSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Street Price Ranking (INV) ───────────────────────────────────────────────
+interface StreetRow {
+  rank: number;
+  street: string;
+  count: number;
+  median: Money;
+  vsArea: { pct: number; formatted: string; direction: "above" | "below" | "inline" } | null;
+}
+
+function StreetList({ rows }: { rows: StreetRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="py-2 pr-4 font-medium">Street</th>
+            <th className="py-2 pr-4 font-medium text-right">Sales</th>
+            <th className="py-2 pr-4 font-medium text-right">Median</th>
+            <th className="py-2 font-medium text-right">vs area</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.street} className="border-b border-border/50">
+              <td className="py-2 pr-4">
+                <span className="tabular-nums text-muted-foreground">{r.rank}.</span> {r.street}
+              </td>
+              <td className="py-2 pr-4 text-right tabular-nums">{r.count}</td>
+              <td className="py-2 pr-4 text-right tabular-nums">{r.median.formatted}</td>
+              <td className={`py-2 text-right tabular-nums ${r.vsArea ? changeColor(r.vsArea.direction === "above" ? "up" : r.vsArea.direction === "below" ? "down" : "flat") : "text-muted-foreground"}`}>
+                {r.vsArea ? r.vsArea.formatted : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StreetRankingSection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE") {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<ListOrdered className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+      </Card>
+    );
+  }
+
+  const { top, bottom, areaMedian } = section.data as { top: StreetRow[]; bottom: StreetRow[]; areaMedian: Money | null };
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<ListOrdered className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {section.state === "SPARSE" && section.note && (
+          <div className="mb-5 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <p className="text-muted-foreground">{section.note}</p>
+          </div>
+        )}
+
+        {areaMedian && (
+          <p className="mb-4 text-sm text-muted-foreground">
+            Area median across all ranked streets: <span className="font-medium text-foreground tabular-nums">{areaMedian.formatted}</span>. Streets are ranked by the median of their recorded sales — the sale count shows how much evidence sits behind each.
+          </p>
+        )}
+      </div>
+
+      {top.length > 0 && (
+        <div>
+          {bottom.length > 0 && (
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Highest median</div>
+          )}
+          <StreetList rows={top} />
+        </div>
+      )}
+
+      {bottom.length > 0 && (
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lowest median</div>
+          <StreetList rows={bottom} />
+        </div>
+      )}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -569,6 +670,7 @@ export default function BriefPage() {
 
   const prices = payload?.sections.find((s) => s.key === "pricesTrendNegotiation");
   const nearby = payload?.sections.find((s) => s.key === "nearbySoldPrices");
+  const streets = payload?.sections.find((s) => s.key === "streetPriceRanking");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -615,6 +717,7 @@ export default function BriefPage() {
             <BriefHeader meta={payload.meta} />
             <PricesSection section={prices} />
             {nearby && <NearbySoldPricesSection section={nearby} />}
+            {streets && <StreetRankingSection section={streets} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
