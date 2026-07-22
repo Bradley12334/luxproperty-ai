@@ -38,6 +38,8 @@ import {
   UtensilsCrossed,
   Stethoscope,
   Store,
+  Wifi,
+  Wind,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1246,6 +1248,159 @@ function AmenitiesSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Broadband & Fibre (PRO) ───────────────────────────────────────────────────
+interface BroadbandData {
+  avgDownload?: string; avgMbps?: number; fullFibre?: string; fullFibrePct?: number;
+  superfast?: string; rating?: string; providers?: string;
+  granularity?: "local-authority" | "region" | null; checkerUrl: string;
+}
+
+function BroadbandSection({ section }: { section: BriefSection }) {
+  const d = section.data as BroadbandData;
+  const isData = section.state === "DATA";
+
+  return (
+    <Card className="p-6 space-y-5">
+      <div>
+        <SectionHeading icon={<Wifi className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        {section.note && (
+          <div className="mb-4">
+            <Callout
+              tone={isData ? "info" : "warn"}
+              icon={isData ? <Info className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+            >
+              {section.note}
+            </Callout>
+          </div>
+        )}
+      </div>
+
+      {isData && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Avg download</div>
+              <div className="font-serif text-2xl tabular-nums text-foreground">{d.avgDownload}</div>
+              {d.rating && <div className="mt-1 text-xs text-muted-foreground">{d.rating}</div>}
+            </div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Full fibre (FTTP)</div>
+              <div className="font-serif text-2xl tabular-nums text-foreground">{d.fullFibre}</div>
+              <div className="mt-1 text-xs text-muted-foreground">of premises</div>
+            </div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Superfast (≥30 Mbps)</div>
+              <div className="font-serif text-2xl tabular-nums text-foreground">{d.superfast}</div>
+              <div className="mt-1 text-xs text-muted-foreground">of premises</div>
+            </div>
+          </div>
+          {d.providers && (
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Providers: </span>{d.providers}
+            </div>
+          )}
+        </>
+      )}
+
+      <a href={d.checkerUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+        <ExternalLink className="h-3.5 w-3.5" /> Check your address at checker.ofcom.org.uk
+      </a>
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
+// ── Air Quality (PRO) ─────────────────────────────────────────────────────────
+interface AirReading { species: string; index: number; band: string | null }
+interface AirMonitor { name: string; localAuthority: string | null; distanceLabel: string; distanceMeters: number }
+interface AirQualityData {
+  monitor: AirMonitor | null;
+  band?: string | null; maxIndex?: number | null;
+  readings: AirReading[];
+  scaleNote: string;
+  representativeness: "near" | "caveat" | "far" | "none";
+  linkUrl: string;
+}
+
+const AIR_BAND_STYLE: Record<string, string> = {
+  Low: "border-emerald-500/40 text-emerald-700 dark:text-emerald-400",
+  Moderate: "border-amber-500/50 text-amber-700 dark:text-amber-400",
+  High: "border-orange-500/50 text-orange-700 dark:text-orange-400",
+  "Very High": "border-red-500/50 text-red-700 dark:text-red-400",
+};
+
+function AirQualitySection({ section }: { section: BriefSection }) {
+  const d = section.data as AirQualityData;
+  const showReadings = section.state === "DATA" || section.state === "SPARSE";
+
+  return (
+    <Card className="p-6 space-y-5">
+      <div>
+        <SectionHeading icon={<Wind className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {/* Monitor disclosure is always present when we have one */}
+        {d.monitor && (
+          <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 text-primary" />
+            <span>
+              Monitor: <span className="text-foreground">{d.monitor.name}</span> · {d.monitor.distanceLabel} away
+            </span>
+          </div>
+        )}
+
+        {section.note && (
+          <div className="mb-4">
+            <Callout
+              tone={section.state === "DATA" ? "info" : "warn"}
+              icon={section.state === "DATA" ? <Info className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+            >
+              {section.note}
+            </Callout>
+          </div>
+        )}
+      </div>
+
+      {showReadings && d.readings.length > 0 && (
+        <>
+          {d.band && (
+            <div className={`inline-flex items-center rounded-md border px-3 py-1 font-serif text-lg ${AIR_BAND_STYLE[d.band] ?? "border-border text-foreground"}`}>
+              {d.band}
+              <span className="ml-2 text-sm font-normal text-muted-foreground">overall (index {d.maxIndex}/10)</span>
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-3">
+            {d.readings.map((r) => (
+              <div key={r.species} className="rounded-lg border border-border p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{r.species}</div>
+                <div className="font-serif text-lg tabular-nums text-foreground">
+                  {r.index}<span className="text-sm text-muted-foreground">/10</span>
+                </div>
+                {r.band && <div className="text-xs text-muted-foreground">{r.band}</div>}
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">{d.scaleNote}</p>
+        </>
+      )}
+
+      <a href={d.linkUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+        <ExternalLink className="h-3.5 w-3.5" /> DEFRA UK-AIR
+      </a>
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1426,6 +1581,8 @@ export default function BriefPage() {
   const commuteCalc = payload?.sections.find((s) => s.key === "commuteCalculator");
   const schools = payload?.sections.find((s) => s.key === "schools");
   const amenities = payload?.sections.find((s) => s.key === "amenities");
+  const broadband = payload?.sections.find((s) => s.key === "broadband");
+  const airQuality = payload?.sections.find((s) => s.key === "airQuality");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1479,6 +1636,8 @@ export default function BriefPage() {
             {commuteCalc && <CommuteCalculatorSection section={commuteCalc} />}
             {schools && <SchoolsSection section={schools} />}
             {amenities && <AmenitiesSection section={amenities} />}
+            {broadband && <BroadbandSection section={broadband} />}
+            {airQuality && <AirQualitySection section={airQuality} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
