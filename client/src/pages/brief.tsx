@@ -206,6 +206,76 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
+// ── Executive Summary (EXP) ──────────────────────────────────────────────────
+interface ExecSignal { label: string; value: string; source: string }
+interface ExecSummaryData {
+  headline: string;
+  classification: { trajectory: string; trajectoryLabel: string; activity: string; activityLabel: string } | null;
+  paragraphs: string[];
+  signals: ExecSignal[];
+}
+
+function trajectoryTone(key?: string): "info" | "warn" | "danger" | "ok" {
+  if (key === "rising" || key === "firming") return "ok";
+  if (key === "softening") return "warn";
+  if (key === "falling") return "danger";
+  return "info";
+}
+
+function ExecutiveSummarySection({ section }: { section: BriefSection }) {
+  const d = section.data as ExecSummaryData | null;
+  const isUnavailable = section.state === "UNAVAILABLE";
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<Sparkles className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {d?.classification && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Badge variant="outline" className="text-[11px]">{d.classification.trajectoryLabel}</Badge>
+            <Badge variant="outline" className="text-[11px]">{d.classification.activityLabel} sales activity</Badge>
+          </div>
+        )}
+
+        {section.state === "SPARSE" && section.note && (
+          <div className="mb-4">
+            <Callout tone="warn" icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>
+              {section.note}
+            </Callout>
+          </div>
+        )}
+
+        <div className={`space-y-3 text-sm leading-relaxed ${isUnavailable ? "text-muted-foreground" : "text-foreground"}`}>
+          {(d?.paragraphs ?? []).map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+        </div>
+      </div>
+
+      {/* Provenance ledger — every read above traces to one of these payload fields */}
+      {d?.signals?.length ? (
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Behind these figures</p>
+          <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            {d.signals.map((s, i) => (
+              <div key={i} className="flex items-baseline justify-between gap-3 border-b border-border/40 pb-1.5">
+                <span className="text-xs text-muted-foreground">{s.label}</span>
+                <span className="text-right text-sm tabular-nums text-foreground" title={s.source}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── The rebuilt section: Prices, Trend & Negotiation ─────────────────────────
 function PricesSection({ section }: { section: BriefSection }) {
   if (section.state === "UNAVAILABLE") {
@@ -1932,6 +2002,7 @@ export default function BriefPage() {
     runGeneration(postcode);
   }
 
+  const execSummary = payload?.sections.find((s) => s.key === "executiveSummary");
   const prices = payload?.sections.find((s) => s.key === "pricesTrendNegotiation");
   const nearby = payload?.sections.find((s) => s.key === "nearbySoldPrices");
   const streets = payload?.sections.find((s) => s.key === "streetPriceRanking");
@@ -1990,6 +2061,7 @@ export default function BriefPage() {
         {status === "done" && payload && prices && (
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
             <BriefHeader meta={payload.meta} />
+            {execSummary && <ExecutiveSummarySection section={execSummary} />}
             <PricesSection section={prices} />
             {nearby && <NearbySoldPricesSection section={nearby} />}
             {streets && <StreetRankingSection section={streets} />}
