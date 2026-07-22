@@ -1405,9 +1405,22 @@ function AirQualitySection({ section }: { section: BriefSection }) {
 }
 
 // ── Buying Costs (EXP council tax + PRO stamp duty) ──────────────────────────
-// StampDutyData shape + StampDutyBlock component land in Phase 2e Unit 2; the field
-// is present (null) here so the section shape is stable across the two commits.
-type StampDutyData = Record<string, unknown>;
+interface SdBand { band: string; rate: string; taxed: Money }
+interface StampDutyData {
+  regime: "SDLT" | "LTT";
+  regimeLongName: string;
+  atPrice: Money;
+  total: Money;
+  effectiveRate: string;
+  breakdown: SdBand[];
+  effectiveDate: string;
+  calculatorUrl: string;
+  calculatorLabel: string;
+  estimateNote: string;
+  surchargeNote: string;
+  ftbNote: string | null;
+  guidance: string[];
+}
 interface CtBand { band: string; cost: number; formatted: string; isBandD: boolean }
 interface CouncilTaxData {
   authority: string; country: string; dataYear: string;
@@ -1459,6 +1472,80 @@ function CouncilTaxBlock({ ct }: { ct: CouncilTaxData }) {
   );
 }
 
+function StampDutyBlock({ sd }: { sd: StampDutyData }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Landmark className="h-3.5 w-3.5" />
+        {sd.regime === "LTT" ? "Land transaction tax (Wales)" : "Stamp duty (SDLT)"}
+        <TierBadge tier="PRO" />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-2">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Estimated {sd.regime}</div>
+          <div className="font-serif text-2xl tabular-nums text-foreground">{sd.total.formatted}</div>
+          <div className="text-xs text-muted-foreground">effective rate {sd.effectiveRate}</div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">At area median</div>
+          <div className="font-serif text-xl tabular-nums text-foreground">{sd.atPrice.formatted}</div>
+        </div>
+      </div>
+
+      {/* Estimate-not-liability label */}
+      <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{sd.estimateNote}</Callout>
+
+      {sd.breakdown.length > 0 && (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="py-2 pr-4 font-medium">Band</th>
+                <th className="py-2 pr-4 font-medium text-right">Rate</th>
+                <th className="py-2 font-medium text-right">Tax on portion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sd.breakdown.map((b) => (
+                <tr key={b.band} className="border-b border-border/50">
+                  <td className="py-2 pr-4 tabular-nums">{b.band}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{b.rate}</td>
+                  <td className="py-2 text-right tabular-nums">{b.taxed.formatted}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+        <p><span className="font-medium text-foreground">Additional property: </span>{sd.surchargeNote}</p>
+        {sd.ftbNote && <p><span className="font-medium text-foreground">First-time buyers: </span>{sd.ftbNote}</p>}
+      </div>
+
+      <ul className="mt-4 space-y-2">
+        {sd.guidance.map((g, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            <span>{g}</span>
+          </li>
+        ))}
+      </ul>
+
+      <a
+        href={sd.calculatorUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+      >
+        <ExternalLink className="h-3.5 w-3.5" /> {sd.calculatorLabel}
+      </a>
+      <p className="mt-2 text-[11px] text-muted-foreground">{sd.regimeLongName} rates effective {sd.effectiveDate}.</p>
+    </div>
+  );
+}
+
 function BuyingCostsSection({ section }: { section: BriefSection }) {
   const d = section.data as BuyingCostsData;
 
@@ -1494,9 +1581,13 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
 
       <CouncilTaxBlock ct={d.councilTax} />
 
-      {/* Stamp duty (PRO block) — the computed block is wired in Unit 2. Until then,
-          a non-entitled plan still sees a titled upgrade preview (never a gap). */}
-      {!d.stampDutyEntitled ? (
+      {/* Stamp duty (PRO block): computed at the area median for entitled plans; a
+          non-entitled plan sees a titled upgrade preview instead (never a gap). */}
+      {d.stampDuty ? (
+        <div className="border-t border-border/50 pt-6">
+          <StampDutyBlock sd={d.stampDuty} />
+        </div>
+      ) : !d.stampDutyEntitled ? (
         <div className="rounded-lg border border-dashed border-border p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Landmark className="h-3.5 w-3.5" /> Stamp duty estimate
