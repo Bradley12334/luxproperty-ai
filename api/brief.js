@@ -13,11 +13,13 @@
  *
  * FUNCTION BUDGET: Vercel Hobby caps a deployment at 12 Serverless Functions.
  * api/ was at 11; this is the 12th and last. Delivery is therefore SYNCHRONOUS —
- * there is deliberately no separate status/poll function. The ~20-30s SPARQL scan
+ * there is deliberately no separate status/poll function. The ~16-49s SPARQL scan
  * is covered on the client by the reused stepping loader; repeat generations of a
- * district are near-instant via the in-process cache; and generate() runs the
- * fetch under a 50s abort budget so a slow upstream yields an UNAVAILABLE price
- * section rather than a Vercel 504. maxDuration is raised to 60 (config below).
+ * district are near-instant via the two-layer cache (in-process L1 + durable
+ * Supabase L2, so warmth survives cold serverless instances); and generate() runs
+ * the fetch under a 56s abort budget so a slow upstream yields a RETRYABLE
+ * UNAVAILABLE price section (meta.dataError.retryable) that the page auto-retries,
+ * rather than a Vercel 504. maxDuration is raised to 60 (config below).
  *
  * Phase 2a does not read the account plan — the entitlement stub treats every
  * request as INV (unlock-all). Auth-linked plan lookup arrives with gating.

@@ -48,6 +48,8 @@ interface BriefMeta {
   region: string | null; country: string; tier: string;
   window: { startYear: number; endYear: number };
   transactionCount: number; truncated: boolean; cached: boolean; generatedAt: string;
+  cacheLayer?: "memory" | "durable" | "live";
+  dataError?: { code: string; retryable?: boolean } | null;
 }
 interface BriefPayload { ok: true; meta: BriefMeta; sections: BriefSection[] }
 interface BriefErrorResp { ok: false; error: { code: string; message: string } }
@@ -62,7 +64,7 @@ const LOADING_STEPS = [
   "Assembling your brief",
 ];
 
-function LoadingState() {
+function LoadingState({ retryNote }: { retryNote?: string | null }) {
   const [stepIdx, setStepIdx] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setStepIdx((i) => Math.min(i + 1, LOADING_STEPS.length - 1)), 4200);
@@ -78,6 +80,12 @@ function LoadingState() {
         <p className="text-sm text-muted-foreground mb-8">
           Live HM Land Registry data — this typically takes 20–30 seconds.
         </p>
+        {retryNote && (
+          <div className="mx-auto mb-8 flex max-w-md items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-left text-xs text-muted-foreground">
+            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+            <span>{retryNote}</span>
+          </div>
+        )}
         <div className="flex flex-col items-center gap-2">
           {LOADING_STEPS.map((step, i) => (
             <div
@@ -336,6 +344,23 @@ function BriefHeader({ meta }: { meta: BriefMeta }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 type Status = "idle" | "loading" | "done" | "error";
 
+// The location is verified before any price fetch, so a price section that comes
+// back UNAVAILABLE is a slow/absent Land Registry scan — worth retrying. Land
+// Registry latency is per-request and the server caches the first success durably,
+// so a later attempt usually lands on warm data. UNAVAILABLE only sticks after the
+// retries are exhausted (a genuine source outage).
+const MAX_ATTEMPTS = 3;
+const RETRY_BACKOFF_MS = [2500, 5000]; // waits before attempts 2 and 3
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A payload whose price section is UNAVAILABLE for a retryable (latency) reason. */
+function isRetryablePayload(p: BriefPayload): boolean {
+  if (!p.meta.dataError?.retryable) return false;
+  const prices = p.sections.find((s) => s.key === "pricesTrendNegotiation");
+  return prices?.state === "UNAVAILABLE";
+}
+
 export default function BriefPage() {
   const params = useParams();
   const initial = params.id ? decodeURIComponent(params.id) : "";
@@ -343,6 +368,7 @@ export default function BriefPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [payload, setPayload] = useState<BriefPayload | null>(null);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [retryNote, setRetryNote] = useState<string | null>(null);
 
   async function runGeneration(pc: string) {
     const clean = pc.trim();
@@ -350,19 +376,46 @@ export default function BriefPage() {
     setStatus("loading");
     setPayload(null);
     setError(null);
-    try {
-      const res = await fetch(`/api/brief?postcode=${encodeURIComponent(clean)}`);
-      const json: BriefPayload | BriefErrorResp = await res.json();
-      if (!res.ok || json.ok === false) {
-        setError((json as BriefErrorResp).error ?? { code: "UPSTREAM_ERROR", message: "Brief generation failed." });
+    setRetryNote(null);
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const res = await fetch(`/api/brief?postcode=${encodeURIComponent(clean)}`);
+        const json: BriefPayload | BriefErrorResp = await res.json();
+
+        // Resolve-altitude failure (invalid postcode / Scotland-NI / guard): these
+        // are deterministic — retrying won't change them. Surface immediately.
+        if (!res.ok || json.ok === false) {
+          setError((json as BriefErrorResp).error ?? { code: "UPSTREAM_ERROR", message: "Brief generation failed." });
+          setStatus("error");
+          return;
+        }
+
+        const good = json as BriefPayload;
+
+        // A verified location but a slow/absent price scan → retry on warm data.
+        if (isRetryablePayload(good) && attempt < MAX_ATTEMPTS) {
+          setRetryNote(
+            "HM Land Registry is taking longer than usual for this area — retrying to gather the full sold-price history…",
+          );
+          await sleep(RETRY_BACKOFF_MS[attempt - 1] ?? 5000);
+          continue;
+        }
+
+        setPayload(good);
+        setStatus("done");
+        return;
+      } catch {
+        // Network/parse failure — retry a couple of times before giving up.
+        if (attempt < MAX_ATTEMPTS) {
+          setRetryNote("Reconnecting to the brief service…");
+          await sleep(RETRY_BACKOFF_MS[attempt - 1] ?? 5000);
+          continue;
+        }
+        setError({ code: "UPSTREAM_ERROR", message: "Couldn’t reach the brief service. Please try again." });
         setStatus("error");
         return;
       }
-      setPayload(json as BriefPayload);
-      setStatus("done");
-    } catch {
-      setError({ code: "UPSTREAM_ERROR", message: "Couldn’t reach the brief service. Please try again." });
-      setStatus("error");
     }
   }
 
@@ -415,7 +468,7 @@ export default function BriefPage() {
           </div>
         )}
 
-        {status === "loading" && <LoadingState />}
+        {status === "loading" && <LoadingState retryNote={retryNote} />}
 
         {status === "error" && error && <ErrorState error={error} />}
 
