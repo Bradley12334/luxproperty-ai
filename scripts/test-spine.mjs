@@ -95,6 +95,13 @@ async function runDataCase(rawPostcode, assertFn) {
   const ids = new Set(txSet.transactions.map((t) => t.id));
   check(`${loc.outcode}: no duplicate transaction ids`, ids.size === txSet.transactions.length);
   check(`${loc.outcode}: trend spans the full ${YEARS}-year window`, stats.trend.length === YEARS);
+  // Category filter: the default set is STANDARD price-paid entries only — the
+  // Category-B "additional" records (garages/parking/land, repossessions,
+  // portfolio transfers) that poisoned medians are excluded.
+  check(
+    `${loc.outcode}: every transaction is a standard price-paid entry (Category-B excluded)`,
+    txSet.transactions.every((t) => t.category === "standard"),
+  );
   if (assertFn) assertFn({ loc, txSet, stats });
 }
 
