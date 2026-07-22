@@ -63,7 +63,7 @@ export default function Home() {
       setValidationError(check.reason);
       return;
     }
-    generateBriefMutation.mutate(trimmed);
+    navigate(`/brief/${encodeURIComponent(trimmed)}`);
   };
 
   // While a brief is generating, show the loading screen (skeleton + timer) in

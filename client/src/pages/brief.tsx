@@ -354,6 +354,17 @@ const RETRY_BACKOFF_MS = [2500, 5000]; // waits before attempts 2 and 3
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Decode a URL path segment without throwing on a malformed sequence (e.g. a
+ *  stray "%"). A bad value falls through to the API, which returns the friendly
+ *  INVALID_POSTCODE card — never a render-time crash. */
+function safeDecode(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 /** A payload whose price section is UNAVAILABLE for a retryable (latency) reason. */
 function isRetryablePayload(p: BriefPayload): boolean {
   if (!p.meta.dataError?.retryable) return false;
@@ -363,7 +374,7 @@ function isRetryablePayload(p: BriefPayload): boolean {
 
 export default function BriefPage() {
   const params = useParams();
-  const initial = params.id ? decodeURIComponent(params.id) : "";
+  const initial = params.id ? safeDecode(params.id) : "";
   const [postcode, setPostcode] = useState(initial);
   const [status, setStatus] = useState<Status>("idle");
   const [payload, setPayload] = useState<BriefPayload | null>(null);
