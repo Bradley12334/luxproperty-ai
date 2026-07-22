@@ -44,6 +44,7 @@ import {
   Landmark,
   Coins,
   KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1680,6 +1681,86 @@ function RentalSnapshotSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Crime Breakdown (PRO) ─────────────────────────────────────────────────────
+interface CrimeCategory { key: string; label: string; count: number; pct: number }
+interface CrimeBreakdownData {
+  month: string; when: string; total: number;
+  categories: CrimeCategory[];
+  radiusFrame: string; guidance: string; centre: string;
+}
+
+function CrimeBreakdownSection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE" || !section.data) {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<ShieldCheck className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+        {section.sourceFootnote && (
+          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        )}
+      </Card>
+    );
+  }
+
+  const d = section.data as CrimeBreakdownData;
+  const maxCount = d.categories.length ? d.categories[0].count : 0;
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<ShieldCheck className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        {section.note && (
+          <div className="mb-5">
+            <Callout
+              tone={section.state === "DATA" ? "info" : "warn"}
+              icon={section.state === "DATA" ? <Info className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+            >
+              {section.note}
+            </Callout>
+          </div>
+        )}
+      </div>
+
+      {d.total > 0 && (
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-3">
+            <span className="font-serif text-3xl tabular-nums text-foreground">{d.total.toLocaleString()}</span>
+            <span className="text-sm text-muted-foreground">recorded crimes · {d.when}</span>
+          </div>
+
+          <div className="space-y-2">
+            {d.categories.map((c) => (
+              <div key={c.key} className="flex items-center gap-3">
+                <div className="w-40 shrink-0 truncate text-sm text-foreground">{c.label}</div>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary/70"
+                    style={{ width: `${maxCount ? Math.max(2, (c.count / maxCount) * 100) : 0}%` }}
+                  />
+                </div>
+                <div className="w-24 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                  {c.count.toLocaleString()} · {c.pct}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1864,6 +1945,7 @@ export default function BriefPage() {
   const airQuality = payload?.sections.find((s) => s.key === "airQuality");
   const buyingCosts = payload?.sections.find((s) => s.key === "buyingCosts");
   const rentalSnapshot = payload?.sections.find((s) => s.key === "rentalSnapshot");
+  const crimeBreakdown = payload?.sections.find((s) => s.key === "crimeBreakdown");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1921,6 +2003,7 @@ export default function BriefPage() {
             {airQuality && <AirQualitySection section={airQuality} />}
             {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
             {rentalSnapshot && <RentalSnapshotSection section={rentalSnapshot} />}
+            {crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
