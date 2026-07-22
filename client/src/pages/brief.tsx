@@ -34,6 +34,10 @@ import {
   ExternalLink,
   GraduationCap,
   Accessibility,
+  ShoppingCart,
+  UtensilsCrossed,
+  Stethoscope,
+  Store,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1159,6 +1163,89 @@ function SchoolsSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Local Amenities (EXP) ─────────────────────────────────────────────────────
+interface AmenityItem { name: string; type: string; distanceMeters: number; distanceLabel: string; walkMins: number | null }
+interface AmenityGroup { key: string; label: string; total: number; shown: number; items: AmenityItem[] }
+interface AmenitiesData { scope: "point" | "district"; groups: AmenityGroup[]; totalFound: number }
+
+const AMENITY_ICON: Record<string, React.ReactNode> = {
+  supermarkets: <ShoppingCart className="h-3.5 w-3.5" />,
+  food: <UtensilsCrossed className="h-3.5 w-3.5" />,
+  health: <Stethoscope className="h-3.5 w-3.5" />,
+};
+
+function AmenityGroupBlock({ group }: { group: AmenityGroup }) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {AMENITY_ICON[group.key] ?? <Store className="h-3.5 w-3.5" />}
+        {group.label}
+        <span className="font-normal normal-case tracking-normal text-muted-foreground/70">
+          {group.total > group.shown ? `${group.shown} of ${group.total} nearby` : `${group.total} nearby`}
+        </span>
+      </div>
+      {group.items.length > 0 ? (
+        <ul className="space-y-1.5">
+          {group.items.map((it, i) => (
+            <li key={i} className="flex items-center justify-between gap-4 text-sm">
+              <span className="min-w-0 truncate text-foreground">
+                {it.name}
+                <span className="ml-2 text-xs text-muted-foreground">{it.type}</span>
+              </span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                {it.walkMins ? `${it.walkMins} min` : it.distanceLabel}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">None recorded within range.</p>
+      )}
+    </div>
+  );
+}
+
+function AmenitiesSection({ section }: { section: BriefSection }) {
+  const d = section.data as AmenitiesData;
+  const hasAny = d.totalFound > 0;
+
+  return (
+    <Card className="p-6 space-y-5">
+      <div>
+        <SectionHeading icon={<Store className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        {section.note && (
+          <div className="mb-1">
+            <Callout
+              tone={section.state === "DATA" ? "info" : "warn"}
+              icon={
+                section.state === "DATA"
+                  ? <Info className="h-4 w-4 text-primary" />
+                  : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              }
+            >
+              {section.note}
+            </Callout>
+          </div>
+        )}
+      </div>
+
+      {hasAny && (
+        <div className="grid gap-6 sm:grid-cols-3">
+          {d.groups.map((g) => (
+            <AmenityGroupBlock key={g.key} group={g} />
+          ))}
+        </div>
+      )}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1338,6 +1425,7 @@ export default function BriefPage() {
   const stationsCommute = payload?.sections.find((s) => s.key === "stationsCommute");
   const commuteCalc = payload?.sections.find((s) => s.key === "commuteCalculator");
   const schools = payload?.sections.find((s) => s.key === "schools");
+  const amenities = payload?.sections.find((s) => s.key === "amenities");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1390,6 +1478,7 @@ export default function BriefPage() {
             {stationsCommute && <StationsCommuteSection section={stationsCommute} />}
             {commuteCalc && <CommuteCalculatorSection section={commuteCalc} />}
             {schools && <SchoolsSection section={schools} />}
+            {amenities && <AmenitiesSection section={amenities} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
