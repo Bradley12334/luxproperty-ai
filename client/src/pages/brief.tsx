@@ -30,6 +30,8 @@ import {
   Waves,
   TrainFront,
   Footprints,
+  Route,
+  ExternalLink,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -975,6 +977,96 @@ function StationsCommuteSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Full Commute Calculator (PRO) ────────────────────────────────────────────
+interface CommuteTflRow { destination: string; durationMins: number | null; durationLabel: string | null; modes: string[] }
+interface CommuteEstRow { destination: string; distanceLabel: string; driveMins: number; driveLabel: string }
+interface CommuteCalcData {
+  method: "tfl" | "estimate";
+  from: string;
+  linkUrl: string;
+  linkLabel: string;
+  rows: (CommuteTflRow | CommuteEstRow)[];
+}
+
+function CommuteCalculatorSection({ section }: { section: BriefSection }) {
+  const d = section.data as CommuteCalcData;
+  const isTfl = d.method === "tfl";
+
+  return (
+    <Card className="p-6 space-y-5">
+      <div>
+        <SectionHeading icon={<Route className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {section.note && (
+          <div className="mb-5">
+            <Callout
+              tone={isTfl && section.state === "DATA" ? "info" : "warn"}
+              icon={
+                isTfl && section.state === "DATA"
+                  ? <Info className="h-4 w-4 text-primary" />
+                  : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              }
+            >
+              {section.note}
+            </Callout>
+          </div>
+        )}
+      </div>
+
+      {d.rows.length > 0 && (
+        <ul className="space-y-2">
+          {d.rows.map((row, i) => (
+            <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
+              <div className="min-w-0">
+                <div className="text-sm text-foreground">{row.destination}</div>
+                {isTfl ? (
+                  (row as CommuteTflRow).modes.length > 0 && (
+                    <div className="mt-0.5 flex flex-wrap gap-1.5">
+                      {(row as CommuteTflRow).modes.map((m) => (
+                        <span key={m} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">{m}</span>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">~{(row as CommuteEstRow).distanceLabel} straight-line</div>
+                )}
+              </div>
+              <div className="shrink-0 text-right">
+                {isTfl ? (
+                  <div className="font-serif text-lg tabular-nums text-foreground">
+                    {(row as CommuteTflRow).durationLabel ?? <span className="text-sm text-muted-foreground">—</span>}
+                  </div>
+                ) : (
+                  <>
+                    <div className="font-serif text-lg tabular-nums text-foreground">~{(row as CommuteEstRow).driveLabel}</div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">est. by road</div>
+                  </>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <a
+        href={d.linkUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+        {d.linkLabel}
+      </a>
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1152,6 +1244,7 @@ export default function BriefPage() {
   const soldMap = payload?.sections.find((s) => s.key === "soldPricesMap");
   const flood = payload?.sections.find((s) => s.key === "floodClimate");
   const stationsCommute = payload?.sections.find((s) => s.key === "stationsCommute");
+  const commuteCalc = payload?.sections.find((s) => s.key === "commuteCalculator");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1202,6 +1295,7 @@ export default function BriefPage() {
             {soldMap && <SoldPricesMapSection section={soldMap} />}
             {flood && <FloodClimateSection section={flood} />}
             {stationsCommute && <StationsCommuteSection section={stationsCommute} />}
+            {commuteCalc && <CommuteCalculatorSection section={commuteCalc} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
