@@ -17,6 +17,11 @@ import {
   Info,
   AlertTriangle,
   Clock,
+  Home,
+  Tag,
+  Sparkles,
+  ListOrdered,
+  MapPin,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -40,6 +45,8 @@ interface BriefSection {
   state: SectionState;
   note?: string | null;
   sourceFootnote?: string;
+  sourceNote?: string;
+  entitled?: boolean;
   comingSoon?: boolean;
   data: any;
 }
@@ -126,11 +133,28 @@ function LoadingState({ retryNote }: { retryNote?: string | null }) {
 }
 
 // ── Small shared bits ────────────────────────────────────────────────────────
-function SectionHeading({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
+function TierBadge({ tier }: { tier: "EXP" | "PRO" | "INV" }) {
+  return (
+    <Badge variant="outline" className="ml-auto text-[10px] font-semibold uppercase tracking-wide">
+      {tier}
+    </Badge>
+  );
+}
+
+function SectionHeading({
+  icon,
+  tier,
+  children,
+}: {
+  icon?: React.ReactNode;
+  tier?: "EXP" | "PRO" | "INV";
+  children: React.ReactNode;
+}) {
   return (
     <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-primary mb-4">
       {icon}
       {children}
+      {tier && <TierBadge tier={tier} />}
     </h3>
   );
 }
@@ -273,6 +297,108 @@ function PricesSection({ section }: { section: BriefSection }) {
         <p className="mt-5 text-xs italic text-muted-foreground">{neg.notAValuationNote}</p>
       </div>
 
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
+// ── Nearby Sold Prices (PRO) ─────────────────────────────────────────────────
+interface SoldItem {
+  id: string;
+  address: string;
+  postcode: string;
+  price: Money;
+  propertyType: string;
+  tenure: string;
+  newBuild: boolean;
+  monthYear: string;
+}
+
+function SoldPriceRow({ item }: { item: SoldItem }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium text-foreground">{item.address}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <span>{item.propertyType}</span>
+          <span aria-hidden>·</span>
+          <span>{item.tenure}</span>
+          {item.newBuild && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="text-primary">New build</span>
+            </>
+          )}
+          {item.monthYear && (
+            <>
+              <span aria-hidden>·</span>
+              <span>{item.monthYear}</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="shrink-0 font-serif text-base tabular-nums text-foreground">{item.price.formatted}</div>
+    </div>
+  );
+}
+
+function NearbySoldPricesSection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE") {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<Home className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+      </Card>
+    );
+  }
+
+  const { items, summary } = section.data as { items: SoldItem[]; summary: any };
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<Home className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {section.state === "SPARSE" && section.note && (
+          <div className="mb-5 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <p className="text-muted-foreground">{section.note}</p>
+          </div>
+        )}
+
+        {summary && (
+          <>
+            <div className="grid grid-cols-3 gap-4">
+              <Stat label="Lowest" value={summary.low.formatted} />
+              <Stat label="Median" value={summary.median.formatted} />
+              <Stat label="Highest" value={summary.high.formatted} />
+            </div>
+            {summary.vsWindow?.text && (
+              <p className="mt-4 text-sm text-muted-foreground">{summary.vsWindow.text}</p>
+            )}
+            {summary.spread?.text && (
+              <p className="mt-2 text-sm text-muted-foreground">{summary.spread.text}</p>
+            )}
+          </>
+        )}
+      </div>
+
+      <div>
+        {items.map((item) => (
+          <SoldPriceRow key={item.id} item={item} />
+        ))}
+      </div>
+
+      {section.sourceNote && <p className="text-[11px] text-muted-foreground">{section.sourceNote}</p>}
       {section.sourceFootnote && (
         <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
@@ -442,6 +568,7 @@ export default function BriefPage() {
   }
 
   const prices = payload?.sections.find((s) => s.key === "pricesTrendNegotiation");
+  const nearby = payload?.sections.find((s) => s.key === "nearbySoldPrices");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -487,6 +614,7 @@ export default function BriefPage() {
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
             <BriefHeader meta={payload.meta} />
             <PricesSection section={prices} />
+            {nearby && <NearbySoldPricesSection section={nearby} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
