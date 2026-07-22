@@ -1972,6 +1972,96 @@ function PreOfferQuestionsSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Planning Activity & Risk Flags (PRO) ─────────────────────────────────────
+interface Designation { dataset: string; label: string; meaning: string; name: string; reference: string | null; date: string | null; year: string | null; documentUrl: string | null }
+interface RiskFlag { key: string; severity: "info" | "watch" | "elevated"; label: string; trigger: string }
+interface PlanningData {
+  designationsFetched: boolean; designationSummary: string;
+  designations: Designation[]; flags: RiskFlag[];
+  portal: { url: string; curated: boolean }; lpaName: string | null; applicationsNote: string;
+}
+
+function flagClasses(sev: string): string {
+  if (sev === "elevated") return "border-red-500/40 bg-red-500/5";
+  if (sev === "watch") return "border-amber-500/40 bg-amber-500/5";
+  return "border-primary/30 bg-primary/5";
+}
+
+function PlanningActivitySection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE" || !section.data) {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<Landmark className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+        {section.sourceFootnote && <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+      </Card>
+    );
+  }
+  const d = section.data as PlanningData;
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<Landmark className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        {section.note && (
+          <div className="mb-4"><Callout tone="warn" icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{section.note}</Callout></div>
+        )}
+      </div>
+
+      {/* Risk flags */}
+      {d.flags.length > 0 && (
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Risk flags</p>
+          <div className="space-y-2">
+            {d.flags.map((f) => (
+              <div key={f.key} className={`rounded-md border p-3 ${flagClasses(f.severity)}`}>
+                <div className="text-sm font-medium text-foreground">{f.label}</div>
+                <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Trigger: </span>{f.trigger}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Designations */}
+      <div>
+        <p className="mb-2 text-sm text-muted-foreground">{d.designationSummary}</p>
+        {d.designations.length > 0 && (
+          <div className="space-y-2">
+            {d.designations.map((des, i) => (
+              <div key={i} className="rounded-md border border-border/60 p-3">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-sm font-medium text-foreground">{des.label}</span>
+                  <span className="text-sm text-muted-foreground">— {des.name}</span>
+                  {des.year && <span className="text-xs text-muted-foreground">· designated {des.year}</span>}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{des.meaning}</p>
+                {des.documentUrl && (
+                  <a href={des.documentUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                    Designation document <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Live applications link-out */}
+      <Callout tone="info" icon={<Info className="h-4 w-4 text-primary" />}>
+        <p>{d.applicationsNote}</p>
+        <a href={d.portal.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline">
+          {d.portal.curated ? "Open the council planning portal" : "Find your council's planning portal"} <ExternalLink className="h-3 w-3" />
+        </a>
+      </Callout>
+
+      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -2160,6 +2250,7 @@ export default function BriefPage() {
   const crimeBreakdown = payload?.sections.find((s) => s.key === "crimeBreakdown");
   const neighbourhood = payload?.sections.find((s) => s.key === "neighbourhood");
   const preOfferQuestions = payload?.sections.find((s) => s.key === "preOfferQuestions");
+  const planning = payload?.sections.find((s) => s.key === "planning");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -2220,6 +2311,7 @@ export default function BriefPage() {
             {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
             {rentalSnapshot && <RentalSnapshotSection section={rentalSnapshot} />}
             {crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}
+            {planning && <PlanningActivitySection section={planning} />}
             {preOfferQuestions && <PreOfferQuestionsSection section={preOfferQuestions} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
