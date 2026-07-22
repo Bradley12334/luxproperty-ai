@@ -32,6 +32,8 @@ import {
   Footprints,
   Route,
   ExternalLink,
+  GraduationCap,
+  Accessibility,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1067,6 +1069,96 @@ function CommuteCalculatorSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Schools (EXP) ─────────────────────────────────────────────────────────────
+interface SchoolRow {
+  name: string; phase: string; specialist: boolean;
+  distanceMeters: number; distanceLabel: string; walkMins: number | null; ofstedUrl: string;
+}
+interface SchoolsData {
+  scope: "point" | "district";
+  schools: SchoolRow[];
+  ratingsNote: string | null;
+  catchmentCaveat: string;
+}
+
+function SchoolsSection({ section }: { section: BriefSection }) {
+  const d = section.data as SchoolsData;
+  const hasSchools = d.schools.length > 0;
+
+  return (
+    <Card className="p-6 space-y-5">
+      <div>
+        <SectionHeading icon={<GraduationCap className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {section.note && (
+          <div className="mb-5">
+            <Callout
+              tone={section.state === "DATA" ? "info" : "warn"}
+              icon={
+                section.state === "DATA"
+                  ? <Info className="h-4 w-4 text-primary" />
+                  : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              }
+            >
+              {section.note}
+            </Callout>
+          </div>
+        )}
+
+        {/* Honest "no ratings in-brief" explanation */}
+        {d.ratingsNote && (
+          <div className="mb-4">
+            <Callout tone="info" icon={<Info className="h-4 w-4 text-primary" />}>{d.ratingsNote}</Callout>
+          </div>
+        )}
+      </div>
+
+      {hasSchools && (
+        <ul className="space-y-2">
+          {d.schools.map((s, i) => (
+            <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm text-foreground">{s.name}</span>
+                  {s.specialist && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                      <Accessibility className="h-3 w-3" /> Specialist / SEND
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <span className="uppercase tracking-wide text-[10px] text-primary/70">{s.phase}</span>
+                  <a
+                    href={s.ofstedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Ofsted report
+                  </a>
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-sm tabular-nums text-foreground">{s.walkMins ? `${s.walkMins} min walk` : s.distanceLabel}</div>
+                <div className="text-[11px] tabular-nums text-muted-foreground">{s.distanceLabel}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Catchment caveat — always shown */}
+      <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.catchmentCaveat}</Callout>
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1245,6 +1337,7 @@ export default function BriefPage() {
   const flood = payload?.sections.find((s) => s.key === "floodClimate");
   const stationsCommute = payload?.sections.find((s) => s.key === "stationsCommute");
   const commuteCalc = payload?.sections.find((s) => s.key === "commuteCalculator");
+  const schools = payload?.sections.find((s) => s.key === "schools");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1296,6 +1389,7 @@ export default function BriefPage() {
             {flood && <FloodClimateSection section={flood} />}
             {stationsCommute && <StationsCommuteSection section={stationsCommute} />}
             {commuteCalc && <CommuteCalculatorSection section={commuteCalc} />}
+            {schools && <SchoolsSection section={schools} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
