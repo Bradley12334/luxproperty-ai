@@ -43,6 +43,7 @@ import {
   Receipt,
   Landmark,
   Coins,
+  KeyRound,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1606,6 +1607,79 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Rental Snapshot (PRO) ─────────────────────────────────────────────────────
+interface RentBenchmark { key: string; label: string; monthly: number; formatted: string }
+interface RentalYield { localMedian: Money; low: string; high: string; range: string; basis: string }
+interface RentalSnapshotData {
+  region: string;
+  regionLabel: string;
+  benchmarks: RentBenchmark[];
+  yield: RentalYield | null;
+}
+
+function RentalSnapshotSection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE" || !section.data) {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<KeyRound className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+        {section.sourceFootnote && (
+          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        )}
+      </Card>
+    );
+  }
+
+  const d = section.data as RentalSnapshotData;
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<KeyRound className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        {/* Granularity honesty — always shown; regional, never implied-local */}
+        {section.note && (
+          <div className="mb-5">
+            <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{section.note}</Callout>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {d.regionLabel} rent benchmarks · VOA PRMS 2024
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {d.benchmarks.map((b) => (
+            <div key={b.key} className="rounded-lg border border-border p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{b.label}</div>
+              <div className="font-serif text-xl tabular-nums text-foreground">{b.formatted}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {d.yield && (
+        <div className="rounded-lg border border-border p-4">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Indicative gross yield</div>
+          <div className="font-serif text-2xl tabular-nums text-foreground">{d.yield.range}</div>
+          <div className="mt-2 text-xs text-muted-foreground">{d.yield.basis}</div>
+        </div>
+      )}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1789,6 +1863,7 @@ export default function BriefPage() {
   const broadband = payload?.sections.find((s) => s.key === "broadband");
   const airQuality = payload?.sections.find((s) => s.key === "airQuality");
   const buyingCosts = payload?.sections.find((s) => s.key === "buyingCosts");
+  const rentalSnapshot = payload?.sections.find((s) => s.key === "rentalSnapshot");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1845,6 +1920,7 @@ export default function BriefPage() {
             {broadband && <BroadbandSection section={broadband} />}
             {airQuality && <AirQualitySection section={airQuality} />}
             {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
+            {rentalSnapshot && <RentalSnapshotSection section={rentalSnapshot} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
