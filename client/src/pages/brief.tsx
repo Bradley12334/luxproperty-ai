@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SoldPricesMap, type MapPoint } from "@/components/sold-prices-map";
 import {
   Search,
   FileText,
@@ -46,6 +47,7 @@ interface BriefSection {
   note?: string | null;
   sourceFootnote?: string;
   sourceNote?: string;
+  disclaimer?: string;
   entitled?: boolean;
   comingSoon?: boolean;
   data: any;
@@ -507,6 +509,113 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Sold Prices Map (INV) ────────────────────────────────────────────────────
+const TIER_DOT: Record<string, string> = {
+  low: "#3b82f6",
+  "mid-low": "#22c55e",
+  mid: "#eab308",
+  "mid-high": "#f97316",
+  high: "#a855f7",
+};
+
+function SoldPricesMapSection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE") {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<MapPin className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>{section.note}</p>
+        </div>
+      </Card>
+    );
+  }
+
+  const { mapAvailable, mapNote, centre, subjectLabel, points, legend, summary } = section.data as {
+    mapAvailable: boolean;
+    mapNote: string | null;
+    centre: { lat: number; lng: number };
+    subjectLabel: string;
+    points: MapPoint[];
+    legend: { tier: string; label: string }[];
+    summary: { low: Money; median: Money; high: Money };
+  };
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<MapPin className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {section.state === "SPARSE" && section.note && (
+          <div className="mb-5 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <p className="text-muted-foreground">{section.note}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-4">
+          <Stat label="Lowest nearby" value={summary.low.formatted} />
+          <Stat label="Median nearby" value={summary.median.formatted} />
+          <Stat label="Highest nearby" value={summary.high.formatted} />
+        </div>
+      </div>
+
+      {mapAvailable ? (
+        <div className="space-y-3">
+          <SoldPricesMap centre={centre} subjectLabel={subjectLabel} points={points} />
+          {legend.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-full" style={{ background: "#B8860B" }} />
+                Subject postcode
+              </span>
+              {legend.map((l) => (
+                <span key={l.tier} className="inline-flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-full" style={{ background: TIER_DOT[l.tier] ?? "#6b7280" }} />
+                  {l.label}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="flex items-start gap-2 text-[11px] italic text-muted-foreground">
+            <Info className="mt-0.5 h-3 w-3 shrink-0" />
+            {section.disclaimer}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <p>{mapNote}</p>
+          </div>
+          <div>
+            {points.map((p) => (
+              <div key={p.id} className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-foreground">{p.address}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {p.propertyType}
+                    {p.monthYear ? ` · ${p.monthYear}` : ""}
+                  </div>
+                </div>
+                <div className="shrink-0 font-serif text-base tabular-nums text-foreground">{p.price.formatted}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -671,6 +780,7 @@ export default function BriefPage() {
   const prices = payload?.sections.find((s) => s.key === "pricesTrendNegotiation");
   const nearby = payload?.sections.find((s) => s.key === "nearbySoldPrices");
   const streets = payload?.sections.find((s) => s.key === "streetPriceRanking");
+  const soldMap = payload?.sections.find((s) => s.key === "soldPricesMap");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -718,6 +828,7 @@ export default function BriefPage() {
             <PricesSection section={prices} />
             {nearby && <NearbySoldPricesSection section={nearby} />}
             {streets && <StreetRankingSection section={streets} />}
+            {soldMap && <SoldPricesMapSection section={soldMap} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
