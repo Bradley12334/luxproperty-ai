@@ -28,6 +28,8 @@ import {
   ShieldAlert,
   CloudRain,
   Waves,
+  TrainFront,
+  Footprints,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -872,6 +874,107 @@ function FloodClimateSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Stations & Commute (EXP) ─────────────────────────────────────────────────
+interface CommuteHeadline { destination: string; distanceLabel: string; london: boolean; text: string }
+interface StationRow {
+  name: string; modes: string[]; lines: string[];
+  distanceMeters: number; distanceLabel: string; walkMins: number | null;
+}
+interface StationsCommuteData {
+  scope: "point" | "district";
+  stationsState: "found" | "none" | "unavailable";
+  walkSpeedNote: string;
+  stations: StationRow[];
+  nearest: StationRow | null;
+  commute: CommuteHeadline;
+}
+
+function StationChips({ modes, lines }: { modes: string[]; lines: string[] }) {
+  // Modes are the primary signal; named lines (where OSM records them) are secondary.
+  return (
+    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+      {modes.map((m) => (
+        <span key={m} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+          {m}
+        </span>
+      ))}
+      {lines.map((l) => (
+        <span key={l} className="text-[11px] text-muted-foreground">{l}</span>
+      ))}
+    </div>
+  );
+}
+
+function StationsCommuteSection({ section }: { section: BriefSection }) {
+  const d = section.data as StationsCommuteData;
+  const stationsAvailable = d.stationsState === "found";
+
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<TrainFront className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+
+        {/* Honest station-state / district framing note */}
+        {section.note && (
+          <div className="mb-5">
+            <Callout
+              tone={d.stationsState === "found" ? "info" : "warn"}
+              icon={
+                d.stationsState === "found"
+                  ? <Info className="h-4 w-4 text-primary" />
+                  : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              }
+            >
+              {section.note}
+            </Callout>
+          </div>
+        )}
+
+        {/* Commute headline — always present */}
+        <div className="rounded-lg border border-border p-4">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Headline commute</div>
+          <div className="font-serif text-lg text-foreground">
+            {d.commute.london ? "Central London" : d.commute.destination}
+            <span className="ml-2 text-sm font-normal text-muted-foreground">· ~{d.commute.distanceLabel} straight-line</span>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">{d.commute.text}</p>
+        </div>
+      </div>
+
+      {/* Stations list */}
+      {stationsAvailable && (
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Footprints className="h-3.5 w-3.5" />
+            Stations within walking range
+          </div>
+          <ul className="space-y-2">
+            {d.stations.map((s, i) => (
+              <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
+                <div className="min-w-0">
+                  <div className="truncate text-sm text-foreground">{s.name}</div>
+                  <StationChips modes={s.modes} lines={s.lines} />
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-sm tabular-nums text-foreground">{s.walkMins ? `${s.walkMins} min walk` : s.distanceLabel}</div>
+                  <div className="text-[11px] tabular-nums text-muted-foreground">{s.distanceLabel}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px] text-muted-foreground">{d.walkSpeedNote}</p>
+        </div>
+      )}
+
+      {section.sourceFootnote && (
+        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -1048,6 +1151,7 @@ export default function BriefPage() {
   const streets = payload?.sections.find((s) => s.key === "streetPriceRanking");
   const soldMap = payload?.sections.find((s) => s.key === "soldPricesMap");
   const flood = payload?.sections.find((s) => s.key === "floodClimate");
+  const stationsCommute = payload?.sections.find((s) => s.key === "stationsCommute");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -1097,6 +1201,7 @@ export default function BriefPage() {
             {streets && <StreetRankingSection section={streets} />}
             {soldMap && <SoldPricesMapSection section={soldMap} />}
             {flood && <FloodClimateSection section={flood} />}
+            {stationsCommute && <StationsCommuteSection section={stationsCommute} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
