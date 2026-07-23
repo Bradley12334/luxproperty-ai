@@ -2757,6 +2757,7 @@ export default function BriefPage() {
   const broadband = brief?.sections.find((s) => s.key === "broadband");
   const airQuality = brief?.sections.find((s) => s.key === "airQuality");
   const buyingCosts = brief?.sections.find((s) => s.key === "buyingCosts");
+  const propertyType = brief?.sections.find((s) => s.key === "propertyTypeSplit");
   const rentalSnapshot = brief?.sections.find((s) => s.key === "rentalSnapshot");
   const crimeBreakdown = brief?.sections.find((s) => s.key === "crimeBreakdown");
   const neighbourhood = brief?.sections.find((s) => s.key === "neighbourhood");
@@ -2827,6 +2828,7 @@ export default function BriefPage() {
             {renderSection(broadband, BroadbandSection)}
             {renderSection(airQuality, AirQualitySection)}
             {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
+            {renderSection(propertyType, PropertyTypeSection)}
             {renderSection(rentalSnapshot, RentalSnapshotSection)}
             <div id="sec-crimeBreakdown">{renderSection(crimeBreakdown, CrimeBreakdownSection)}</div>
             <div id="sec-planning">{renderSection(planning, PlanningActivitySection)}</div>
@@ -2838,6 +2840,54 @@ export default function BriefPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+// ── Property Type Split (PRO) — ONS Census 2021 TS044 ────────────────────────
+function PropertyTypeSection({ section }: { section: BriefSection }) {
+  if (section.state === "UNAVAILABLE" || !section.data) {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<Building2 className="h-3.5 w-3.5" />} tier={section.minTier}>
+          {section.title}
+        </SectionHeading>
+        <p className="text-sm text-muted-foreground">{section.note}</p>
+        {section.sourceFootnote && (
+          <p className="mt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        )}
+      </Card>
+    );
+  }
+  const d = section.data;
+  const maxPct = Math.max(...d.categories.map((c: any) => c.percent || 0), 1);
+  return (
+    <Card className="p-6">
+      <SectionHeading icon={<Building2 className="h-3.5 w-3.5" />} tier={section.minTier}>
+        {section.title}
+      </SectionHeading>
+      {section.note && <p className="mb-4 text-sm text-muted-foreground">{section.note}</p>}
+      <div className="space-y-2.5">
+        {d.categories.map((c: any) => (
+          <div key={c.label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-foreground">{c.label}</span>
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                {c.countFormatted} · {c.percentFormatted}
+              </span>
+            </div>
+            <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary/70"
+                style={{ width: `${Math.round(((c.percent || 0) / maxPct) * 100)}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      {section.sourceFootnote && (
+        <p className="mt-4 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+      )}
+    </Card>
   );
 }
 
