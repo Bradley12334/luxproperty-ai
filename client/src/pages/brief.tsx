@@ -142,8 +142,11 @@ function LoadingState({ retryNote }: { retryNote?: string | null }) {
           <FileText className="h-5 w-5 animate-pulse" />
         </div>
         <h2 className="font-serif text-2xl tracking-tight mb-2">Compiling your property brief</h2>
-        <p className="text-sm text-muted-foreground mb-8">
+        <p className="text-sm text-muted-foreground mb-2">
           Live HM Land Registry data — this typically takes 20–30 seconds.
+        </p>
+        <p className="text-xs text-muted-foreground/70 mb-8">
+          First look at this area? Pulling fresh HM Land Registry data can take up to a minute.
         </p>
         {retryNote && (
           <div className="mx-auto mb-8 flex max-w-md items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-left text-xs text-muted-foreground">
