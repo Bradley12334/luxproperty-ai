@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
+import { getUser } from "@/lib/authStore";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card } from "@/components/ui/card";
@@ -47,14 +48,20 @@ import {
   ShieldCheck,
   Building2,
   Gauge,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Phase 2a brief page. Takes a postcode, calls GET /api/brief, shows the reused
- * stepping loader over the ~20-30s generation, and renders the one rebuilt
- * section — Prices, Trend & Negotiation — in all of its render states, plus the
- * remaining sections as "coming in rebuild" placeholders. Deliberately minimal;
- * later phases add the other sections and tier gating.
+ * Brief page. Takes a postcode, calls GET /api/brief (with the signed-in userId so
+ * the server resolves plan + quota), shows the reused stepping loader over the
+ * ~20-30s generation, and renders the full section set in every render state.
+ *
+ * TIER GATING is server-side: the payload already contains only what the plan is
+ * entitled to. Locked sections arrive as { state:"LOCKED", title, description, cta }
+ * and render as titled upgrade previews (LockedSection), never gaps. The quota
+ * funnel (QuotaFunnel) nudges anonymous → sign-in and tracks Explorer's 3/month;
+ * an over-quota response renders OverQuotaScreen (a clean 200, not an error).
  * ──────────────────────────────────────────────────────────────────────────── */
 
 // ── Payload types (mirror lib/brief/generate.js) ─────────────────────────────
@@ -75,7 +82,24 @@ interface BriefSection {
   entitled?: boolean;
   comingSoon?: boolean;
   pending?: boolean;
+  // LOCKED-state fields (server-built upgrade preview; data is null when locked).
+  description?: string;
+  requiredTier?: "EXP" | "PRO" | "INV";
+  requiredTierLabel?: string;
+  cta?: { label: string; target: string };
   data: any;
+}
+// Server-computed quota snapshot (lib/brief/quota.js → quotaStatus).
+interface QuotaStatus {
+  tier: string;
+  authenticated: boolean;
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  unlimited: boolean;
+  exceeded: boolean;
+  month: string;
+  resetsOn: string;
 }
 interface BriefMeta {
   postcode: string; outcode: string; outcodeOnly?: boolean; ward: string; localAuthority: string;
@@ -85,8 +109,15 @@ interface BriefMeta {
   cacheLayer?: "memory" | "durable" | "live";
   dataError?: { code: string; retryable?: boolean } | null;
 }
-interface BriefPayload { ok: true; meta: BriefMeta; sections: BriefSection[] }
+interface BriefPayload { ok: true; meta: BriefMeta; sections: BriefSection[]; quota?: QuotaStatus }
 interface BriefErrorResp { ok: false; error: { code: string; message: string } }
+// Clean over-quota response (HTTP 200, not an error) — Explorer used its 3/month.
+interface QuotaExceededResp {
+  ok: true;
+  quotaExceeded: true;
+  quota: QuotaStatus;
+  upgrade: { headline: string; body: string; ctaLabel: string; ctaTarget: string };
+}
 
 // ── Reused stepping loader (from the original brief) ─────────────────────────
 const LOADING_STEPS = [
@@ -184,6 +215,130 @@ function SectionHeading({
       {tier && <TierBadge tier={tier} />}
     </h3>
   );
+}
+
+// ── Generic LOCKED section — a titled upgrade preview, never a gap ────────────
+// The server (lib/brief/gate.js) drops a locked section's data and sends only
+// { title, description, requiredTier, cta }. This renders that as a preview so the
+// brief reads as a paywall teaser, not something broken.
+function LockedSection({ section }: { section: BriefSection }) {
+  const tier = section.requiredTier ?? section.minTier;
+  const tierLabel = section.requiredTierLabel ?? (tier === "INV" ? "Investor" : "Professional");
+  const target = section.cta?.target ?? "/pricing";
+  const ctaLabel = section.cta?.label ?? `Upgrade to ${tierLabel}`;
+  return (
+    <Card className="relative overflow-hidden border-dashed p-6">
+      <SectionHeading icon={<Lock className="h-3.5 w-3.5" />} tier={tier}>
+        {section.title}
+      </SectionHeading>
+      <p className="max-w-prose text-sm text-muted-foreground">
+        {section.description ?? `Unlock ${section.title} on ${tierLabel}.`}
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Link href={target}>
+          <Button size="sm" className="gap-1.5">
+            {ctaLabel}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </Link>
+        <span className="text-xs text-muted-foreground">Included with {tierLabel}</span>
+      </div>
+    </Card>
+  );
+}
+
+// Render a section, intercepting LOCKED so every gated slot becomes a preview.
+function renderSection(
+  section: BriefSection | undefined,
+  Component: React.ComponentType<{ section: BriefSection }>,
+) {
+  if (!section) return null;
+  if (section.state === "LOCKED") return <LockedSection section={section} />;
+  return <Component section={section} />;
+}
+
+// ── Quota funnel — sign-in nudge (anonymous) / usage tracker (Explorer) ───────
+function QuotaFunnel({ quota }: { quota?: QuotaStatus }) {
+  if (!quota) return null;
+
+  // Anonymous: the funnel — sign in to save briefs and track the 3 free monthly briefs.
+  if (!quota.authenticated) {
+    return (
+      <Card className="flex flex-col gap-3 border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-2.5 text-sm">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span className="text-muted-foreground">
+            You’re browsing as a guest. <span className="font-medium text-foreground">Sign in free</span> to save your
+            briefs and track your <span className="font-medium text-foreground">3 free briefs each month</span>.
+          </span>
+        </div>
+        <Link href="/signup">
+          <Button size="sm" variant="outline" className="shrink-0 gap-1.5">
+            Create free account
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </Link>
+      </Card>
+    );
+  }
+
+  // Professional / Investor: unlimited — a quiet confirmation, no nag.
+  if (quota.unlimited) {
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+        Unlimited briefs on your {quota.tier === "INV" ? "Investor" : "Professional"} plan.
+      </p>
+    );
+  }
+
+  // Explorer (signed in): usage tracker toward the 3/month limit.
+  const remaining = quota.remaining ?? 0;
+  return (
+    <Card className="flex flex-col gap-2 border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">
+          {remaining} of {quota.limit} free {quota.limit === 1 ? "brief" : "briefs"} left
+        </span>{" "}
+        this month{quota.remaining === 0 ? "" : ` · resets ${formatResetDate(quota.resetsOn)}`}.
+      </div>
+      <Link href="/pricing">
+        <Button size="sm" variant="outline" className="shrink-0 gap-1.5">
+          Go unlimited
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
+      </Link>
+    </Card>
+  );
+}
+
+// ── Over-quota screen — clean, not an error ──────────────────────────────────
+function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
+  const { upgrade, quota } = resp;
+  return (
+    <div className="mx-auto max-w-lg px-4 sm:px-6 py-16 text-center">
+      <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+        <Sparkles className="h-5 w-5 text-primary" />
+      </div>
+      <h2 className="font-serif text-2xl tracking-tight mb-2">{upgrade.headline}</h2>
+      <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">{upgrade.body}</p>
+      <Link href={upgrade.ctaTarget}>
+        <Button className="gap-1.5">
+          {upgrade.ctaLabel}
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </Link>
+      <p className="mt-4 text-xs text-muted-foreground">
+        Your free briefs reset on {formatResetDate(quota.resetsOn)}.
+      </p>
+    </div>
+  );
+}
+
+function formatResetDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00Z");
+  if (isNaN(d.getTime())) return "the 1st";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
 }
 
 function YoYFigure({ pct }: { pct: Pct }) {
@@ -352,10 +507,36 @@ function PricesSection({ section }: { section: BriefSection }) {
         {trend.lowVolumeNote && <p className="mt-3 text-xs text-muted-foreground">{trend.lowVolumeNote}</p>}
       </div>
 
-      {/* Negotiation / pre-offer */}
+      {/* Negotiation / pre-offer — PRO. Below PRO the server sends neg.locked with
+          the figures dropped; render a preview instead of an empty block. */}
       <div>
-        <SectionHeading icon={<Handshake className="h-3.5 w-3.5" />}>Pre-Offer & Negotiation</SectionHeading>
+        <SectionHeading icon={<Handshake className="h-3.5 w-3.5" />} tier={neg.locked ? "PRO" : undefined}>
+          Pre-Offer & Negotiation
+        </SectionHeading>
 
+        {neg.locked ? (
+          <div className="rounded-lg border border-dashed border-border p-4">
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>
+                Fair-value range, suggested opening range and buyer leverage points are part of{" "}
+                <span className="font-medium text-foreground">Professional</span>.
+              </span>
+            </p>
+            <div className="mt-3">
+              <Link href="/pricing">
+                <Button size="sm" className="gap-1.5">
+                  Upgrade to Professional
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
+            {neg.notAValuationNote && (
+              <p className="mt-4 text-xs italic text-muted-foreground">{neg.notAValuationNote}</p>
+            )}
+          </div>
+        ) : (
+        <>
         <div className="grid gap-6 sm:grid-cols-2">
           {neg.fairValueRange && (
             <div className="rounded-lg border border-border p-4">
@@ -392,6 +573,8 @@ function PricesSection({ section }: { section: BriefSection }) {
         )}
 
         <p className="mt-5 text-xs italic text-muted-foreground">{neg.notAValuationNote}</p>
+        </>
+        )}
       </div>
 
       {section.sourceFootnote && (
@@ -2480,7 +2663,7 @@ export default function BriefPage() {
   const initial = params.id ? safeDecode(params.id) : "";
   const [postcode, setPostcode] = useState(initial);
   const [status, setStatus] = useState<Status>("idle");
-  const [payload, setPayload] = useState<BriefPayload | null>(null);
+  const [payload, setPayload] = useState<BriefPayload | QuotaExceededResp | null>(null);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [retryNote, setRetryNote] = useState<string | null>(null);
 
@@ -2492,16 +2675,29 @@ export default function BriefPage() {
     setError(null);
     setRetryNote(null);
 
+    // Identify the signed-in account so the server can resolve tier + quota. The
+    // user is read from the localStorage-cached session synchronously (getUser());
+    // anonymous visitors send no userId and get Explorer sections, unmetered.
+    const userId = getUser()?.id;
+
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        const res = await fetch(`/api/brief?postcode=${encodeURIComponent(clean)}`);
-        const json: BriefPayload | BriefErrorResp = await res.json();
+        const url = `/api/brief?postcode=${encodeURIComponent(clean)}${userId ? `&userId=${encodeURIComponent(userId)}` : ""}`;
+        const res = await fetch(url);
+        const json: BriefPayload | QuotaExceededResp | BriefErrorResp = await res.json();
 
         // Resolve-altitude failure (invalid postcode / Scotland-NI / guard): these
         // are deterministic — retrying won't change them. Surface immediately.
         if (!res.ok || json.ok === false) {
           setError((json as BriefErrorResp).error ?? { code: "UPSTREAM_ERROR", message: "Brief generation failed." });
           setStatus("error");
+          return;
+        }
+
+        // Over-quota: a clean 200 response, not an error. Show the upgrade screen.
+        if ("quotaExceeded" in json && json.quotaExceeded) {
+          setPayload(json as QuotaExceededResp);
+          setStatus("done");
           return;
         }
 
@@ -2544,27 +2740,31 @@ export default function BriefPage() {
     runGeneration(postcode);
   }
 
-  const execSummary = payload?.sections.find((s) => s.key === "executiveSummary");
-  const prices = payload?.sections.find((s) => s.key === "pricesTrendNegotiation");
-  const nearby = payload?.sections.find((s) => s.key === "nearbySoldPrices");
-  const streets = payload?.sections.find((s) => s.key === "streetPriceRanking");
-  const soldMap = payload?.sections.find((s) => s.key === "soldPricesMap");
-  const flood = payload?.sections.find((s) => s.key === "floodClimate");
-  const stationsCommute = payload?.sections.find((s) => s.key === "stationsCommute");
-  const commuteCalc = payload?.sections.find((s) => s.key === "commuteCalculator");
-  const schools = payload?.sections.find((s) => s.key === "schools");
-  const amenities = payload?.sections.find((s) => s.key === "amenities");
-  const broadband = payload?.sections.find((s) => s.key === "broadband");
-  const airQuality = payload?.sections.find((s) => s.key === "airQuality");
-  const buyingCosts = payload?.sections.find((s) => s.key === "buyingCosts");
-  const rentalSnapshot = payload?.sections.find((s) => s.key === "rentalSnapshot");
-  const crimeBreakdown = payload?.sections.find((s) => s.key === "crimeBreakdown");
-  const neighbourhood = payload?.sections.find((s) => s.key === "neighbourhood");
-  const preOfferQuestions = payload?.sections.find((s) => s.key === "preOfferQuestions");
-  const planning = payload?.sections.find((s) => s.key === "planning");
-  const developmentTracker = payload?.sections.find((s) => s.key === "developmentTracker");
-  const rentalDemand = payload?.sections.find((s) => s.key === "rentalDemandScore");
-  const areaVerdict = payload?.sections.find((s) => s.key === "areaVerdict");
+  // Narrow the payload union: over-quota responses carry no sections.
+  const quotaResp = payload && "quotaExceeded" in payload ? (payload as QuotaExceededResp) : null;
+  const brief = payload && !("quotaExceeded" in payload) ? (payload as BriefPayload) : null;
+
+  const execSummary = brief?.sections.find((s) => s.key === "executiveSummary");
+  const prices = brief?.sections.find((s) => s.key === "pricesTrendNegotiation");
+  const nearby = brief?.sections.find((s) => s.key === "nearbySoldPrices");
+  const streets = brief?.sections.find((s) => s.key === "streetPriceRanking");
+  const soldMap = brief?.sections.find((s) => s.key === "soldPricesMap");
+  const flood = brief?.sections.find((s) => s.key === "floodClimate");
+  const stationsCommute = brief?.sections.find((s) => s.key === "stationsCommute");
+  const commuteCalc = brief?.sections.find((s) => s.key === "commuteCalculator");
+  const schools = brief?.sections.find((s) => s.key === "schools");
+  const amenities = brief?.sections.find((s) => s.key === "amenities");
+  const broadband = brief?.sections.find((s) => s.key === "broadband");
+  const airQuality = brief?.sections.find((s) => s.key === "airQuality");
+  const buyingCosts = brief?.sections.find((s) => s.key === "buyingCosts");
+  const rentalSnapshot = brief?.sections.find((s) => s.key === "rentalSnapshot");
+  const crimeBreakdown = brief?.sections.find((s) => s.key === "crimeBreakdown");
+  const neighbourhood = brief?.sections.find((s) => s.key === "neighbourhood");
+  const preOfferQuestions = brief?.sections.find((s) => s.key === "preOfferQuestions");
+  const planning = brief?.sections.find((s) => s.key === "planning");
+  const developmentTracker = brief?.sections.find((s) => s.key === "developmentTracker");
+  const rentalDemand = brief?.sections.find((s) => s.key === "rentalDemandScore");
+  const areaVerdict = brief?.sections.find((s) => s.key === "areaVerdict");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -2605,30 +2805,34 @@ export default function BriefPage() {
 
         {status === "error" && error && <ErrorState error={error} />}
 
-        {status === "done" && payload && prices && (
+        {/* Over-quota — clean upgrade screen, not an error. */}
+        {status === "done" && quotaResp && <OverQuotaScreen resp={quotaResp} />}
+
+        {status === "done" && brief && prices && (
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
-            <BriefHeader meta={payload.meta} />
+            <BriefHeader meta={brief.meta} />
+            <QuotaFunnel quota={brief.quota} />
             {areaVerdict && <VerdictCard section={areaVerdict} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
             <div id="sec-neighbourhood">{neighbourhood && <NeighbourhoodSection section={neighbourhood} />}</div>
             <div id="sec-pricesTrendNegotiation"><PricesSection section={prices} /></div>
-            {nearby && <NearbySoldPricesSection section={nearby} />}
-            {streets && <StreetRankingSection section={streets} />}
-            {soldMap && <SoldPricesMapSection section={soldMap} />}
+            {renderSection(nearby, NearbySoldPricesSection)}
+            {renderSection(streets, StreetRankingSection)}
+            {renderSection(soldMap, SoldPricesMapSection)}
             <div id="sec-floodClimate">{flood && <FloodClimateSection section={flood} />}</div>
             {stationsCommute && <StationsCommuteSection section={stationsCommute} />}
-            {commuteCalc && <CommuteCalculatorSection section={commuteCalc} />}
+            {renderSection(commuteCalc, CommuteCalculatorSection)}
             {schools && <SchoolsSection section={schools} />}
             {amenities && <AmenitiesSection section={amenities} />}
-            {broadband && <BroadbandSection section={broadband} />}
-            {airQuality && <AirQualitySection section={airQuality} />}
+            {renderSection(broadband, BroadbandSection)}
+            {renderSection(airQuality, AirQualitySection)}
             {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
-            {rentalSnapshot && <RentalSnapshotSection section={rentalSnapshot} />}
-            <div id="sec-crimeBreakdown">{crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}</div>
-            <div id="sec-planning">{planning && <PlanningActivitySection section={planning} />}</div>
-            {developmentTracker && <DevelopmentTrackerSection section={developmentTracker} />}
-            {rentalDemand && <RentalDemandSection section={rentalDemand} />}
-            {preOfferQuestions && <PreOfferQuestionsSection section={preOfferQuestions} />}
+            {renderSection(rentalSnapshot, RentalSnapshotSection)}
+            <div id="sec-crimeBreakdown">{renderSection(crimeBreakdown, CrimeBreakdownSection)}</div>
+            <div id="sec-planning">{renderSection(planning, PlanningActivitySection)}</div>
+            {renderSection(developmentTracker, DevelopmentTrackerSection)}
+            {renderSection(rentalDemand, RentalDemandSection)}
+            {renderSection(preOfferQuestions, PreOfferQuestionsSection)}
           </div>
         )}
       </main>
