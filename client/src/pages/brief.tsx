@@ -45,6 +45,8 @@ import {
   Coins,
   KeyRound,
   ShieldCheck,
+  Building2,
+  Gauge,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -2062,6 +2064,58 @@ function PlanningActivitySection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Development Tracker (INV) ────────────────────────────────────────────────
+interface DevScheme { name: string; type: string; status: string; impact: "Positive" | "Neutral" | "Monitor"; detail: string }
+interface DevTrackerData { curated: boolean; asOf: string | null; schemes: DevScheme[]; portal: { url: string; curated: boolean } }
+
+function impactClasses(impact: string): string {
+  if (impact === "Positive") return "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300";
+  if (impact === "Monitor") return "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300";
+  return "border-border bg-muted/40 text-muted-foreground";
+}
+
+function DevelopmentTrackerSection({ section }: { section: BriefSection }) {
+  const d = section.data as DevTrackerData | null;
+  return (
+    <Card className="p-6 space-y-5">
+      <div>
+        <SectionHeading icon={<Building2 className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        {section.note && (
+          <Callout tone={d?.curated ? "info" : "warn"} icon={d?.curated ? <Info className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>
+            {section.note}
+          </Callout>
+        )}
+      </div>
+
+      {d?.curated && d.schemes.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px]">Curated · as of {d.asOf}</Badge>
+          </div>
+          {d.schemes.map((s, i) => (
+            <div key={i} className="rounded-lg border border-border/60 p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-sm font-medium text-foreground">{s.name}</span>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${impactClasses(s.impact)}`}>{s.impact}</span>
+              </div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{s.type} · {s.status}</div>
+              <p className="mt-2 text-sm text-muted-foreground">{s.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {d?.portal && (
+        <a href={d.portal.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+          {d.portal.curated ? "Council planning portal" : "Find your council's planning portal"} <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+
+      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -2251,6 +2305,7 @@ export default function BriefPage() {
   const neighbourhood = payload?.sections.find((s) => s.key === "neighbourhood");
   const preOfferQuestions = payload?.sections.find((s) => s.key === "preOfferQuestions");
   const planning = payload?.sections.find((s) => s.key === "planning");
+  const developmentTracker = payload?.sections.find((s) => s.key === "developmentTracker");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -2312,6 +2367,7 @@ export default function BriefPage() {
             {rentalSnapshot && <RentalSnapshotSection section={rentalSnapshot} />}
             {crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}
             {planning && <PlanningActivitySection section={planning} />}
+            {developmentTracker && <DevelopmentTrackerSection section={developmentTracker} />}
             {preOfferQuestions && <PreOfferQuestionsSection section={preOfferQuestions} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
