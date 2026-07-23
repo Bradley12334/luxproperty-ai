@@ -76,11 +76,12 @@ const features: FeatureRow[] = [
   { feature: "Broadband speed & fibre coverage (Ofcom)", explorer: false, professional: true, investor: true },
   { feature: "Rental market context — rents & demand", explorer: false, professional: true, investor: true },
   { feature: "Air quality index", explorer: false, professional: true, investor: true },
+  { feature: "Stamp duty & buying costs — SDLT / LTT", explorer: false, professional: true, investor: true },
   { feature: "Export to PDF — client-ready format", explorer: false, professional: true, investor: true },
   { feature: "Save & revisit briefs", explorer: false, professional: true, investor: true },
   // ── Investor ─────────────────────────────────────────────────────────────────
   { feature: "10-year price trend — long-run Land Registry history for cross-area comparison", explorer: false, professional: false, investor: true },
-  { feature: "Rental demand score — letting potential rated across areas", explorer: false, professional: false, investor: true },
+  { feature: "Letting economics — indicative gross yield & sales velocity", explorer: false, professional: false, investor: true },
   { feature: "Sold prices map — visual layout of recent transactions nearby", explorer: false, professional: false, investor: true },
   { feature: "Street price ranking — relative pricing within the area", explorer: false, professional: false, investor: true },
   { feature: "Development tracker — pipeline and local change signals", explorer: false, professional: false, investor: true },
