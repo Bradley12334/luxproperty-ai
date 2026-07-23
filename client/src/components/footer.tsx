@@ -33,11 +33,6 @@ export function Footer() {
                   Property Valuation
                 </span>
               </Link>
-              <Link href="/compare">
-                <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-                  Compare Postcodes
-                </span>
-              </Link>
               <Link href="/area/guide">
                 <span className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                   Area Guide

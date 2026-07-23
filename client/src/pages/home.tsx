@@ -684,15 +684,6 @@ export default function Home() {
                   <p className="text-[12px] text-foreground/50 leading-relaxed">Instant valuation estimate for any UK address. Built on HM Land Registry Price Paid Data.</p>
                 </div>
               </a>
-              <a href="/compare" className="group flex items-start gap-4 p-5 rounded-xl border border-border/50 bg-card hover:border-primary/40 hover:bg-primary/5 transition-colors">
-                <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                </div>
-                <div>
-                  <h3 className="text-[13px] font-semibold text-foreground group-hover:text-primary transition-colors mb-1">Compare Postcodes</h3>
-                  <p className="text-[12px] text-foreground/50 leading-relaxed">Side-by-side analysis of two UK postcodes — prices, crime, schools, transport, and flood risk.</p>
-                </div>
-              </a>
             </div>
           </div>
         </section>

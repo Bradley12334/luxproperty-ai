@@ -21,7 +21,6 @@ import GuideSW3ChelseaPage from "@/pages/guide-sw3-chelsea";
 import GuideSE1SouthwarkPage from "@/pages/guide-se1-southwark";
 import GuideE8HackneyPage from "@/pages/guide-e8-hackney";
 import GuideN1IslingtonPage from "@/pages/guide-n1-islington";
-import ComparePage from "@/pages/compare";
 import FeedbackPage from "@/pages/feedback";
 import ValuationPage from "@/pages/valuation";
 import SuccessPage from "@/pages/success";
@@ -43,7 +42,6 @@ function AppRouter() {
       <Route path="/guides/se1-southwark-buyers-guide" component={GuideSE1SouthwarkPage} />
       <Route path="/guides/e8-hackney-buyers-guide" component={GuideE8HackneyPage} />
       <Route path="/guides/n1-islington-buyers-guide" component={GuideN1IslingtonPage} />
-      <Route path="/compare" component={ComparePage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/feedback" component={FeedbackPage} />
