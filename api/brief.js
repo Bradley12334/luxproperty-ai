@@ -28,6 +28,7 @@
 
 import { generate } from "../lib/brief/generate.js";
 import { isBriefError } from "../lib/brief/errors.js";
+import { resolveAccountTier } from "../lib/brief/account.js";
 
 // Raise the function ceiling to the Hobby maximum so a cold ~20-30s generation
 // completes. generate()'s own 50s budget still fires first on a slow upstream.
@@ -56,10 +57,16 @@ export default async function handler(req, res) {
     });
   }
 
+  // Resolve the account's REAL tier from the client-supplied userId (the existing
+  // product mechanism; anonymous → EXP). This does NOT modify auth/plan/billing — it
+  // only READS users.plan. See lib/brief/account.js.
+  const account = await resolveAccountTier(req.query.userId);
+
   try {
-    const payload = await generate(postcode);
-    // Payload built. The transaction set is cached (24h) but the tier-filtered
-    // payload is not — always recomputed against the current entitlement config.
+    const payload = await generate(postcode, { tier: account.tier });
+    // Payload built, tier-filtered at generation. The transaction set is cached
+    // (24h) but the tier-filtered payload is not — always recomputed against the
+    // current entitlement config and the caller's plan.
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({ ok: true, ...payload });
   } catch (err) {
