@@ -58,7 +58,7 @@ import {
  * ──────────────────────────────────────────────────────────────────────────── */
 
 // ── Payload types (mirror lib/brief/generate.js) ─────────────────────────────
-type SectionState = "DATA" | "SPARSE" | "UNAVAILABLE" | "LOCKED" | "COMING_SOON";
+type SectionState = "DATA" | "SPARSE" | "UNAVAILABLE" | "LOCKED" | "COMING_SOON" | "PENDING";
 interface Money { raw: number | null; formatted: string }
 interface Pct { raw: number | null; formatted: string; direction?: "up" | "down" | "flat" }
 interface TrendRow { year: number; count: number; median: Money; change: Pct; state: "data" | "sparse" | "missing" }
@@ -74,6 +74,7 @@ interface BriefSection {
   disclaimer?: string;
   entitled?: boolean;
   comingSoon?: boolean;
+  pending?: boolean;
   data: any;
 }
 interface BriefMeta {
@@ -2178,24 +2179,18 @@ function RentalDemandSection({ section }: { section: BriefSection }) {
   );
 }
 
-// ── Coming-soon placeholders ─────────────────────────────────────────────────
-function ComingSoonList({ sections }: { sections: BriefSection[] }) {
+// ── Area Screening Verdict — pending card (Phase 3 synthesises it) ────────────
+function VerdictPendingCard({ section }: { section: BriefSection }) {
   return (
-    <Card className="p-6">
-      <SectionHeading icon={<Clock className="h-3.5 w-3.5" />}>Coming in the rebuild</SectionHeading>
-      <p className="mb-4 text-sm text-muted-foreground">
-        These sections are part of the full brief and are being rebuilt in later phases. They appear here so nothing is
-        silently missing from the report.
-      </p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {sections.map((s) => (
-          <div key={s.key} className="flex items-center justify-between rounded-md border border-dashed border-border px-3 py-2 text-sm">
-            <span className="text-muted-foreground">{s.title}</span>
-            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-              {s.minTier}
-            </Badge>
-          </div>
-        ))}
+    <Card className="p-6 border-dashed">
+      <SectionHeading icon={<Gauge className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+      <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-4 text-sm">
+        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <p className="text-muted-foreground">
+          The overall <span className="font-medium text-foreground">Good fit / Mixed / Limited fit</span> verdict is synthesised
+          from every section in this brief — it is deliberately not asserted on its own. That synthesis is the next phase of the
+          rebuild; until it ships, read the evidence-led sections below and draw the verdict from them.
+        </p>
       </div>
     </Card>
   );
@@ -2369,7 +2364,7 @@ export default function BriefPage() {
   const planning = payload?.sections.find((s) => s.key === "planning");
   const developmentTracker = payload?.sections.find((s) => s.key === "developmentTracker");
   const rentalDemand = payload?.sections.find((s) => s.key === "rentalDemandScore");
-  const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
+  const areaVerdict = payload?.sections.find((s) => s.key === "areaVerdict");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -2413,6 +2408,7 @@ export default function BriefPage() {
         {status === "done" && payload && prices && (
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
             <BriefHeader meta={payload.meta} />
+            {areaVerdict && <VerdictPendingCard section={areaVerdict} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
             {neighbourhood && <NeighbourhoodSection section={neighbourhood} />}
             <PricesSection section={prices} />
@@ -2433,7 +2429,6 @@ export default function BriefPage() {
             {developmentTracker && <DevelopmentTrackerSection section={developmentTracker} />}
             {rentalDemand && <RentalDemandSection section={rentalDemand} />}
             {preOfferQuestions && <PreOfferQuestionsSection section={preOfferQuestions} />}
-            {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
         )}
       </main>
