@@ -2116,6 +2116,68 @@ function DevelopmentTrackerSection({ section }: { section: BriefSection }) {
   );
 }
 
+// ── Letting Economics / Rental Demand (INV) ──────────────────────────────────
+interface RentalDemandData {
+  yield: { available: boolean; range?: string; regionLabel?: string; localMedian?: string | null; basis?: string; reason?: string };
+  velocity: { available: boolean; avgPerYear?: number; latestYear?: { year: number; count: number }; windowYears?: number; totalCount?: number; reason?: string };
+  methodology: string;
+}
+
+function RentalDemandSection({ section }: { section: BriefSection }) {
+  const d = section.data as RentalDemandData | null;
+  return (
+    <Card className="p-6 space-y-6">
+      <div>
+        <SectionHeading icon={<Gauge className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        {section.note && (
+          <Callout tone={section.state === "DATA" ? "info" : "warn"} icon={section.state === "DATA" ? <Info className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>
+            {section.note}
+          </Callout>
+        )}
+      </div>
+
+      {d && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Gross yield */}
+          <div className="rounded-lg border border-border/60 p-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Gross yield (return)</div>
+            {d.yield.available ? (
+              <>
+                <div className="mt-1 font-serif text-2xl tabular-nums text-foreground">{d.yield.range}</div>
+                <p className="mt-2 text-[11px] text-muted-foreground">{d.yield.basis}</p>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">Not available — {d.yield.reason}.</p>
+            )}
+          </div>
+          {/* Sales velocity */}
+          <div className="rounded-lg border border-border/60 p-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Sales velocity (liquidity)</div>
+            {d.velocity.available ? (
+              <>
+                <div className="mt-1 font-serif text-2xl tabular-nums text-foreground">
+                  ~{d.velocity.avgPerYear}<span className="text-sm font-normal text-muted-foreground"> sales/yr</span>
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {d.velocity.totalCount?.toLocaleString()} recorded sales over {d.velocity.windowYears} years; {d.velocity.latestYear?.count} in {d.velocity.latestYear?.year}.
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">Not available — {d.velocity.reason}.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {d?.methodology && (
+        <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.methodology}</Callout>
+      )}
+
+      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+    </Card>
+  );
+}
+
 // ── Coming-soon placeholders ─────────────────────────────────────────────────
 function ComingSoonList({ sections }: { sections: BriefSection[] }) {
   return (
@@ -2306,6 +2368,7 @@ export default function BriefPage() {
   const preOfferQuestions = payload?.sections.find((s) => s.key === "preOfferQuestions");
   const planning = payload?.sections.find((s) => s.key === "planning");
   const developmentTracker = payload?.sections.find((s) => s.key === "developmentTracker");
+  const rentalDemand = payload?.sections.find((s) => s.key === "rentalDemandScore");
   const comingSoon = payload?.sections.filter((s) => s.comingSoon) ?? [];
 
   return (
@@ -2368,6 +2431,7 @@ export default function BriefPage() {
             {crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}
             {planning && <PlanningActivitySection section={planning} />}
             {developmentTracker && <DevelopmentTrackerSection section={developmentTracker} />}
+            {rentalDemand && <RentalDemandSection section={rentalDemand} />}
             {preOfferQuestions && <PreOfferQuestionsSection section={preOfferQuestions} />}
             {comingSoon.length > 0 && <ComingSoonList sections={comingSoon} />}
           </div>
