@@ -29,6 +29,7 @@
 import { generate } from "../lib/brief/generate.js";
 import { isBriefError } from "../lib/brief/errors.js";
 import { resolveAccountTier } from "../lib/brief/account.js";
+import { monthKey, countGenerations, recordGeneration, quotaStatus } from "../lib/brief/quota.js";
 
 // Raise the function ceiling to the Hobby maximum so a cold ~20-30s generation
 // completes. generate()'s own 50s budget still fires first on a slow upstream.
@@ -62,13 +63,53 @@ export default async function handler(req, res) {
   // only READS users.plan. See lib/brief/account.js.
   const account = await resolveAccountTier(req.query.userId);
 
+  // ── Quota (server-enforced, calendar-month, per signed-in account) ──────────
+  // Anonymous → no quota (unlimited Explorer sections; funnel nudges sign-in).
+  // Counted BEFORE generation so an over-quota request does no work; a warm/cached
+  // district still consumes quota because the count is on generations, not fetches.
+  const now = new Date();
+  const month = monthKey(now);
+  const used = account.userId ? await countGenerations(account.userId, month) : 0;
+  const quota = quotaStatus(account.tier, used, month, now, account.authenticated);
+
+  if (quota.exceeded) {
+    // Clean, non-error over-quota response — NOT a 4xx, NOT a bypass. The client
+    // renders a "used your 3 free briefs" screen with the upgrade CTA.
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({
+      ok: true,
+      quotaExceeded: true,
+      quota,
+      upgrade: {
+        headline: "You've used all 3 of your free briefs this month.",
+        body: "Your free Explorer briefs reset on the 1st. Upgrade to Professional for unlimited briefs, PDF export, and the full section set.",
+        ctaLabel: "Upgrade to Professional",
+        ctaTarget: "/pricing",
+      },
+    });
+  }
+
   try {
     const payload = await generate(postcode, { tier: account.tier });
     // Payload built, tier-filtered at generation. The transaction set is cached
     // (24h) but the tier-filtered payload is not — always recomputed against the
     // current entitlement config and the caller's plan.
+
+    // Record the generation (best-effort; never throws). Only signed-in accounts
+    // get a ledger row — anonymous requests intentionally leave no trace here.
+    let recordedUsed = used;
+    if (account.userId) {
+      const recorded = await recordGeneration(account.userId, month, payload?.meta?.outcode || "");
+      if (recorded) recordedUsed = used + 1;
+    }
+
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json({ ok: true, ...payload });
+    return res.status(200).json({
+      ok: true,
+      ...payload,
+      // Post-generation quota snapshot for the funnel ("2 of 3 used", "sign in to track").
+      quota: quotaStatus(account.tier, recordedUsed, month, now, account.authenticated),
+    });
   } catch (err) {
     if (isBriefError(err)) {
       const status = STATUS_BY_CODE[err.code] ?? 400;
