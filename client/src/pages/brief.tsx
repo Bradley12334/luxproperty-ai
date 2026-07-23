@@ -2179,19 +2179,219 @@ function RentalDemandSection({ section }: { section: BriefSection }) {
   );
 }
 
-// ── Area Screening Verdict — pending card (Phase 3 synthesises it) ────────────
-function VerdictPendingCard({ section }: { section: BriefSection }) {
+// ── Area Screening Verdict (EXP) — the synthesis engine's render ──────────────
+interface VerdictItem { signal: string; sectionKey: string; headline: string; detail: string | null; nextStep: string | null }
+interface VerdictData {
+  refused: boolean;
+  verdict: string | null;
+  chip: { label: string; tone: "good" | "mixed" | "limited" | "neutral" };
+  confidence: { tier: string; points: number; label: string };
+  collapsed: boolean;
+  score?: number;
+  scope: "point" | "district";
+  summary?: string;
+  headline?: string;
+  explanation?: string;
+  strongestReason?: { text: string; detail: string | null; sectionKey: string | null; signal: string | null; direction: string };
+  bestFor?: { shortWho: string; why: string; text: string } | null;
+  whatWouldChange?: string;
+  positives?: VerdictItem[];
+  watchOuts?: VerdictItem[];
+  neutralNotes?: { signal: string; sectionKey: string; text: string }[];
+  canSee?: string[];
+  cannotSee?: string[];
+  standingNote: string;
+}
+
+// Verdict source-key → the on-page section anchor + its human label (for tap-through).
+const VERDICT_SECTION_LABELS: Record<string, string> = {
+  pricesTrendNegotiation: "Prices, Trend & Negotiation",
+  floodClimate: "Flood, Climate & Resilience",
+  neighbourhood: "Neighbourhood Profile",
+  crimeBreakdown: "Crime Breakdown",
+  planning: "Planning Activity & Risk Flags",
+};
+
+function scrollToSection(key: string) {
+  const el = document.getElementById(`sec-${key}`);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function VerdictSourceLink({ sectionKey }: { sectionKey: string | null | undefined }) {
+  if (!sectionKey) return null;
+  const label = VERDICT_SECTION_LABELS[sectionKey] ?? sectionKey;
   return (
-    <Card className="p-6 border-dashed">
+    <button
+      type="button"
+      onClick={() => scrollToSection(sectionKey)}
+      className="inline-flex items-center gap-0.5 text-[11px] text-primary/70 underline underline-offset-2 hover:text-primary"
+    >
+      {label}
+      <Route className="h-3 w-3" />
+    </button>
+  );
+}
+
+function verdictChipClasses(tone: VerdictData["chip"]["tone"]) {
+  switch (tone) {
+    case "good": return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    case "limited": return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300";
+    case "mixed": return "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    default: return "border-border bg-muted/50 text-muted-foreground";
+  }
+}
+
+function VerdictCard({ section }: { section: BriefSection }) {
+  const d = section.data as VerdictData | null;
+  if (!d) {
+    return (
+      <Card className="p-6">
+        <SectionHeading icon={<Gauge className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        <p className="text-sm text-muted-foreground">{section.note ?? "The screening verdict is unavailable for this postcode."}</p>
+      </Card>
+    );
+  }
+
+  // ── REFUSAL — below the confidence floor, no verdict is asserted. ───────────
+  if (d.refused) {
+    return (
+      <Card className="p-6 space-y-4">
+        <SectionHeading icon={<Gauge className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${verdictChipClasses("neutral")}`}>Insufficient data</span>
+          <span className="text-xs text-muted-foreground">No reliable screening verdict</span>
+        </div>
+        <p className="font-serif text-lg leading-snug text-foreground">{d.headline}</p>
+        <p className="text-sm text-muted-foreground">{d.explanation}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-border/60 p-4">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="h-3.5 w-3.5" /> What we can see
+            </div>
+            {d.canSee && d.canSee.length ? (
+              <ul className="space-y-1 text-sm text-foreground">{d.canSee.map((s, i) => <li key={i}>· {s}</li>)}</ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nothing resolved for this postcode.</p>
+            )}
+          </div>
+          <div className="rounded-lg border border-border/60 p-4">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <AlertTriangle className="h-3.5 w-3.5" /> What we can't
+            </div>
+            {d.cannotSee && d.cannotSee.length ? (
+              <ul className="space-y-1 text-sm text-muted-foreground">{d.cannotSee.map((s, i) => <li key={i}>· {s}</li>)}</ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">—</p>
+            )}
+          </div>
+        </div>
+        <p className="border-t border-border/50 pt-3 text-[11px] text-muted-foreground">{d.standingNote}</p>
+      </Card>
+    );
+  }
+
+  // ── A real verdict. ─────────────────────────────────────────────────────────
+  const positives = d.positives ?? [];
+  const watchOuts = d.watchOuts ?? [];
+  const neutrals = d.neutralNotes ?? [];
+  return (
+    <Card className="p-6 space-y-5">
       <SectionHeading icon={<Gauge className="h-3.5 w-3.5" />} tier={section.minTier}>{section.title}</SectionHeading>
-      <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-4 text-sm">
-        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <p className="text-muted-foreground">
-          The overall <span className="font-medium text-foreground">Good fit / Mixed / Limited fit</span> verdict is synthesised
-          from every section in this brief — it is deliberately not asserted on its own. That synthesis is the next phase of the
-          rebuild; until it ships, read the evidence-led sections below and draw the verdict from them.
-        </p>
+
+      {/* Chip + confidence */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${verdictChipClasses(d.chip.tone)}`}>{d.chip.label}</span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Gauge className="h-3.5 w-3.5" />
+          {d.confidence.label} · {d.confidence.points}/100
+        </span>
+        {d.scope === "district" && <Badge variant="outline" className="text-[10px]">District-wide</Badge>}
+        {d.collapsed && <Badge variant="outline" className="text-[10px]">Partial read</Badge>}
       </div>
+
+      {/* Headline summary */}
+      {d.summary && <p className="font-serif text-lg leading-snug text-foreground">{d.summary}</p>}
+
+      {/* Strongest supporting reason */}
+      {d.strongestReason && (
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Strongest supporting reason</div>
+          <p className="mt-1 text-sm text-foreground">{d.strongestReason.text}</p>
+          {d.strongestReason.detail && <p className="mt-1 text-xs text-muted-foreground">{d.strongestReason.detail}</p>}
+          {d.strongestReason.sectionKey && <div className="mt-2"><VerdictSourceLink sectionKey={d.strongestReason.sectionKey} /></div>}
+        </div>
+      )}
+
+      {/* Best for */}
+      {d.bestFor && (
+        <div className="flex items-start gap-2 text-sm">
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <p className="text-foreground"><span className="font-medium">Best for {d.bestFor.shortWho}</span> — <span className="text-muted-foreground">{d.bestFor.why}.</span></p>
+        </div>
+      )}
+
+      {/* Positives + watch-outs */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Strongest positives
+          </div>
+          {positives.length ? (
+            <ul className="space-y-2">
+              {positives.map((p, i) => (
+                <li key={i} className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm">
+                  <p className="font-medium text-foreground">{p.headline}</p>
+                  {p.detail && <p className="mt-0.5 text-xs text-muted-foreground">{p.detail}</p>}
+                  <div className="mt-1"><VerdictSourceLink sectionKey={p.sectionKey} /></div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No standout positive signals in the data.</p>
+          )}
+        </div>
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="h-3.5 w-3.5" /> Watch-outs
+          </div>
+          {watchOuts.length ? (
+            <ul className="space-y-2">
+              {watchOuts.map((w, i) => (
+                <li key={i} className="rounded-md border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
+                  <p className="font-medium text-foreground">{w.headline}</p>
+                  {w.detail && <p className="mt-0.5 text-xs text-muted-foreground">{w.detail}</p>}
+                  {w.nextStep && <p className="mt-1 text-xs text-foreground"><span className="font-medium">Next step:</span> {w.nextStep}</p>}
+                  <div className="mt-1"><VerdictSourceLink sectionKey={w.sectionKey} /></div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No material watch-outs in the data.</p>
+          )}
+        </div>
+      </div>
+
+      {/* What would change the read (guidance for softer verdicts) */}
+      {d.verdict === "Limited fit" && d.whatWouldChange && (
+        <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <p className="text-muted-foreground"><span className="font-medium text-foreground">What would change this read:</span> {d.whatWouldChange}</p>
+        </div>
+      )}
+
+      {/* Neutral "worth knowing" notes */}
+      {neutrals.length > 0 && (
+        <div className="space-y-2">
+          {neutrals.map((n, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
+              <p>{n.text} <VerdictSourceLink sectionKey={n.sectionKey} /></p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="border-t border-border/50 pt-3 text-[11px] text-muted-foreground">{d.standingNote}</p>
     </Card>
   );
 }
@@ -2408,14 +2608,14 @@ export default function BriefPage() {
         {status === "done" && payload && prices && (
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
             <BriefHeader meta={payload.meta} />
-            {areaVerdict && <VerdictPendingCard section={areaVerdict} />}
+            {areaVerdict && <VerdictCard section={areaVerdict} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
-            {neighbourhood && <NeighbourhoodSection section={neighbourhood} />}
-            <PricesSection section={prices} />
+            <div id="sec-neighbourhood">{neighbourhood && <NeighbourhoodSection section={neighbourhood} />}</div>
+            <div id="sec-pricesTrendNegotiation"><PricesSection section={prices} /></div>
             {nearby && <NearbySoldPricesSection section={nearby} />}
             {streets && <StreetRankingSection section={streets} />}
             {soldMap && <SoldPricesMapSection section={soldMap} />}
-            {flood && <FloodClimateSection section={flood} />}
+            <div id="sec-floodClimate">{flood && <FloodClimateSection section={flood} />}</div>
             {stationsCommute && <StationsCommuteSection section={stationsCommute} />}
             {commuteCalc && <CommuteCalculatorSection section={commuteCalc} />}
             {schools && <SchoolsSection section={schools} />}
@@ -2424,8 +2624,8 @@ export default function BriefPage() {
             {airQuality && <AirQualitySection section={airQuality} />}
             {buyingCosts && <BuyingCostsSection section={buyingCosts} />}
             {rentalSnapshot && <RentalSnapshotSection section={rentalSnapshot} />}
-            {crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}
-            {planning && <PlanningActivitySection section={planning} />}
+            <div id="sec-crimeBreakdown">{crimeBreakdown && <CrimeBreakdownSection section={crimeBreakdown} />}</div>
+            <div id="sec-planning">{planning && <PlanningActivitySection section={planning} />}</div>
             {developmentTracker && <DevelopmentTrackerSection section={developmentTracker} />}
             {rentalDemand && <RentalDemandSection section={rentalDemand} />}
             {preOfferQuestions && <PreOfferQuestionsSection section={preOfferQuestions} />}
