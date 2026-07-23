@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { generateBrief } from "@/lib/mockEngine";
+import { fetchPortfolioSummary } from "@/lib/portfolioSummary";
 import { getUser } from "@/lib/authStore";
 import {
   loadPortfolio,
@@ -86,7 +86,7 @@ function PropertyCard({
             variant="secondary"
             className="text-[10px] uppercase tracking-wider font-semibold mb-2"
           >
-            {item.report.queryType === "address" ? "Property" : "Area"}
+            {item.queryType === "address" ? "Property" : "Area"}
           </Badge>
           <h3 className="font-serif text-base leading-snug truncate" title={item.query}>
             {item.query}
@@ -117,7 +117,7 @@ function PropertyCard({
       </div>
 
       <div className="pt-1 border-t border-border/40">
-        <Link href={`/brief/${item.briefId}`}>
+        <Link href={`/brief/${encodeURIComponent(item.query)}`}>
           <Button
             variant="ghost"
             size="sm"
@@ -221,8 +221,8 @@ export default function PortfolioPage() {
 
     setIsGenerating(true);
     try {
-      const report = await generateBrief(query, getUser()?.plan);
-      const { ok, item } = await addToPortfolio(report);
+      const summary = await fetchPortfolioSummary(query, getUser()?.id);
+      const { ok, item } = await addToPortfolio(summary);
       if (ok && item) {
         setItems((prev) => {
           // Avoid duplicates

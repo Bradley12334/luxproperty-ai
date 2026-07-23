@@ -3,7 +3,7 @@
 
 import { supabase } from "./supabase";
 import { getUser } from "./authStore";
-import type { BriefReport } from "@shared/schema";
+import type { PortfolioSummary } from "./portfolioSummary";
 
 export interface PortfolioItem {
   id: string;          // uuid from Supabase
@@ -11,8 +11,7 @@ export interface PortfolioItem {
   areaName: string;
   averagePrice: string;
   savedAt: string;
-  briefId: number;     // report.id (local)
-  report: BriefReport;
+  queryType: string;   // "area" (new pipeline) or "address" (legacy rows)
 }
 
 // ─── Load portfolio from Supabase ────────────────────────────────────────────
@@ -32,26 +31,32 @@ export async function loadPortfolio(): Promise<PortfolioItem[]> {
   }
 
   return (data ?? []).map((row) => {
-    let report: BriefReport;
+    let parsed: any = null;
     try {
-      report = JSON.parse(row.report_json);
+      parsed = JSON.parse(row.report_json);
     } catch {
       return null;
     }
+    // Tolerate both shapes: new slim summary (fields at top level) and legacy
+    // full BriefReport rows (nested under areaIntelligence).
+    const averagePrice =
+      parsed?.averagePrice ??
+      parsed?.areaIntelligence?.marketOverview?.averagePrice ??
+      "—";
+    const queryType = parsed?.queryType ?? "area";
     return {
       id: row.id,
       query: row.postcode,
       areaName: row.area_name,
-      averagePrice: report.areaIntelligence?.marketOverview?.averagePrice ?? "—",
+      averagePrice,
       savedAt: row.saved_at,
-      briefId: report.id,
-      report,
+      queryType,
     };
   }).filter(Boolean) as PortfolioItem[];
 }
 
 // ─── Add to portfolio ────────────────────────────────────────────────────────
-export async function addToPortfolio(report: BriefReport): Promise<{ ok: boolean; item?: PortfolioItem }> {
+export async function addToPortfolio(summary: PortfolioSummary): Promise<{ ok: boolean; item?: PortfolioItem }> {
   const user = getUser();
   if (!user) return { ok: false };
 
@@ -60,7 +65,7 @@ export async function addToPortfolio(report: BriefReport): Promise<{ ok: boolean
     .from("saved_briefs")
     .select("id")
     .eq("user_id", user.id)
-    .eq("postcode", report.query.toUpperCase())
+    .eq("postcode", summary.query.toUpperCase())
     .maybeSingle();
 
   if (existing) {
@@ -70,16 +75,15 @@ export async function addToPortfolio(report: BriefReport): Promise<{ ok: boolean
     return { ok: true, item: found };
   }
 
-  const areaName =
-    report.areaIntelligence?.area || report.areaIntelligence?.location || report.query;
+  const areaName = summary.areaName || summary.query;
 
   const { data, error } = await supabase
     .from("saved_briefs")
     .insert({
       user_id: user.id,
-      postcode: report.query.toUpperCase(),
+      postcode: summary.query.toUpperCase(),
       area_name: areaName,
-      report_json: JSON.stringify(report),
+      report_json: JSON.stringify(summary),
     })
     .select("id, postcode, area_name, saved_at")
     .single();
@@ -93,10 +97,9 @@ export async function addToPortfolio(report: BriefReport): Promise<{ ok: boolean
     id: data.id,
     query: data.postcode,
     areaName: data.area_name,
-    averagePrice: report.areaIntelligence?.marketOverview?.averagePrice ?? "—",
+    averagePrice: summary.averagePrice ?? "—",
     savedAt: data.saved_at,
-    briefId: report.id,
-    report,
+    queryType: summary.queryType,
   };
 
   return { ok: true, item };
