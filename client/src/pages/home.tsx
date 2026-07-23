@@ -1,15 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { useMutation } from "@tanstack/react-query";
-import { generateBrief } from "@/lib/mockEngine";
-import { getUser } from "@/lib/authStore";
 import { useCheckout } from "@/hooks/use-checkout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { GenerateLoadingScreen } from "@/components/generate-loading-screen";
 import {
   Search,
   ArrowRight,
@@ -27,7 +23,6 @@ import {
   Wifi,
   ChevronRight,
 } from "lucide-react";
-import type { BriefReport } from "@shared/schema";
 import { validatePostcodeInput } from "@/lib/postcodeValidation";
 
 export default function Home() {
@@ -36,22 +31,6 @@ export default function Home() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { startCheckout, authModal } = useCheckout();
-
-  const generateBriefMutation = useMutation({
-    mutationFn: async (q: string) => {
-      const callerPlan = getUser()?.plan;
-      return (await generateBrief(q, callerPlan)) as BriefReport;
-    },
-    onSuccess: (data) => {
-      navigate(`/brief/${data.id}`);
-    },
-    // Keep the typed query in the field and surface a message — do not clear input
-    onError: (err: unknown) => {
-      // Errors are logged in generateBrief; query state is untouched.
-      // The error message is rendered via generateBriefMutation.error below.
-      void err; // suppress lint unused-var warning
-    },
-  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,15 +44,6 @@ export default function Home() {
     }
     navigate(`/brief/${encodeURIComponent(trimmed)}`);
   };
-
-  // While a brief is generating, show the loading screen (skeleton + timer) in
-  // place of the home page. On success the mutation navigates to the brief; on
-  // error this unmounts and the form (with its error message) renders again.
-  // This changes ONLY what shows during generation — the finished brief is
-  // rendered by the brief page, entirely unaffected.
-  if (generateBriefMutation.isPending) {
-    return <GenerateLoadingScreen />;
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -127,22 +97,11 @@ export default function Home() {
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={!query.trim() || generateBriefMutation.isPending}
+                    disabled={!query.trim()}
                     className="h-12 px-6 text-[13px] font-semibold tracking-wide shrink-0"
                     data-testid="button-generate"
                   >
-                    {generateBriefMutation.isPending ? (
-                      <span className="flex items-center gap-2">
-                        <span className="flex gap-1">
-                          <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-current" />
-                        </span>
-                        Generating
-                      </span>
-                    ) : (
-                      <>Generate Free Brief <ArrowRight className="ml-1.5 h-4 w-4" /></>
-                    )}
+                    Generate Free Brief <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
                 </form>
 
@@ -151,21 +110,6 @@ export default function Home() {
                     {validationError}
                   </p>
                 )}
-                {!validationError && generateBriefMutation.isError && (
-                  <p className="mt-3 text-sm text-destructive" data-testid="text-error">
-                    {(() => {
-                      const msg = generateBriefMutation.error instanceof Error
-                        ? generateBriefMutation.error.message
-                        : "";
-                      if (msg === "NETWORK_ERROR")
-                        return "Network error — check your connection and try again.";
-                      if (msg === "TIMEOUT_ERROR")
-                        return "The request timed out. Please try again.";
-                      return "Something went wrong generating the brief. Please try again.";
-                    })()}
-                  </p>
-                )}
-
                 <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                   {[
                     { icon: Database, text: "HM Land Registry data" },
