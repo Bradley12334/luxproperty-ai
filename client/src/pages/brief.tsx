@@ -114,12 +114,13 @@ interface BriefMeta {
 }
 interface BriefPayload { ok: true; meta: BriefMeta; sections: BriefSection[]; quota?: QuotaStatus; fullBriefOwned?: boolean }
 interface BriefErrorResp { ok: false; error: { code: string; message: string } }
-// Clean over-quota response (HTTP 200, not an error) — Explorer used its 3/month.
+// Clean over-quota response (HTTP 200, not an error) — Explorer used its 2/month.
+// The wall copy is composed client-side (OverQuotaScreen) from `requested`.
 interface QuotaExceededResp {
   ok: true;
   quotaExceeded: true;
   quota: QuotaStatus;
-  upgrade: { headline: string; body: string; ctaLabel: string; ctaTarget: string };
+  requested?: { postcode: string; outcode: string };
 }
 
 // ── Reused stepping loader (from the original brief) ─────────────────────────
@@ -223,31 +224,45 @@ function SectionHeading({
   );
 }
 
-// ── Generic LOCKED section — a titled upgrade preview, never a gap ────────────
+// The id of the single Full Brief unlock banner (SaveBriefAffordance) at the top of a
+// brief. Locked-section tags scroll to it — one unlock CTA, not N competing buttons.
+const FULL_BRIEF_BANNER_ID = "full-brief-unlock";
+
+// ── "In the full brief" tag ──────────────────────────────────────────────────
+// The calm marker on a locked section. Tapping scrolls to the single unlock banner
+// at the top of the brief (the £14.99 Full Brief / Investor CTA lives there).
+function InFullBriefTag() {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        document.getElementById(FULL_BRIEF_BANNER_ID)?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }
+      className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
+      data-testid="tag-in-full-brief"
+    >
+      <Lock className="h-3 w-3" />
+      In the full brief
+    </button>
+  );
+}
+
+// ── Generic LOCKED section — a titled preview, never a gap ─────────────────────
 // The server (lib/brief/gate.js) drops a locked section's data and sends only
-// { title, description, requiredTier, cta }. This renders that as a preview so the
-// brief reads as a paywall teaser, not something broken.
+// { title, description, requiredTier }. This renders it as a preview with the calm
+// "In the full brief" tag; the unlock action is the single banner at the top.
 function LockedSection({ section }: { section: BriefSection }) {
   const tier = section.requiredTier ?? section.minTier;
-  const tierLabel = section.requiredTierLabel ?? (tier === "INV" ? "Investor" : "Professional");
-  const target = section.cta?.target ?? "/pricing";
-  const ctaLabel = section.cta?.label ?? `Upgrade to ${tierLabel}`;
   return (
     <Card className="relative overflow-hidden border-dashed p-6">
       <SectionHeading icon={<Lock className="h-3.5 w-3.5" />} tier={tier}>
         {section.title}
       </SectionHeading>
       <p className="max-w-prose text-sm text-muted-foreground">
-        {section.description ?? `Unlock ${section.title} on ${tierLabel}.`}
+        {section.description ?? "Part of the full brief."}
       </p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link href={target}>
-          <Button size="sm" className="gap-1.5">
-            {ctaLabel}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
-        </Link>
-        <span className="text-xs text-muted-foreground">Included with {tierLabel}</span>
+      <div className="mt-4">
+        <InFullBriefTag />
       </div>
     </Card>
   );
@@ -267,7 +282,7 @@ function renderSection(
 function QuotaFunnel({ quota }: { quota?: QuotaStatus }) {
   if (!quota) return null;
 
-  // Anonymous: the funnel — sign in to save briefs and track the 3 free monthly briefs.
+  // Anonymous: the funnel — sign in to save briefs and track the 2 free monthly briefs.
   if (!quota.authenticated) {
     return (
       <Card className="flex flex-col gap-3 border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -275,7 +290,7 @@ function QuotaFunnel({ quota }: { quota?: QuotaStatus }) {
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <span className="text-muted-foreground">
             You’re browsing as a guest. <span className="font-medium text-foreground">Sign in free</span> to save your
-            briefs and track your <span className="font-medium text-foreground">3 free briefs each month</span>.
+            briefs and track your <span className="font-medium text-foreground">2 free briefs each month</span>.
           </span>
         </div>
         <Link href="/signup">
@@ -298,7 +313,7 @@ function QuotaFunnel({ quota }: { quota?: QuotaStatus }) {
     );
   }
 
-  // Explorer (signed in): usage tracker toward the 3/month limit.
+  // Explorer (signed in): usage tracker toward the monthly limit (dynamic — quota.limit).
   const remaining = quota.remaining ?? 0;
   return (
     <Card className="flex flex-col gap-2 border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -319,24 +334,89 @@ function QuotaFunnel({ quota }: { quota?: QuotaStatus }) {
 }
 
 // ── Over-quota screen — clean, not an error ──────────────────────────────────
+// Sell-not-scold, contextual to the postcode they just tried. Both paths: the £14.99
+// Full Brief on THIS district (hero) + Investor unlimited. If the tried postcode isn't
+// purchasable (empty outcode), the generic "any postcode" variant renders instead so
+// the buy button never targets nothing.
 function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
-  const { upgrade, quota } = resp;
+  const { quota, requested } = resp;
+  const outcode = requested?.outcode ?? "";
+  const postcode = requested?.postcode ?? "";
+  const hasPC = outcode.length > 0;
+
+  const [busy, setBusy] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function buyFull() {
+    if (busy) return;
+    setBusy(true);
+    setNote(null);
+    const r = await startFullBriefCheckout(postcode);
+    if (r.status === "redirecting") return; // navigating to Stripe — keep the spinner
+    if (r.status === "signin-required") { setAuthOpen(true); setBusy(false); return; }
+    if (r.status === "already-owned") { window.location.href = `/brief/${encodeURIComponent(r.outcode || outcode)}`; return; }
+    setNote(r.message); // error
+    setBusy(false);
+  }
+
   return (
     <div className="mx-auto max-w-lg px-4 sm:px-6 py-16 text-center">
       <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
         <Sparkles className="h-5 w-5 text-primary" />
       </div>
-      <h2 className="font-serif text-2xl tracking-tight mb-2">{upgrade.headline}</h2>
-      <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">{upgrade.body}</p>
-      <Link href={upgrade.ctaTarget}>
-        <Button className="gap-1.5">
-          {upgrade.ctaLabel}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </Link>
-      <p className="mt-4 text-xs text-muted-foreground">
+      <h2 className="font-serif text-2xl tracking-tight mb-2">
+        {hasPC
+          ? "You’ve screened two areas this month — here’s the full picture on the next one."
+          : "You’ve screened two areas this month"}
+      </h2>
+      <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
+        {hasPC ? (
+          <>
+            Serious about <span className="font-medium text-foreground">{outcode}</span>? Unlock the full brief — every
+            section at Investor depth, saved to your account and yours to keep. Or go unlimited across every postcode with
+            Investor.
+          </>
+        ) : (
+          <>
+            Unlock the full brief on any postcode — every section at Investor depth, saved to your account and yours to
+            keep. Or go unlimited across every postcode with Investor.
+          </>
+        )}
+      </p>
+
+      <div className="flex flex-col items-center gap-3">
+        {hasPC ? (
+          <Button className="gap-1.5 font-semibold" onClick={buyFull} disabled={busy} data-testid="button-wall-full-brief">
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>Get the full {outcode} brief — £14.99<ArrowRight className="h-4 w-4" /></>
+            )}
+          </Button>
+        ) : (
+          <Link href="/pricing">
+            <Button className="gap-1.5 font-semibold" data-testid="button-wall-full-brief">
+              Get the full brief — £14.99
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {hasPC
+            ? `Permanent access to ${outcode} — revisit and regenerate it free, forever.`
+            : "Permanent access to the postcode you buy — revisit and regenerate it free, forever."}
+        </p>
+        <Link href="/pricing" className="text-sm text-primary underline-offset-4 hover:underline" data-testid="link-wall-investor">
+          See Investor — £39.99/mo, unlimited everything
+        </Link>
+        {note && <p className="text-xs text-destructive" data-testid="text-wall-error">{note}</p>}
+      </div>
+
+      <p className="mt-6 text-xs text-muted-foreground">
         Your free briefs reset on {formatResetDate(quota.resetsOn)}.
       </p>
+      <AuthModal open={authOpen} defaultTab="signup" onClose={() => setAuthOpen(false)} />
     </div>
   );
 }
@@ -525,17 +605,11 @@ function PricesSection({ section }: { section: BriefSection }) {
             <p className="flex items-start gap-2 text-sm text-muted-foreground">
               <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <span>
-                Fair-value range, suggested opening range and buyer leverage points are part of{" "}
-                <span className="font-medium text-foreground">Professional</span>.
+                Fair-value range, suggested opening range and buyer leverage points are part of the full brief.
               </span>
             </p>
             <div className="mt-3">
-              <Link href="/pricing">
-                <Button size="sm" className="gap-1.5">
-                  Upgrade to Professional
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </Link>
+              <InFullBriefTag />
             </div>
             {neg.notAValuationNote && (
               <p className="mt-4 text-xs italic text-muted-foreground">{neg.notAValuationNote}</p>
@@ -1858,8 +1932,11 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
             <TierBadge tier="PRO" />
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Estimated SDLT at the area median, with the additional-property surcharge and leasehold checks. Upgrade to Professional to unlock.
+            Estimated SDLT at the area median, with the additional-property surcharge and leasehold checks.
           </p>
+          <div className="mt-3">
+            <InFullBriefTag />
+          </div>
         </div>
       ) : null}
 
@@ -2642,14 +2719,14 @@ function SaveBriefAffordance({ outcode, postcode, owned }: { outcode: string; po
 
   return (
     <>
-      <div className="rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] px-4 py-3.5">
+      <div id={FULL_BRIEF_BANNER_ID} className="rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] px-4 py-3.5 scroll-mt-20">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-start gap-2.5">
             <Lock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-foreground">Save this brief permanently</p>
-              <p className="text-xs text-muted-foreground">
-                Unlock the full {outcode} brief at Investor depth — yours forever, free to revisit.
+              <p className="text-sm font-medium text-foreground">See the full picture on {outcode}</p>
+              <p className="text-xs text-muted-foreground max-w-prose">
+                You're seeing the free area screen. Unlock every section at Investor depth — comparable sales, 10-year trend, letting economics, sold-prices map and more — yours permanently.
               </p>
             </div>
           </div>
@@ -2663,11 +2740,16 @@ function SaveBriefAffordance({ outcode, postcode, owned }: { outcode: string; po
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <>Get the full brief — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+              <>Get the full {outcode} brief — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
             )}
           </Button>
         </div>
-        {note && <p className="text-xs text-destructive mt-2" data-testid="text-save-error">{note}</p>}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link href="/pricing" className="text-xs text-primary underline-offset-4 hover:underline" data-testid="link-save-investor">
+            or go unlimited with Investor
+          </Link>
+          {note && <p className="text-xs text-destructive" data-testid="text-save-error">{note}</p>}
+        </div>
       </div>
       <AuthModal open={authOpen} defaultTab="signup" onClose={() => setAuthOpen(false)} />
     </>

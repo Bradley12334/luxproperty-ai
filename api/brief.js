@@ -94,18 +94,16 @@ export default async function handler(req, res) {
   // (The wall COPY and the 3→2 limit change are Step 5's propose-gate — untouched here.)
   if (!owned && quota.exceeded) {
     // Clean, non-error over-quota response — NOT a 4xx, NOT a bypass. The client
-    // renders a "used your 3 free briefs" screen with the upgrade CTA.
+    // (OverQuotaScreen) composes the wall copy — single source of truth — from this
+    // contextual data. `requested.outcode` is non-empty for a plausible postcode and
+    // drives the "full {PC} brief — £14.99" variant; empty (garbage input) → the
+    // generic "any postcode" variant so the buy button never targets nothing.
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({
       ok: true,
       quotaExceeded: true,
       quota,
-      upgrade: {
-        headline: "You've used all 3 of your free briefs this month.",
-        body: "Your free Explorer briefs reset on the 1st. Upgrade to Professional for unlimited briefs, PDF export, and the full section set.",
-        ctaLabel: "Upgrade to Professional",
-        ctaTarget: "/pricing",
-      },
+      requested: { postcode, outcode: requestedOutcode },
     });
   }
 

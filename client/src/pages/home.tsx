@@ -716,10 +716,10 @@ export default function Home() {
                 <div className="mb-1">
                   <span className="font-serif text-2xl tracking-tight text-foreground">Free</span>
                 </div>
-                <p className="text-[11px] text-foreground/40 mb-5 leading-relaxed">3 briefs/month. Good for a quick sense-check before you book a viewing.</p>
+                <p className="text-[11px] text-foreground/40 mb-5 leading-relaxed">2 briefs/month. Good for a quick sense-check before you book a viewing.</p>
                 <ul className="space-y-1.5 mb-6 flex-1">
                   {[
-                    "3 briefs per month",
+                    "2 briefs per month",
                     "1-year price trend",
                     "Neighbourhood profile",
                     "Flood risk & council tax",

@@ -54,7 +54,7 @@ interface FeatureRow {
 
 const features: FeatureRow[] = [
   // ── Explorer (free) ─────────────────────────────────────────────────────────
-  { feature: "Briefs per month", explorer: "3", professional: "Unlimited", investor: "Unlimited" },
+  { feature: "Briefs per month", explorer: "2", professional: "Unlimited", investor: "Unlimited" },
   { feature: "Area screening brief — Good fit / Mixed / Limited fit verdict", explorer: true, professional: true, investor: true },
   { feature: "Executive summary", explorer: true, professional: true, investor: true },
   { feature: "Market overview (average price, YoY change)", explorer: true, professional: true, investor: true },
@@ -141,7 +141,7 @@ function CellValue({ value, col }: { value: boolean | string; col: string }) {
 }
 
 export default function PricingPage() {
-  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 3 briefs/month. Professional at £4.99/month. Investor at £39.99/month. No contracts, cancel anytime.");
+  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 2 briefs/month. Full Brief £14.99 one-off. Investor at £39.99/month. No contracts, cancel anytime.");
   const { startCheckout, authModal } = useCheckout();
   return (
     <div className="flex min-h-screen flex-col">
