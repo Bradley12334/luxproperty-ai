@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams, Link } from "wouter";
-import { getUser } from "@/lib/authStore";
+import { authHeader } from "@/lib/authStore";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card } from "@/components/ui/card";
@@ -2678,15 +2678,14 @@ export default function BriefPage() {
     setError(null);
     setRetryNote(null);
 
-    // Identify the signed-in account so the server can resolve tier + quota. The
-    // user is read from the localStorage-cached session synchronously (getUser());
-    // anonymous visitors send no userId and get Explorer sections, unmetered.
-    const userId = getUser()?.id;
-
+    // Identity travels ONLY as a verified Bearer token (authHeader()); the server
+    // derives the account — tier + quota — from it. A userId is never sent: a UUID
+    // is no longer an identity claim. Anonymous visitors send no token and get
+    // Explorer sections, unmetered.
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        const url = `/api/brief?postcode=${encodeURIComponent(clean)}${userId ? `&userId=${encodeURIComponent(userId)}` : ""}`;
-        const res = await fetch(url);
+        const url = `/api/brief?postcode=${encodeURIComponent(clean)}`;
+        const res = await fetch(url, { headers: authHeader() });
         const json: BriefPayload | QuotaExceededResp | BriefErrorResp = await res.json();
 
         // Resolve-altitude failure (invalid postcode / Scotland-NI / guard): these
