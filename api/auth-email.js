@@ -29,6 +29,7 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { mintSessionToken } from "../lib/auth/session-token.js";
 
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 6;
@@ -123,6 +124,15 @@ function publicUser(row) {
     mustResetPassword: !!row.must_reset_password,
     joinedAt: row.created_at,
   };
+}
+
+// An authenticated response = the public user PLUS a signed session token the client
+// stores and sends as `Authorization: Bearer` on API requests. The verified token —
+// never a client-supplied userId — is what the server trusts for identity. If
+// SESSION_SECRET is unprovisioned, mint returns null and the client stays on the
+// anonymous path (fail closed), so a missing secret degrades gracefully, never grants.
+function authedResponse(row) {
+  return { ok: true, user: publicUser(row), token: mintSessionToken(row.id) };
 }
 
 // ─── SCHEMA-TOLERANT COLUMN HANDLING ─────────────────────────────────────────
@@ -304,7 +314,7 @@ export default async function handler(req, res) {
     // Fire and forget — a failed email must not fail the sign-up.
     issueVerificationEmail(supabase, data).catch(() => {});
 
-    return res.status(200).json({ ok: true, user: publicUser(data) });
+    return res.status(200).json(authedResponse(data));
   }
 
   // ── SIGN IN ──────────────────────────────────────────────────────────────
@@ -332,7 +342,7 @@ export default async function handler(req, res) {
     const ok = await verifyPassword(supabase, data.id, password, data.password_hash);
     if (!ok) return res.status(401).json({ error: INVALID });
 
-    return res.status(200).json({ ok: true, user: publicUser(data) });
+    return res.status(200).json(authedResponse(data));
   }
 
   // ── VERIFY EMAIL ─────────────────────────────────────────────────────────
@@ -419,10 +429,7 @@ export default async function handler(req, res) {
     // Any outstanding reset links are now stale.
     await supabase.from("password_reset_tokens").update({ used: true }).eq("user_id", data.id).eq("used", false);
 
-    return res.status(200).json({
-      ok: true,
-      user: publicUser({ ...data, must_reset_password: false }),
-    });
+    return res.status(200).json(authedResponse({ ...data, must_reset_password: false }));
   }
 
   // ── FORGOT PASSWORD ──────────────────────────────────────────────────────
