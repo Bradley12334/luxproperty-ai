@@ -47,7 +47,10 @@ async function warmOne(oc) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const t0 = Date.now();
     try {
-      const res = await fetch(`${BASE}/api/brief?postcode=${encodeURIComponent(pc)}`, { signal: AbortSignal.timeout(120000) });
+      // skipOverpass=1 — warm the SPARQL transaction cache + non-rate-limited source
+      // caches only. Overpass is NEVER called (organic traffic fills it via the combined
+      // query), so warming cannot re-trigger the per-IP Overpass rate limit.
+      const res = await fetch(`${BASE}/api/brief?postcode=${encodeURIComponent(pc)}&skipOverpass=1`, { signal: AbortSignal.timeout(120000) });
       const j = await res.json().catch(() => null);
       const ms = Date.now() - t0;
       const price = (j?.sections || []).find((s) => s.key === "pricesTrendNegotiation")?.state;
