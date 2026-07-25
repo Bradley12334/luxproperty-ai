@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { authHeader } from "@/lib/authStore";
+import { startFullBriefCheckout } from "@/lib/fullBriefCheckout";
+import { AuthModal } from "@/components/auth-modal";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card } from "@/components/ui/card";
@@ -50,6 +52,7 @@ import {
   Gauge,
   Lock,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -109,7 +112,7 @@ interface BriefMeta {
   cacheLayer?: "memory" | "durable" | "live";
   dataError?: { code: string; retryable?: boolean } | null;
 }
-interface BriefPayload { ok: true; meta: BriefMeta; sections: BriefSection[]; quota?: QuotaStatus }
+interface BriefPayload { ok: true; meta: BriefMeta; sections: BriefSection[]; quota?: QuotaStatus; fullBriefOwned?: boolean }
 interface BriefErrorResp { ok: false; error: { code: string; message: string } }
 // Clean over-quota response (HTTP 200, not an error) — Explorer used its 3/month.
 interface QuotaExceededResp {
@@ -2601,6 +2604,76 @@ function ErrorState({ error }: { error: { code: string; message: string } }) {
   );
 }
 
+// ── Save / own affordance ────────────────────────────────────────────────────
+// The £14.99 one-off "save this brief permanently" surface. Owned → a calm ownership
+// confirmation. Not owned → a LOCKED upsell (shown, not hidden) that starts the Full
+// Brief checkout for THIS district. Anonymous → the same button opens sign-in first.
+// NOTE: final CTA/upsell wording is finalised in Step 5 (the wall/CTA copy propose-gate);
+// this uses functional copy so the deliverable exists before that promise is written.
+function SaveBriefAffordance({ outcode, postcode, owned }: { outcode: string; postcode: string; owned: boolean }) {
+  const [, navigate] = useLocation();
+  const [busy, setBusy] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  if (owned) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3" data-testid="owned-brief-banner">
+        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+        <p className="text-sm text-foreground/80">
+          <span className="font-medium text-foreground">You own {outcode}.</span>{" "}
+          Saved to your account — revisit and regenerate free, forever.
+        </p>
+      </div>
+    );
+  }
+
+  async function onSave() {
+    if (busy) return;
+    setBusy(true);
+    setNote(null);
+    const r = await startFullBriefCheckout(postcode);
+    if (r.status === "redirecting") return; // navigating to Stripe — keep the spinner
+    if (r.status === "signin-required") { setAuthOpen(true); setBusy(false); return; }
+    if (r.status === "already-owned") { navigate(`/brief/${encodeURIComponent(r.outcode || outcode)}`); return; }
+    setNote(r.message); // error
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <div className="rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] px-4 py-3.5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-start gap-2.5">
+            <Lock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Save this brief permanently</p>
+              <p className="text-xs text-muted-foreground">
+                Unlock the full {outcode} brief at Investor depth — yours forever, free to revisit.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={onSave}
+            disabled={busy}
+            className="font-semibold shrink-0"
+            data-testid="button-save-full-brief"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>Get the full brief — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+            )}
+          </Button>
+        </div>
+        {note && <p className="text-xs text-destructive mt-2" data-testid="text-save-error">{note}</p>}
+      </div>
+      <AuthModal open={authOpen} defaultTab="signup" onClose={() => setAuthOpen(false)} />
+    </>
+  );
+}
+
 // ── Meta header ──────────────────────────────────────────────────────────────
 function BriefHeader({ meta }: { meta: BriefMeta }) {
   return (
@@ -2814,6 +2887,7 @@ export default function BriefPage() {
         {status === "done" && brief && prices && (
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
             <BriefHeader meta={brief.meta} />
+            <SaveBriefAffordance outcode={brief.meta.outcode} postcode={brief.meta.postcode} owned={!!brief.fullBriefOwned} />
             <QuotaFunnel quota={brief.quota} />
             {areaVerdict && <VerdictCard section={areaVerdict} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
