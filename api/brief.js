@@ -90,7 +90,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const payload = await generate(postcode, { tier: account.tier });
+    // skipOverpass=1 is a cache-WARMING flag: build everything EXCEPT the Overpass
+    // sources (which organic traffic fills), so a warm run never hits the rate-limited
+    // Overpass endpoint. Benign if a user passes it — they just get an Overpass-less brief.
+    const skipOverpass = req.query.skipOverpass === "1";
+    const payload = await generate(postcode, { tier: account.tier, skipOverpass });
     // Payload built, tier-filtered at generation. The transaction set is cached
     // (24h) but the tier-filtered payload is not — always recomputed against the
     // current entitlement config and the caller's plan.
