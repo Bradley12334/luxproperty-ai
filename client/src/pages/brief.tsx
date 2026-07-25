@@ -73,7 +73,7 @@ interface Money { raw: number | null; formatted: string }
 interface Pct { raw: number | null; formatted: string; direction?: "up" | "down" | "flat" }
 interface TrendRow { year: number; count: number; median: Money; change: Pct; state: "data" | "sparse" | "missing" }
 interface LeveragePoint { signal: string; text: string }
-interface BriefSection {
+export interface BriefSection {
   key: string;
   title: string;
   minTier: "EXP" | "PRO" | "INV";
@@ -251,7 +251,7 @@ function InFullBriefTag() {
 // The server (lib/brief/gate.js) drops a locked section's data and sends only
 // { title, description, requiredTier }. This renders it as a preview with the calm
 // "In the full brief" tag; the unlock action is the single banner at the top.
-function LockedSection({ section }: { section: BriefSection }) {
+export function LockedSection({ section }: { section: BriefSection }) {
   const tier = section.requiredTier ?? section.minTier;
   return (
     <Card className="relative overflow-hidden border-dashed p-6">
@@ -2507,7 +2507,7 @@ function verdictChipClasses(tone: VerdictData["chip"]["tone"]) {
   }
 }
 
-function VerdictCard({ section }: { section: BriefSection }) {
+export function VerdictCard({ section }: { section: BriefSection }) {
   const d = section.data as VerdictData | null;
   if (!d) {
     return (

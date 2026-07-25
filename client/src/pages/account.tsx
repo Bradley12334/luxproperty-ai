@@ -28,9 +28,9 @@ const planDetails = {
     price: "Free",
     color: "text-muted-foreground",
     features: ["2 briefs per month", "Area screening brief — Good fit / Mixed / Limited fit", "Market overview (average price & YoY change)", "1-year price trend (Land Registry)", "Neighbourhood profile — schools, transport, walkability", "Flood risk & council tax band", "Named stations, schools & amenities"],
-    upgradeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional",
-    upgradeTo: "Professional — £4.99/month",
-    upgradeDescription: "Get comparable sales, a negotiation brief, 5-year price history, crime breakdown, planning context, and PDF export for any UK postcode.",
+    upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
+    upgradeTo: "Investor — £39.99/month",
+    upgradeDescription: "Want the full picture on one postcode? Run its brief and unlock it for £14.99 — yours permanently. Or go unlimited across every postcode with Investor: comparable sales, 10-year trends, sold-prices maps and a portfolio dashboard.",
   },
   professional: {
     label: "Professional",
