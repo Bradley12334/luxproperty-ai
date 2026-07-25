@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+// getUser import removed — identity now travels as a Bearer token via authHeader()
+// inside fetchPortfolioSummary; the page no longer passes a userId.
 import { fetchPortfolioSummary } from "@/lib/portfolioSummary";
-import { getUser } from "@/lib/authStore";
 import {
   loadPortfolio,
   addToPortfolio,
@@ -221,7 +222,7 @@ export default function PortfolioPage() {
 
     setIsGenerating(true);
     try {
-      const summary = await fetchPortfolioSummary(query, getUser()?.id);
+      const summary = await fetchPortfolioSummary(query);
       const { ok, item } = await addToPortfolio(summary);
       if (ok && item) {
         setItems((prev) => {

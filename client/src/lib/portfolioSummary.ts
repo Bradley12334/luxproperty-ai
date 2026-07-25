@@ -3,6 +3,8 @@
 // exactly — no divergent price query (spine rule). Replaces the retired
 // client-side mockEngine.generateBrief for portfolio.
 
+import { authHeader } from "@/lib/authStore";
+
 export interface PortfolioSummary {
   query: string;         // postcode, uppercased — also the /brief/:postcode key
   queryType: "area";     // new pipeline is postcode/area-based (no address variant)
@@ -12,13 +14,10 @@ export interface PortfolioSummary {
 
 export async function fetchPortfolioSummary(
   postcode: string,
-  userId?: string,
 ): Promise<PortfolioSummary> {
   const clean = postcode.trim().toUpperCase();
-  const url = `/api/brief?postcode=${encodeURIComponent(clean)}${
-    userId ? `&userId=${encodeURIComponent(userId)}` : ""
-  }`;
-  const res = await fetch(url);
+  const url = `/api/brief?postcode=${encodeURIComponent(clean)}`;
+  const res = await fetch(url, { headers: authHeader() });
   const json = await res.json().catch(() => null);
   if (!res.ok || !json?.ok) {
     throw new Error(json?.error?.message ?? "Failed to generate brief");

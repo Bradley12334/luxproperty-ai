@@ -22,7 +22,7 @@ type ApiUser = User;
 async function postAuth(
   action: string,
   body: Record<string, unknown>
-): Promise<{ ok: boolean; user?: ApiUser; error?: string }> {
+): Promise<{ ok: boolean; user?: ApiUser; token?: string; error?: string }> {
   try {
     const res = await fetch(`/api/auth-email?action=${action}`, {
       method: "POST",
@@ -31,7 +31,7 @@ async function postAuth(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, error: data.error || "Something went wrong. Please try again." };
-    return { ok: true, user: data.user as ApiUser };
+    return { ok: true, user: data.user as ApiUser, token: data.token as string | undefined };
   } catch {
     return { ok: false, error: "Could not reach the server. Check your connection and try again." };
   }
@@ -40,6 +40,31 @@ async function postAuth(
 type Listener = () => void;
 
 const SESSION_KEY = "lux_session";
+const TOKEN_KEY = "lux_token";
+
+// ─── Session token ───────────────────────────────────────────────────────────
+// The server-verifiable identity (HMAC-signed, minted at sign-in). Sent as a
+// Bearer header on API calls; the server derives the account from it and never
+// trusts a client-supplied userId. A logged-in session that predates this upgrade
+// has no token — see restoreSession(), which prompts such users to sign in again.
+function loadToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+let currentToken: string | null = loadToken();
+
+/** The signed session token, or null (anonymous / pre-upgrade session). */
+export function getToken(): string | null { return currentToken; }
+
+/** Authorization header for API calls — empty object when anonymous. */
+export function authHeader(): Record<string, string> {
+  return currentToken ? { Authorization: `Bearer ${currentToken}` } : {};
+}
+
+// A session cached before signed tokens existed (a logged-in user, but no lux_token)
+// can no longer authenticate. restoreSession() sets this so the app can show a gentle
+// "please sign in again" prompt instead of silently rendering anonymous/locked content.
+let reauthRequired = false;
+export function needsReauth(): boolean { return reauthRequired; }
 
 // ─── Session helpers ─────────────────────────────────────────────────────────
 function saveSession(user: User) {
@@ -72,9 +97,11 @@ function notify() {
   listeners.forEach((l) => l());
 }
 
-export function subscribe(listener: Listener) {
+export function subscribe(listener: Listener): () => void {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  // Return a void unsubscribe (Set.delete returns boolean, which is not a valid
+  // React useEffect destructor — callers return this directly from useEffect).
+  return () => { listeners.delete(listener); };
 }
 
 export function getUser(): User | null {
@@ -85,6 +112,17 @@ export function getUser(): User | null {
 export async function restoreSession(): Promise<void> {
   const cached = loadSession();
   if (!cached) return;
+
+  // SECURITY UPGRADE TRANSITION (clean cut): a session created before signed tokens
+  // existed has a cached user but no lux_token, so it can no longer authenticate to
+  // the API. Rather than silently degrading them to anonymous/locked content, flag a
+  // re-auth prompt and stop. Signing in again mints a token and clears the flag; the
+  // cached user is kept so the prompt can greet them by name.
+  if (!loadToken()) {
+    reauthRequired = true;
+    notify();
+    return;
+  }
 
   // Reads non-sensitive columns only. password_hash is revoked from the anon role,
   // so it is not selectable from the browser at all — by design.
@@ -144,9 +182,17 @@ export async function restoreSession(): Promise<void> {
 }
 
 /** Applies an authenticated user returned by the server. */
-function setUser(user: User) {
+function setUser(user: User, token?: string | null) {
   currentUser = user;
   saveSession(currentUser);
+  if (token !== undefined) {
+    currentToken = token;
+    if (token) reauthRequired = false; // a fresh token resolves the transition prompt
+    try {
+      if (token) localStorage.setItem(TOKEN_KEY, token);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch {}
+  }
   notify();
 }
 
@@ -172,7 +218,7 @@ export async function signUp(
   const result = await postAuth("signup", { name: name.trim(), email: key, password });
   if (!result.ok || !result.user) return { ok: false, error: result.error };
 
-  setUser(result.user);
+  setUser(result.user, result.token ?? null);
 
   // Welcome email (fire and forget — the verification email is sent server-side
   // as part of signup and is the one that matters).
@@ -198,7 +244,7 @@ export async function signIn(
   const result = await postAuth("signin", { email: key, password });
   if (!result.ok || !result.user) return { ok: false, error: result.error };
 
-  setUser(result.user);
+  setUser(result.user, result.token ?? null);
   return { ok: true, mustResetPassword: result.user.mustResetPassword };
 }
 
@@ -216,7 +262,7 @@ export async function forceResetPassword(
     newPassword,
   });
   if (!result.ok || !result.user) return { ok: false, error: result.error };
-  setUser(result.user);
+  setUser(result.user, result.token ?? null);
   return { ok: true };
 }
 
@@ -242,5 +288,8 @@ export async function clearBonusInvestorBrief(): Promise<void> {
 export function signOut() {
   currentUser = null;
   clearSession();
+  currentToken = null;
+  reauthRequired = false;
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
   notify();
 }

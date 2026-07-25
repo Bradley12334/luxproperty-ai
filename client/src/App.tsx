@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CookieBanner } from "@/components/cookie-banner";
+import { ReauthBanner } from "@/components/reauth-banner";
 import NotFound from "@/pages/not-found";
 import ResetPasswordPage from "@/pages/reset-password";
 import VerifyEmailPage from "@/pages/verify-email";
@@ -59,6 +60,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <CookieBanner />
+          <ReauthBanner />
           <Router>
             <AppRouter />
           </Router>

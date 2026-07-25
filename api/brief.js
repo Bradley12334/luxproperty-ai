@@ -30,6 +30,7 @@ import { generate } from "../lib/brief/generate.js";
 import { isBriefError } from "../lib/brief/errors.js";
 import { resolveAccountTier } from "../lib/brief/account.js";
 import { monthKey, countGenerations, recordGeneration, quotaStatus } from "../lib/brief/quota.js";
+import { verifySessionToken, bearerFromHeader } from "../lib/auth/session-token.js";
 
 // Raise the function ceiling to the Hobby maximum so a cold ~20-30s generation
 // completes. generate()'s own 50s budget still fires first on a slow upstream.
@@ -58,10 +59,15 @@ export default async function handler(req, res) {
     });
   }
 
-  // Resolve the account's REAL tier from the client-supplied userId (the existing
-  // product mechanism; anonymous → EXP). This does NOT modify auth/plan/billing — it
-  // only READS users.plan. See lib/brief/account.js.
-  const account = await resolveAccountTier(req.query.userId);
+  // ── Server-verified identity ────────────────────────────────────────────────
+  // Identity comes ONLY from a valid HMAC session token in the Authorization header
+  // (minted at sign-in AFTER password verification). The verified `sub` is the userId;
+  // a client-supplied ?userId= is IGNORED — it is no longer part of the contract, so a
+  // stolen or forged UUID grants nothing. No/invalid/expired token → anonymous Explorer,
+  // exactly as a logged-out visitor (product behaviour, not a hole). resolveAccountTier
+  // still only READS users.plan — auth/plan/billing are untouched.
+  const session = verifySessionToken(bearerFromHeader(req.headers.authorization));
+  const account = await resolveAccountTier(session?.sub);
 
   // ── Quota (server-enforced, calendar-month, per signed-in account) ──────────
   // Anonymous → no quota (unlimited Explorer sections; funnel nudges sign-in).
