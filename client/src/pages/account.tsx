@@ -278,27 +278,42 @@ export default function AccountPage() {
                 <p className="text-sm text-muted-foreground">Loading your briefs…</p>
               ) : ownedBriefs.length > 0 ? (
                 <ul className="space-y-2">
-                  {ownedBriefs.map((b) => (
+                  {ownedBriefs.map((b) => {
+                    // Link to the buyer's TYPED full postcode (the fully-populated point
+                    // brief) when we have it; fall back to the outcode (district) for
+                    // bare-outcode purchases and pre-migration rows. Ownership is by
+                    // outcode, so either URL serves the owned brief at INV depth.
+                    const target = b.postcode || b.outcode;
+                    const coversDistrict = b.postcode && b.postcode.replace(/\s+/g, "") !== b.outcode;
+                    return (
                     <li key={b.outcode}>
-                      <Link href={`/brief/${encodeURIComponent(b.outcode)}`}>
+                      <Link href={`/brief/${encodeURIComponent(target)}`}>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full justify-between gap-2 text-sm"
+                          className="w-full justify-between gap-2 text-sm h-auto py-2"
                           data-testid={`button-owned-brief-${b.outcode.toLowerCase()}`}
                         >
-                          <span className="flex items-center gap-2 font-medium">
-                            <MapPin className="h-4 w-4 text-primary" />
-                            {b.outcode}
+                          <span className="flex items-center gap-2 min-w-0">
+                            <MapPin className="h-4 w-4 text-primary shrink-0" />
+                            <span className="flex flex-col items-start min-w-0">
+                              <span className="font-medium truncate">{b.postcode || b.outcode}</span>
+                              {coversDistrict && (
+                                <span className="text-[11px] text-muted-foreground font-normal">
+                                  Covers all of {b.outcode}
+                                </span>
+                              )}
+                            </span>
                           </span>
-                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal">
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal shrink-0">
                             Owned · revisit free
                             <ArrowRight className="h-3.5 w-3.5" />
                           </span>
                         </Button>
                       </Link>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               ) : (
                 // Locked/empty upsell — shown, not hidden (the save affordance is a surface).

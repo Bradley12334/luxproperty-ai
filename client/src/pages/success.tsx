@@ -22,15 +22,24 @@ export default function SuccessPage() {
 
   const { user } = useAuth();
   const [plan, setPlan] = useState<"professional" | "investor" | null>(null);
-  // The £14.99 one-off Full Brief carries its owned district as ?fullbrief=<OUTCODE>
-  // (set by api/create-checkout.js success_url). It is NOT a subscription.
+  // The £14.99 one-off Full Brief carries its owned district as ?fullbrief=<OUTCODE> and
+  // the buyer's TYPED full postcode as ?pc=<POSTCODE> (both set by create-checkout's
+  // success_url). It is NOT a subscription. outcode is the entitlement; pc drives routing.
   const [fullBrief, setFullBrief] = useState<string | null>(null);
+  const [fullPostcode, setFullPostcode] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fb = params.get("fullbrief");
     if (fb) {
-      setFullBrief(fb.toUpperCase().replace(/\s+/g, ""));
+      const oc = fb.toUpperCase().replace(/\s+/g, "");
+      setFullBrief(oc);
+      // pc is the typed full postcode. Only treat it as a POINT postcode when it's more
+      // than the bare outcode (a bare-outcode buy sends pc === outcode → district is the
+      // destination). Preserve display spacing; compare on the compacted form.
+      const pcRaw = (params.get("pc") || "").trim().toUpperCase();
+      const pcCompact = pcRaw.replace(/\s+/g, "");
+      setFullPostcode(pcRaw && pcCompact !== oc ? pcRaw : null);
       return; // a Full Brief purchase never also carries a subscription plan
     }
     const p = params.get("plan");
@@ -46,7 +55,7 @@ export default function SuccessPage() {
   }, [fullBrief, plan]);
 
   // ── Full Brief (one-off) success ──────────────────────────────────────────
-  if (fullBrief) return <FullBriefSuccess outcode={fullBrief} firstName={user?.name?.split(" ")[0] ?? null} />;
+  if (fullBrief) return <FullBriefSuccess outcode={fullBrief} postcode={fullPostcode} firstName={user?.name?.split(" ")[0] ?? null} />;
 
   // ── Subscription success (unchanged) ──────────────────────────────────────
   const planLabel = plan === "investor" ? "Investor" : "Professional";
@@ -153,10 +162,16 @@ export default function SuccessPage() {
 }
 
 // ─── Full Brief (one-off) success surface ──────────────────────────────────────
-// The buyer permanently owns the Investor-depth brief for ONE district (outcode).
-// Ownership language, the honest Investor-depth list (NO PDF export — not shipped),
-// and a primary CTA that opens the owned brief.
-function FullBriefSuccess({ outcode, firstName }: { outcode: string; firstName: string | null }) {
+// The buyer permanently owns the Investor-depth brief for ONE district (outcode). When
+// they typed a full postcode, we lead with THAT (their point brief, fully populated) and
+// frame the district as the bonus; the primary CTA opens the typed postcode. A bare-outcode
+// buyer (no `postcode`) gets the district framing and opens the outcode directly.
+// Honest Investor-depth list (NO PDF export — not shipped).
+function FullBriefSuccess({ outcode, postcode, firstName }: { outcode: string; postcode: string | null; firstName: string | null }) {
+  const hasPoint = !!postcode;              // did the buyer type a full postcode?
+  const heroLabel = postcode || outcode;    // what they see as "theirs"
+  const target = postcode || outcode;       // where the CTA routes (point brief when typed)
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -167,16 +182,22 @@ function FullBriefSuccess({ outcode, firstName }: { outcode: string; firstName: 
         </div>
 
         <h1 className="font-display text-2xl sm:text-3xl text-foreground text-center mb-3">
-          {firstName ? `${firstName}, ` : ""}{outcode} is yours — permanently.
+          {firstName ? `${firstName}, ` : ""}your {heroLabel} brief is ready.
         </h1>
-        <p className="text-sm text-muted-foreground text-center max-w-sm mb-2">
-          Your full <span className="font-medium text-foreground">{outcode}</span> brief is saved to your account at Investor depth. Revisit it any time — regenerating it is always free.
-        </p>
+        {hasPoint ? (
+          <p className="text-sm text-muted-foreground text-center max-w-md mb-2">
+            Your full <span className="font-medium text-foreground">{postcode}</span> brief is ready at Investor depth — and your purchase covers the whole <span className="font-medium text-foreground">{outcode}</span> district, every postcode in it, permanently.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center max-w-sm mb-2">
+            Your full <span className="font-medium text-foreground">{outcode}</span> brief is saved to your account at Investor depth. Revisit it any time — regenerating it is always free.
+          </p>
+        )}
         <p className="text-xs text-muted-foreground/60 text-center max-w-xs mb-10">
           Stripe has emailed your receipt. You'll find this brief under "My briefs" in your account.
         </p>
 
-        {/* What you own */}
+        {/* What you own — ownership is district-wide, so the list is framed by outcode */}
         <div className="w-full max-w-sm border border-border/50 rounded-xl bg-card p-5 mb-8">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
             What you own for {outcode}
@@ -192,12 +213,12 @@ function FullBriefSuccess({ outcode, firstName }: { outcode: string; firstName: 
           </ul>
         </div>
 
-        {/* CTAs — primary opens the owned brief */}
+        {/* CTAs — primary opens the owned brief (the typed postcode when present) */}
         <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-          <Link href={`/brief/${encodeURIComponent(outcode)}`} className="flex-1">
+          <Link href={`/brief/${encodeURIComponent(target)}`} className="flex-1">
             <Button className="w-full gap-2" data-testid="button-open-owned-brief">
               <MapPin className="h-4 w-4" />
-              Open your {outcode} brief
+              Open your {heroLabel} brief
             </Button>
           </Link>
           <Link href="/account" className="flex-1">
