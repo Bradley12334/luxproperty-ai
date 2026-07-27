@@ -26,7 +26,7 @@ import {
 import { validatePostcodeInput } from "@/lib/postcodeValidation";
 
 export default function Home() {
-  useDocumentTitle("", "AI-powered property intelligence for UK buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data.");
+  useDocumentTitle("", "Honest property intelligence for UK buyers. Screen any postcode free, then own the complete brief for £14.99 — comparable sold prices, pre-offer strategy and risk flags, built only on official UK data.");
   const [query, setQuery] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [, navigate] = useLocation();
@@ -61,7 +61,7 @@ export default function Home() {
               {/* Left — headline + search */}
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-6">
-                  Full Buyer Intelligence Brief
+                  Honest property intelligence
                 </p>
                 <h1
                   className="font-serif text-[2.4rem] sm:text-[3rem] leading-[1.07] tracking-tight text-foreground"
@@ -72,7 +72,7 @@ export default function Home() {
                   <em className="text-primary not-italic">Before you offer.</em>
                 </h1>
                 <p className="mt-5 text-[15px] text-foreground/60 leading-relaxed max-w-[440px]">
-                  See crime rates, school ratings, price trends and risks for any UK postcode — no sign-up needed for your first brief. Built on HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices.
+                  Screen any UK postcode free and get an instant area verdict — Good fit, Mixed, or Limited. Serious about one? Unlock its complete brief for £14.99, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices.
                 </p>
 
                 <form
@@ -137,7 +137,7 @@ export default function Home() {
                       <p className="font-serif text-foreground text-[15px] mt-0.5">Chelsea, SW3 1AA</p>
                     </div>
                     <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                      Good Match
+                      Good fit
                     </span>
                   </div>
 
@@ -267,6 +267,57 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ─── DATA SOURCES (honesty is the pitch — surfaced early) ───────── */}
+        <section className="py-20 sm:py-24 border-b border-border/50 bg-muted/20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="grid gap-14 lg:grid-cols-[1fr_1.6fr] lg:gap-16 items-start">
+
+              <div className="lg:sticky lg:top-24">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-4">
+                  Data sources
+                </p>
+                <h2 className="font-serif text-[1.75rem] sm:text-[2rem] tracking-tight text-foreground leading-[1.13] mb-5">
+                  Built on official data.
+                  <br />Not estimates.
+                </h2>
+                <p className="text-[13px] text-foreground/55 leading-relaxed mb-6">
+                  Every figure in your brief is drawn from a named official register. We don't generate AI estimates or pull from portals. If a number appears in your brief, it came from a verifiable public dataset — and we cite it.
+                </p>
+                <div className="inline-flex items-center gap-2 text-[11px] text-foreground/50 border border-border/60 rounded-lg px-3.5 py-2.5 bg-card mb-5">
+                  <Shield className="h-3 w-3 text-primary shrink-0" />
+                  LuxProperty AI Ltd · Co. No. 17158079
+                </div>
+                <p className="text-[12px] text-foreground/45 leading-relaxed max-w-xs">
+                  Enter any UK postcode to see the full data brief for yourself.
+                </p>
+              </div>
+
+              <div className="divide-y divide-border/50">
+                {[
+                  { icon: Database, source: "HM Land Registry", covers: "Price history, comparable sales, postcode-level trends" },
+                  { icon: HardDrive, source: "EPC Register", covers: "Energy ratings, property type, construction year" },
+                  { icon: AlertTriangle, source: "Environment Agency", covers: "Flood risk zones and surface water mapping" },
+                  { icon: Shield, source: "data.police.uk", covers: "Crime statistics and category breakdown" },
+                  { icon: GraduationCap, source: "Ofsted", covers: "School ratings and location data" },
+                  { icon: Train, source: "OpenStreetMap / TfL", covers: "Transport nodes, stations, walk times" },
+                  { icon: Wifi, source: "Ofcom Connected Nations", covers: "Broadband availability and speeds" },
+                  { icon: TrendingUp, source: "ONS / VOA", covers: "Rental benchmarks and demand indicators" },
+                ].map((item) => (
+                  <div key={item.source} className="flex items-start gap-4 py-3.5 first:pt-0 last:pb-0">
+                    <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <item.icon className="h-3 w-3 text-primary" />
+                    </div>
+                    <div>
+                      <span className="text-[13px] font-semibold text-foreground">{item.source}</span>
+                      <span className="text-[13px] text-foreground/45 ml-2">· {item.covers}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ─── WHAT IT'S FOR (Value Pillars) ─────────────────────────────── */}
         <section className="py-20 sm:py-24 border-b border-border/50">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -325,7 +376,7 @@ export default function Home() {
                   Everything you'd spend half a day finding — in 60 seconds.
                 </h2>
                 <p className="text-[13px] text-foreground/55 leading-relaxed mb-7">
-                  Rightmove, Land Registry, police.uk, Ofsted, Ofcom, Environment Agency — your brief pulls from all of them automatically, cites every source, and presents the analysis you'd otherwise spend half a day assembling.
+                  HM Land Registry, police.uk, Ofsted, Ofcom, the Environment Agency and ONS — your brief pulls from all of them automatically, cites every source, and presents the analysis you'd otherwise spend half a day assembling.
                 </p>
                 <ul className="space-y-2.5 mb-8">
                   {[
@@ -334,7 +385,7 @@ export default function Home() {
                     "Flood risk, active planning applications, EPC ratings",
                     "Pre-offer strategy — fair value range and opening offer",
                     "Crime breakdown, school ratings, transport and broadband",
-                    "Export to PDF — client-ready in one click",
+                    "Owned permanently — saved to your account, revisit free",
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-[13px]">
                       <Check className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -366,7 +417,7 @@ export default function Home() {
                       <p className="font-serif text-foreground text-[15px] mt-0.5 tracking-tight">Chelsea, SW3 1AA</p>
                     </div>
                     <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                      Good Match
+                      Good fit
                     </span>
                   </div>
 
@@ -479,16 +530,16 @@ export default function Home() {
               <div className="divide-y divide-border/40">
                 {[
                   {
-                    audience: "Investors",
-                    description: "Track which areas are gaining momentum, not just which ones have already moved. 10-year price trends, rental demand scores, and sold-price data across multiple postcodes at once.",
+                    audience: "Serious Buyers",
+                    description: "Know what comparable properties actually sold for, what risk flags exist, and what a fair opening offer looks like — before you commit to a viewing, let alone an offer.",
                   },
                   {
-                    audience: "Deal Sourcers",
-                    description: "Back your area thesis with real registered data. Spot pockets where prices are lagging comparable streets, track planning pipeline, and share a clean PDF brief with clients.",
+                    audience: "Estate & Buying Agents",
+                    description: "Walk into every valuation with a structured data brief. Pull up live comparables in front of a client. Share a professional brief in one click — no manual research required.",
                   },
                   {
-                    audience: "Developers",
-                    description: "Check planning context, EPC profile, and recent comps before committing to a site. Know what's been built, sold, and approved nearby — before you instruct solicitors.",
+                    audience: "Mortgage Advisers",
+                    description: "Set accurate expectations before the loan discussion. Share a comparable sales snapshot and fair value range at the first meeting — grounded in registered data, not estimates.",
                   },
                 ].map((item) => (
                   <div
@@ -504,16 +555,16 @@ export default function Home() {
               <div className="divide-y divide-border/40">
                 {[
                   {
-                    audience: "Estate & Buying Agents",
-                    description: "Walk into every valuation with a structured data brief. Pull up live comparables in front of a client. Share a professional PDF in one click — no manual research required.",
+                    audience: "Investors",
+                    description: "Track which areas are gaining momentum, not just which ones have already moved. 10-year price trends, rental demand scores, and sold-price data across multiple postcodes at once.",
                   },
                   {
-                    audience: "Mortgage Advisers",
-                    description: "Set accurate expectations before the loan discussion. Share a comparable sales snapshot and fair value range at the first meeting — grounded in registered data, not estimates.",
+                    audience: "Deal Sourcers",
+                    description: "Back your area thesis with real registered data. Spot pockets where prices are lagging comparable streets, track planning pipeline, and share a clean brief with clients.",
                   },
                   {
-                    audience: "Serious Buyers",
-                    description: "Know what comparable properties actually sold for, what risk flags exist, and what a fair opening offer looks like — before you commit to a viewing, let alone an offer.",
+                    audience: "Developers",
+                    description: "Check planning context, EPC profile, and recent comps before committing to a site. Know what's been built, sold, and approved nearby — before you instruct solicitors.",
                   },
                 ].map((item) => (
                   <div
@@ -560,62 +611,11 @@ export default function Home() {
                 size="lg"
                 variant="outline"
                 className="text-[13px] font-semibold px-7"
-                data-testid="button-midpage-professional"
-                onClick={() => startCheckout("https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional")}
+                data-testid="button-midpage-pricing"
+                onClick={() => navigate("/pricing")}
               >
-                Start Professional — £4.99/month
+                See all plans
               </Button>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── DATA SOURCES ──────────────────────────────────────────────── */}
-        <section className="py-20 sm:py-24 border-b border-border/50 bg-muted/20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-14 lg:grid-cols-[1fr_1.6fr] lg:gap-16 items-start">
-
-              <div className="lg:sticky lg:top-24">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-4">
-                  Data sources
-                </p>
-                <h2 className="font-serif text-[1.75rem] sm:text-[2rem] tracking-tight text-foreground leading-[1.13] mb-5">
-                  Built on official data.
-                  <br />Not estimates.
-                </h2>
-                <p className="text-[13px] text-foreground/55 leading-relaxed mb-6">
-                  Every figure in your brief is drawn from a named official register. We don't generate AI estimates or pull from portals. If a number appears in your brief, it came from a verifiable public dataset — and we cite it.
-                </p>
-                <div className="inline-flex items-center gap-2 text-[11px] text-foreground/50 border border-border/60 rounded-lg px-3.5 py-2.5 bg-card mb-5">
-                  <Shield className="h-3 w-3 text-primary shrink-0" />
-                  LuxProperty AI Ltd · Co. No. 17158079
-                </div>
-                <p className="text-[12px] text-foreground/45 leading-relaxed max-w-xs">
-                  Enter any UK postcode to see the full data brief for yourself.
-                </p>
-              </div>
-
-              <div className="divide-y divide-border/50">
-                {[
-                  { icon: Database, source: "HM Land Registry", covers: "Price history, comparable sales, postcode-level trends" },
-                  { icon: HardDrive, source: "EPC Register", covers: "Energy ratings, property type, construction year" },
-                  { icon: AlertTriangle, source: "Environment Agency", covers: "Flood risk zones and surface water mapping" },
-                  { icon: Shield, source: "data.police.uk", covers: "Crime statistics and category breakdown" },
-                  { icon: GraduationCap, source: "Ofsted", covers: "School ratings and location data" },
-                  { icon: Train, source: "OpenStreetMap / TfL", covers: "Transport nodes, stations, walk times" },
-                  { icon: Wifi, source: "Ofcom Connected Nations", covers: "Broadband availability and speeds" },
-                  { icon: TrendingUp, source: "ONS / VOA", covers: "Rental benchmarks and demand indicators" },
-                ].map((item) => (
-                  <div key={item.source} className="flex items-start gap-4 py-3.5 first:pt-0 last:pb-0">
-                    <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <item.icon className="h-3 w-3 text-primary" />
-                    </div>
-                    <div>
-                      <span className="text-[13px] font-semibold text-foreground">{item.source}</span>
-                      <span className="text-[13px] text-foreground/45 ml-2">· {item.covers}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </section>
@@ -668,26 +668,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ─── MORE TOOLS ────────────────────────────────────────────────── */}
-        <section className="py-12 sm:py-14 border-b border-border/50 bg-muted/20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary mb-6">
-              More tools
-            </p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <a href="/valuation" className="group flex items-start gap-4 p-5 rounded-xl border border-border/50 bg-card hover:border-primary/40 hover:bg-primary/5 transition-colors">
-                <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                </div>
-                <div>
-                  <h3 className="text-[13px] font-semibold text-foreground group-hover:text-primary transition-colors mb-1">Property Valuation</h3>
-                  <p className="text-[12px] text-foreground/50 leading-relaxed">Instant valuation estimate for any UK address. Built on HM Land Registry Price Paid Data.</p>
-                </div>
-              </a>
-            </div>
-          </div>
-        </section>
-
         {/* ─── PRICING ───────────────────────────────────────────────────── */}
         <section className="py-20 sm:py-24 bg-muted/20" id="pricing">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -695,15 +675,11 @@ export default function Home() {
               Pricing
             </p>
             <h2 className="font-serif text-[1.75rem] sm:text-[2.1rem] tracking-tight text-foreground leading-[1.13] mb-2">
-              Professional is what most buyers need.
+              Screen free. Own the brief that matters.
             </h2>
-            <p className="text-[13px] text-foreground/50 mb-6 max-w-md">
-              Start free. Upgrade for comparable sales, pre-offer strategy and PDF export.
+            <p className="text-[13px] text-foreground/50 mb-10 max-w-md">
+              Start free. Own the complete brief on the postcode that matters — £14.99, one-off. Or go unlimited with Investor.
             </p>
-            <div className="flex items-center gap-2 text-[12px] text-primary font-semibold mb-10 bg-primary/5 border border-primary/20 rounded-lg px-3.5 py-2.5 max-w-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a4 4 0 00-4-4H5.45M12 8V6a4 4 0 014-4h2.55M4 12h16" /></svg>
-              First full Investor brief free when you subscribe to Professional
-            </div>
 
             {/* Cards: Explorer and Investor sit slightly lower visually */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:items-end">
@@ -723,7 +699,7 @@ export default function Home() {
                     "1-year price trend",
                     "Neighbourhood profile",
                     "Flood risk & council tax",
-                    "Good / Mixed / Limited verdict",
+                    "Good fit / Mixed / Limited fit verdict",
                   ].map((f) => (
                     <li key={f} className="flex items-start gap-2 text-[12px]">
                       <Check className="h-3 w-3 text-primary/60 mt-0.5 shrink-0" />
@@ -745,31 +721,32 @@ export default function Home() {
                 </Button>
               </div>
 
-              {/* Professional — elevated */}
+              {/* Full Brief — elevated hero for buyer traffic. Bought per-postcode from
+                  inside a brief, so this CTA routes into the screen → unlock funnel. */}
               <div
                 className="relative flex flex-col p-6 rounded-xl border border-primary/30 bg-card shadow-md ring-1 ring-primary/15 sm:-mt-4"
-                data-testid="card-pricing-professional"
+                data-testid="card-pricing-fullbrief"
               >
                 <span className="absolute -top-px left-5 text-[10px] font-semibold uppercase tracking-[0.16em] bg-primary text-primary-foreground px-2.5 py-0.5 rounded-b-md">
-                  Most Popular
+                  Most buyers start here
                 </span>
-                <h3 className="text-[13px] font-semibold text-foreground mb-4">Professional</h3>
+                <h3 className="text-[13px] font-semibold text-foreground mb-4">Full Brief</h3>
                 <div className="mb-1">
-                  <span className="font-serif text-3xl tracking-tight text-foreground">£4.99</span>
-                  <span className="text-sm text-foreground/40 ml-0.5">/month</span>
+                  <span className="font-serif text-3xl tracking-tight text-foreground">£14.99</span>
+                  <span className="text-sm text-foreground/40 ml-0.5">one-off</span>
                 </div>
                 <p className="text-[12px] text-foreground/50 mb-5 leading-relaxed">
-                  The full brief before you make an offer. Comparable sales, pre-offer strategy, 5-year price history, and PDF export.
+                  The complete brief for one postcode at full Investor depth — comparable sold prices, pre-offer strategy, price history and risk flags. Yours permanently, auto-saved to your account.
                 </p>
                 <ul className="space-y-2 mb-7 flex-1">
                   {[
-                    "Unlimited briefs",
-                    "5-year price trend",
-                    "Comparable sales & valuation range",
+                    "Full brief at Investor depth — one postcode",
+                    "Comparable sold prices & valuation range",
                     "Pre-offer strategy & opening range",
-                    "Planning activity & crime breakdown",
-                    "Air quality, broadband, rental data",
-                    "Export to PDF",
+                    "5- & 10-year price history",
+                    "Planning, crime, flood & school detail",
+                    "Broadband, air quality & letting economics",
+                    "Saved to your account — owned forever",
                   ].map((f) => (
                     <li key={f} className="flex items-start gap-2 text-[13px]">
                       <Check className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
@@ -779,12 +756,16 @@ export default function Home() {
                 </ul>
                 <Button
                   className="w-full text-[13px] font-semibold"
-                  data-testid="button-pricing-professional"
-                  onClick={() => startCheckout("https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional")}
+                  data-testid="button-pricing-fullbrief"
+                  onClick={() => {
+                    const el = document.querySelector("[data-testid='input-search']") as HTMLInputElement | null;
+                    el?.focus();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
                 >
-                  Get Professional — £4.99/month
+                  Get the Full Brief — £14.99
                 </Button>
-                <p className="mt-2 text-[10px] text-foreground/30 text-center">Cancel anytime · No minimum term</p>
+                <p className="mt-2 text-[10px] text-foreground/30 text-center">One-off payment · No subscription · Owned forever</p>
               </div>
 
               {/* Investor */}
@@ -802,7 +783,7 @@ export default function Home() {
                 </p>
                 <ul className="space-y-1.5 mb-6 flex-1">
                   {[
-                    "Everything in Professional",
+                    "Everything in Full Brief — every postcode",
                     "10-year price trend",
                     "Rental demand score",
                     "Sold prices map",
@@ -827,7 +808,7 @@ export default function Home() {
             </div>
 
             <p className="mt-6 text-center text-[11px] text-foreground/35">
-              No card required to start · Cancel anytime · No minimum term
+              No card to screen · Full Brief is one-off · Investor cancels anytime
             </p>
           </div>
         </section>
@@ -841,8 +822,8 @@ export default function Home() {
             <h2 className="font-serif text-[2rem] sm:text-[2.4rem] tracking-tight text-foreground leading-[1.1] mb-4 max-w-lg mx-auto">
               Know what you're buying into. Before you offer.
             </h2>
-            <p className="text-[14px] text-foreground/45 mb-9 max-w-xs mx-auto leading-relaxed">
-              Free to try. Any UK postcode. No account required.
+            <p className="text-[14px] text-foreground/45 mb-9 max-w-md mx-auto leading-relaxed">
+              Screen any UK postcode free. When you find the one, own its complete brief for £14.99 — permanently.
             </p>
             <Button
               size="lg"
