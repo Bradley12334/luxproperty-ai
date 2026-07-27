@@ -302,6 +302,9 @@ async function handleFullBriefPurchase(stripe, supabase, session, res) {
       stripeSessionId: session.id,
       amountPaid: session.amount_total ?? null,
       currency: session.currency ?? null,
+      // The buyer's typed full postcode (create-checkout set metadata.postcode). Routing/
+      // display only; outcode above stays the entitlement key. Null for a bare-outcode buy.
+      postcode: session.metadata?.postcode ?? null,
     });
     console.log(
       `Full Brief granted: user ${userId} → ${outcode} ` +

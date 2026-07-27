@@ -8,8 +8,12 @@
 import { authHeader, getToken } from "./authStore";
 
 export interface OwnedBrief {
-  /** Postcode district, e.g. "E8". The owned brief opens at /brief/<outcode>. */
+  /** Postcode district, e.g. "E8" — the entitlement key. */
   outcode: string;
+  /** The buyer's originally-typed FULL postcode, e.g. "SW1A 1AA", or null for a
+   *  bare-outcode purchase / pre-migration row. The library links to /brief/<postcode>
+   *  when present (the point brief), falling back to /brief/<outcode> (the district). */
+  postcode: string | null;
   /** ISO timestamp the Full Brief was purchased. */
   grantedAt: string;
 }
@@ -24,7 +28,14 @@ export async function fetchMyBriefs(): Promise<OwnedBrief[]> {
       ? ((data as { briefs: unknown[] }).briefs as Array<Record<string, unknown>>)
       : [];
     return briefs
-      .map((b) => ({ outcode: String(b.outcode || "").toUpperCase(), grantedAt: String(b.grantedAt || "") }))
+      .map((b) => {
+        const rawPc = typeof b.postcode === "string" ? b.postcode.trim() : "";
+        return {
+          outcode: String(b.outcode || "").toUpperCase(),
+          postcode: rawPc ? rawPc.toUpperCase() : null,
+          grantedAt: String(b.grantedAt || ""),
+        };
+      })
       .filter((b) => b.outcode.length > 0);
   } catch {
     return [];

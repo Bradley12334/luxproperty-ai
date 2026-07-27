@@ -122,7 +122,10 @@ export default async function handler(req, res) {
       // The webhook reads outcode from here; kind is a belt-and-braces Full Brief marker.
       metadata: { kind: "full_brief", outcode, postcode: location.postcode, userId },
       payment_intent_data: { metadata: { kind: "full_brief", outcode, userId } },
-      success_url: `${origin}/success?fullbrief=${encodeURIComponent(outcode)}`,
+      // fullbrief=<outcode> is the entitlement key (unchanged); pc=<full postcode> carries
+      // the buyer's TYPED postcode so the success CTA routes to their point brief, not the
+      // district centroid. location.postcode === outcode for a bare-outcode purchase.
+      success_url: `${origin}/success?fullbrief=${encodeURIComponent(outcode)}&pc=${encodeURIComponent(location.postcode)}`,
       cancel_url: `${origin}/pricing`,
     });
 
