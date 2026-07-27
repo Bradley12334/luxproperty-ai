@@ -235,9 +235,14 @@ function InFullBriefTag() {
   return (
     <button
       type="button"
-      onClick={() =>
-        document.getElementById(FULL_BRIEF_BANNER_ID)?.scrollIntoView({ behavior: "smooth", block: "center" })
-      }
+      onClick={() => {
+        // Scroll to the single unlock banner (Explorer). If it isn't present — e.g. a
+        // grandfathered Professional, for whom the £14.99 banner is hidden — fall back
+        // to the plans page (Investor) rather than a dead tap.
+        const el = document.getElementById(FULL_BRIEF_BANNER_ID);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        else window.location.assign("/pricing");
+      }}
       className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
       data-testid="tag-in-full-brief"
     >
@@ -2687,7 +2692,7 @@ function ErrorState({ error }: { error: { code: string; message: string } }) {
 // Brief checkout for THIS district. Anonymous → the same button opens sign-in first.
 // NOTE: final CTA/upsell wording is finalised in Step 5 (the wall/CTA copy propose-gate);
 // this uses functional copy so the deliverable exists before that promise is written.
-function SaveBriefAffordance({ outcode, postcode, owned }: { outcode: string; postcode: string; owned: boolean }) {
+function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: string; postcode: string; owned: boolean; tier: string }) {
   const [, navigate] = useLocation();
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -2704,6 +2709,13 @@ function SaveBriefAffordance({ outcode, postcode, owned }: { outcode: string; po
       </div>
     );
   }
+
+  // The £14.99 upsell is ONLY for Explorer-tier (free) viewers who don't own this
+  // district. A subscriber whose PLAN already grants full/higher depth — Investor, or a
+  // grandfathered Professional — must never be shown a one-off upsell for access they
+  // already have. Their brief is served at their plan tier, so tier is PRO/INV here
+  // (the INV override only fires when owned, handled above). Anonymous = EXP = shown.
+  if (tier !== "EXP") return null;
 
   async function onSave() {
     if (busy) return;
@@ -2969,7 +2981,7 @@ export default function BriefPage() {
         {status === "done" && brief && prices && (
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
             <BriefHeader meta={brief.meta} />
-            <SaveBriefAffordance outcode={brief.meta.outcode} postcode={brief.meta.postcode} owned={!!brief.fullBriefOwned} />
+            <SaveBriefAffordance outcode={brief.meta.outcode} postcode={brief.meta.postcode} owned={!!brief.fullBriefOwned} tier={brief.meta.tier} />
             <QuotaFunnel quota={brief.quota} />
             {areaVerdict && <VerdictCard section={areaVerdict} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
