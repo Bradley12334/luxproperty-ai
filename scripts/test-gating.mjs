@@ -18,6 +18,7 @@
 
 import { gateSections, SECTION_ENTITLEMENT } from "../lib/brief/gate.js";
 import { ENTITLEMENTS, TIER_RANK, isEntitled } from "../lib/brief/entitlements.js";
+import { outcodeOf } from "../lib/brief/ownership.js";
 
 let pass = 0,
   fail = 0;
@@ -135,6 +136,49 @@ for (const tier of ["EXP", "PRO"]) {
   // Sanity: an entitled sentinel IS present (proves the grep would have caught a leak).
   const execPresent = JSON.stringify(gated).includes(sentinel("executiveSummary"));
   check(`${tier}: entitled sentinel (executiveSummary) IS present — grep is meaningful`, execPresent);
+}
+console.log("");
+
+// ── F: FULL BRIEF OWNERSHIP — owned outcode → INV depth; other districts still gate ──
+// Mirrors the api/brief.js decision (effectiveTier = owned ? "INV" : accountTier) and
+// re-runs the payload-grep with ownership ON vs OFF. Proves the spec invariant: a Full
+// Brief owner gets full data for OWNED outcodes only; a non-owned postcode from the SAME
+// account still gates by plan.
+console.log("F. Full Brief ownership — owned outcode → INV data; non-owned → plan tier");
+{
+  // F0: the ownership key derivation agrees with resolve()/meta.outcode (drives the match).
+  check(`outcodeOf("e8 1ng") = E8`, outcodeOf("e8 1ng") === "E8");
+  check(`outcodeOf("sw1a 1aa") = SW1A`, outcodeOf("sw1a 1aa") === "SW1A");
+  check(`outcodeOf("ec1a 1bb") = EC1A`, outcodeOf("ec1a 1bb") === "EC1A");
+  check(`outcodeOf bare "E8" = E8`, outcodeOf("E8") === "E8");
+  check(`outcodeOf("") = ""`, outcodeOf("") === "");
+
+  const effectiveTier = (accountTier, owned) => (owned ? "INV" : accountTier);
+
+  // F1: an EXP-plan account OWNING this district sees full INV data — nothing locked.
+  const ownedView = gateSections(buildFullSections(), effectiveTier("EXP", true));
+  const ownedJson = JSON.stringify(ownedView);
+  check(`owned district: zero sections locked`, !ownedView.some((s) => s.state === "LOCKED"));
+  for (const key of Object.keys(SECTION_MIN_TIER)) {
+    if (key === "pricesTrendNegotiation") continue;
+    check(`owned district: ${key} data present (incl. PRO/INV)`, ownedJson.includes(sentinel(key)));
+  }
+  check(`owned district: full 10yr trend depth`,
+    ownedView.find((s) => s.key === "pricesTrendNegotiation").data.trend.rows.length === 10);
+
+  // F2: the SAME EXP-plan account viewing a NON-owned district still gates by plan —
+  // zero PRO/INV data sentinels survive (the payload-grep invariant, ownership OFF).
+  const otherView = gateSections(buildFullSections(), effectiveTier("EXP", false));
+  const otherJson = JSON.stringify(otherView);
+  for (const [key, minTier] of Object.entries(SECTION_MIN_TIER)) {
+    if (TIER_RANK["EXP"] >= TIER_RANK[minTier]) continue; // EXP-entitled sentinel allowed
+    check(`non-owned district: no "${key}" sentinel (still gated)`, !otherJson.includes(sentinel(key)));
+  }
+
+  // F3: ownership genuinely flips the outcome for a gated INV section — present when
+  // owned, absent when not. (Proves F1/F2 aren't both trivially true.)
+  check(`ownership flips a gated INV section (soldPricesMap)`,
+    ownedJson.includes(sentinel("soldPricesMap")) && !otherJson.includes(sentinel("soldPricesMap")));
 }
 console.log("");
 

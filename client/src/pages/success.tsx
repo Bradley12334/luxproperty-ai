@@ -8,32 +8,47 @@ declare global {
 }
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useAuth } from "@/hooks/use-auth";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, ArrowRight, Home, FileText, BarChart2, Gift } from "lucide-react";
+import { CheckCircle2, ArrowRight, Home, FileText, BarChart2, Gift, MapPin } from "lucide-react";
 
 export default function SuccessPage() {
   useDocumentTitle(
-    "Welcome to LuxProperty.ai",
-    "Your subscription is confirmed. Start running postcode briefs with your new plan."
+    "You're all set — LuxProperty.ai",
+    "Your purchase is confirmed. Start running postcode briefs."
   );
 
+  const { user } = useAuth();
   const [plan, setPlan] = useState<"professional" | "investor" | null>(null);
+  // The £14.99 one-off Full Brief carries its owned district as ?fullbrief=<OUTCODE>
+  // (set by api/create-checkout.js success_url). It is NOT a subscription.
+  const [fullBrief, setFullBrief] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const fb = params.get("fullbrief");
+    if (fb) {
+      setFullBrief(fb.toUpperCase().replace(/\s+/g, ""));
+      return; // a Full Brief purchase never also carries a subscription plan
+    }
     const p = params.get("plan");
     if (p === "professional" || p === "investor") setPlan(p);
   }, []);
 
-  // Google Ads conversion — fires once on mount, only on this page
+  // Google Ads conversion — fires once on mount. Distinct event for the one-off so a
+  // Full Brief purchase and a subscription are not conflated in reporting.
   useEffect(() => {
-    if (typeof window.gtag === "function") {
-      window.gtag("event", "conversion_event_subscribe_paid");
-    }
-  }, []);
+    if (typeof window.gtag !== "function") return;
+    if (fullBrief) window.gtag("event", "conversion_event_full_brief_paid");
+    else if (plan) window.gtag("event", "conversion_event_subscribe_paid");
+  }, [fullBrief, plan]);
 
+  // ── Full Brief (one-off) success ──────────────────────────────────────────
+  if (fullBrief) return <FullBriefSuccess outcode={fullBrief} firstName={user?.name?.split(" ")[0] ?? null} />;
+
+  // ── Subscription success (unchanged) ──────────────────────────────────────
   const planLabel = plan === "investor" ? "Investor" : "Professional";
   const planPrice = plan === "investor" ? "£39.99/month" : "£4.99/month";
 
@@ -73,7 +88,6 @@ export default function SuccessPage() {
                 <UnlockedItem text="10-year price history and market trend data" />
                 <UnlockedItem text="Side-by-side postcode comparison tool" />
                 <UnlockedItem text="Portfolio tracker across multiple properties" />
-                <UnlockedItem text="PDF export of any brief" />
               </>
             ) : (
               <>
@@ -81,7 +95,6 @@ export default function SuccessPage() {
                 <UnlockedItem text="Comparable sold prices with deal quality scoring" />
                 <UnlockedItem text="5-year price history and market trend data" />
                 <UnlockedItem text="Pre-offer strategy and opening offer range" />
-                <UnlockedItem text="PDF export of any brief" />
               </>
             )}
           </ul>
@@ -130,7 +143,73 @@ export default function SuccessPage() {
 
         {/* Postcode prompt */}
         <p className="mt-8 text-xs text-muted-foreground/50 text-center max-w-xs">
-          Try any UK postcode — e.g. <span className="font-mono text-foreground/60">SW3 1AA</span>, <span className="font-mono text-foreground/60">LS6 2EX</span>, or <span className="font-mono text-foreground/60">M21 9WQ</span>. Your brief is ready in under 60 seconds.
+          Try any UK postcode — e.g. <span className="font-mono text-foreground/60">SW1A 1AA</span>, <span className="font-mono text-foreground/60">LS6 2EX</span>, or <span className="font-mono text-foreground/60">M21 9WQ</span>. Your brief is ready in under 60 seconds.
+        </p>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
+
+// ─── Full Brief (one-off) success surface ──────────────────────────────────────
+// The buyer permanently owns the Investor-depth brief for ONE district (outcode).
+// Ownership language, the honest Investor-depth list (NO PDF export — not shipped),
+// and a primary CTA that opens the owned brief.
+function FullBriefSuccess({ outcode, firstName }: { outcode: string; firstName: string | null }) {
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header />
+
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 sm:py-24">
+        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
+          <CheckCircle2 className="h-8 w-8 text-primary" />
+        </div>
+
+        <h1 className="font-display text-2xl sm:text-3xl text-foreground text-center mb-3">
+          {firstName ? `${firstName}, ` : ""}{outcode} is yours — permanently.
+        </h1>
+        <p className="text-sm text-muted-foreground text-center max-w-sm mb-2">
+          Your full <span className="font-medium text-foreground">{outcode}</span> brief is saved to your account at Investor depth. Revisit it any time — regenerating it is always free.
+        </p>
+        <p className="text-xs text-muted-foreground/60 text-center max-w-xs mb-10">
+          Stripe has emailed your receipt. You'll find this brief under "My briefs" in your account.
+        </p>
+
+        {/* What you own */}
+        <div className="w-full max-w-sm border border-border/50 rounded-xl bg-card p-5 mb-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary mb-4">
+            What you own for {outcode}
+          </p>
+          <ul className="space-y-3">
+            <UnlockedItem text="The complete brief at Investor depth — every section unlocked" />
+            <UnlockedItem text="Comparable sold prices & valuation range" />
+            <UnlockedItem text="10-year price history and market trend" />
+            <UnlockedItem text="Letting economics — indicative gross yield & sales velocity" />
+            <UnlockedItem text="Sold prices map & street price ranking" />
+            <UnlockedItem text="Development tracker, planning activity & crime breakdown" />
+            <UnlockedItem text="Free to regenerate forever — never counts against your quota" />
+          </ul>
+        </div>
+
+        {/* CTAs — primary opens the owned brief */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+          <Link href={`/brief/${encodeURIComponent(outcode)}`} className="flex-1">
+            <Button className="w-full gap-2" data-testid="button-open-owned-brief">
+              <MapPin className="h-4 w-4" />
+              Open your {outcode} brief
+            </Button>
+          </Link>
+          <Link href="/account" className="flex-1">
+            <Button variant="outline" className="w-full gap-2" data-testid="button-go-account">
+              <Home className="h-4 w-4" />
+              My briefs
+            </Button>
+          </Link>
+        </div>
+
+        <p className="mt-8 text-xs text-muted-foreground/50 text-center max-w-xs">
+          Want another area? Run any UK postcode free to screen it, then unlock the full brief whenever you're ready.
         </p>
       </main>
 

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { signOut } from "@/lib/authStore";
 import { checkoutUrl } from "@/lib/checkout";
+import { fetchMyBriefs, type OwnedBrief } from "@/lib/library";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   User,
@@ -17,6 +18,8 @@ import {
   Check,
   Shield,
   FileText,
+  MapPin,
+  Lock,
 } from "lucide-react";
 
 const planDetails = {
@@ -24,16 +27,16 @@ const planDetails = {
     label: "Explorer",
     price: "Free",
     color: "text-muted-foreground",
-    features: ["3 briefs per month", "Area screening brief — Good fit / Mixed / Limited fit", "Market overview (average price & YoY change)", "1-year price trend (Land Registry)", "Neighbourhood profile — schools, transport, walkability", "Flood risk & council tax band", "Named stations, schools & amenities"],
-    upgradeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional",
-    upgradeTo: "Professional — £4.99/month",
-    upgradeDescription: "Get comparable sales, a negotiation brief, 5-year price history, crime breakdown, planning context, and PDF export for any UK postcode.",
+    features: ["2 briefs per month", "Area screening brief — Good fit / Mixed / Limited fit", "Market overview (average price & YoY change)", "1-year price trend (Land Registry)", "Neighbourhood profile — schools, transport, walkability", "Flood risk & council tax band", "Named stations, schools & amenities"],
+    upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
+    upgradeTo: "Investor — £39.99/month",
+    upgradeDescription: "Want the full picture on one postcode? Run its brief and unlock it for £14.99 — yours permanently. Or go unlimited across every postcode with Investor: comparable sales, 10-year trends, sold-prices maps and a portfolio dashboard.",
   },
   professional: {
     label: "Professional",
     price: "£4.99/month",
     color: "text-primary",
-    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend — full Land Registry history", "Comparable sales & valuation range", "Pre-offer strategy — fair value range, opening range & seller pressure points", "Pre-offer questions — what to ask before committing", "Planning activity & risk flags", "Crime breakdown by category (police.uk)", "Broadband speed & fibre coverage (Ofcom)", "Rental market context — rents & demand signal", "Air quality index (DEFRA)", "Export to PDF & save briefs"],
+    features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend — full Land Registry history", "Comparable sales & valuation range", "Pre-offer strategy — fair value range, opening range & seller pressure points", "Pre-offer questions — what to ask before committing", "Planning activity & risk flags", "Crime breakdown by category (police.uk)", "Broadband speed & fibre coverage (Ofcom)", "Rental market context — rents & demand signal", "Air quality index (DEFRA)", "Save & revisit briefs"],
     upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
     upgradeTo: "Investor — £39.99/month",
     upgradeDescription: "Add 10-year trend data, rental demand scores, a sold prices map, and a portfolio dashboard to compare multiple areas at once.",
@@ -55,12 +58,26 @@ export default function AccountPage() {
   const [, navigate] = useLocation();
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+  const [ownedBriefs, setOwnedBriefs] = useState<OwnedBrief[]>([]);
+  const [briefsLoading, setBriefsLoading] = useState(true);
 
   useEffect(() => {
     if (!isSignedIn) {
       navigate("/");
     }
   }, [isSignedIn, navigate]);
+
+  // Load the owned Full Briefs ("My briefs" library). Never throws — an empty list on
+  // error, so a library blip degrades to the upsell state rather than an error screen.
+  useEffect(() => {
+    if (!isSignedIn) return;
+    let alive = true;
+    setBriefsLoading(true);
+    fetchMyBriefs()
+      .then((briefs) => { if (alive) setOwnedBriefs(briefs); })
+      .finally(() => { if (alive) setBriefsLoading(false); });
+    return () => { alive = false; };
+  }, [isSignedIn]);
 
   // Mint a fresh Stripe Billing Portal session server-side and send the customer
   // there. Replaces a hardcoded billing.stripe.com/p/login/... link that 404'd
@@ -240,6 +257,70 @@ export default function AccountPage() {
                     </p>
                   )}
                 </div>
+              )}
+            </Card>
+
+            {/* My briefs — owned Full Briefs (£14.99 one-off purchases). Distinct from
+                the Investor portfolio: this is "postcodes you own & revisit free", not the
+                compare/track toolset. Always shown — free users see the locked upsell. */}
+            <Card className="p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <MapPin className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">My briefs</p>
+                  <p className="text-sm font-medium">Postcodes you own — revisit free, forever</p>
+                </div>
+              </div>
+
+              {briefsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading your briefs…</p>
+              ) : ownedBriefs.length > 0 ? (
+                <ul className="space-y-2">
+                  {ownedBriefs.map((b) => (
+                    <li key={b.outcode}>
+                      <Link href={`/brief/${encodeURIComponent(b.outcode)}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-between gap-2 text-sm"
+                          data-testid={`button-owned-brief-${b.outcode.toLowerCase()}`}
+                        >
+                          <span className="flex items-center gap-2 font-medium">
+                            <MapPin className="h-4 w-4 text-primary" />
+                            {b.outcode}
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal">
+                            Owned · revisit free
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </span>
+                        </Button>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                // Locked/empty upsell — shown, not hidden (the save affordance is a surface).
+                <div className="rounded-lg border border-dashed border-border/70 p-4">
+                  <div className="flex items-start gap-2.5">
+                    <Lock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-foreground/80 mb-1">You don't own any full briefs yet.</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Screen any UK postcode free, then unlock its complete Investor-depth brief for £14.99 — yours permanently, saved here.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {user.plan === "investor" && (
+                <p className="text-[11px] text-muted-foreground/60 mt-3 leading-relaxed">
+                  On Investor every postcode is already unlocked — use your{" "}
+                  <Link href="/portfolio" className="text-primary underline-offset-2 hover:underline">portfolio</Link>{" "}
+                  to compare and track areas.
+                </p>
               )}
             </Card>
 

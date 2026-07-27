@@ -43,18 +43,18 @@ const now = new Date("2026-07-23T10:00:00Z");
 const m = "2026-07";
 
 const exp0 = quotaStatus("EXP", 0, m, now, true);
-check("EXP 0/3 → limit 3, remaining 3, not exceeded", exp0.limit === 3 && exp0.remaining === 3 && exp0.exceeded === false);
-check("EXP 0/3 → not unlimited", exp0.unlimited === false);
+check("EXP 0/2 → limit 2, remaining 2, not exceeded", exp0.limit === 2 && exp0.remaining === 2 && exp0.exceeded === false);
+check("EXP 0/2 → not unlimited", exp0.unlimited === false);
 check("EXP resetsOn is Aug 1", exp0.resetsOn === "2026-08-01");
 
+const exp1 = quotaStatus("EXP", 1, m, now, true);
+check("EXP 1/2 → remaining 1, not exceeded (the 2nd is allowed)", exp1.remaining === 1 && exp1.exceeded === false);
+
 const exp2 = quotaStatus("EXP", 2, m, now, true);
-check("EXP 2/3 → remaining 1, not exceeded (the 3rd is allowed)", exp2.remaining === 1 && exp2.exceeded === false);
+check("EXP 2/2 → remaining 0, EXCEEDED (the 3rd is blocked)", exp2.remaining === 0 && exp2.exceeded === true);
 
 const exp3 = quotaStatus("EXP", 3, m, now, true);
-check("EXP 3/3 → remaining 0, EXCEEDED (the 4th is blocked)", exp3.remaining === 0 && exp3.exceeded === true);
-
-const exp4 = quotaStatus("EXP", 4, m, now, true);
-check("EXP 4/3 → still exceeded, remaining clamped to 0", exp4.exceeded === true && exp4.remaining === 0);
+check("EXP 3/2 → still exceeded, remaining clamped to 0", exp3.exceeded === true && exp3.remaining === 0);
 
 const pro = quotaStatus("PRO", 99, m, now, true);
 check("PRO → unlimited, never exceeded", pro.unlimited === true && pro.exceeded === false && pro.limit === null && pro.remaining === null);

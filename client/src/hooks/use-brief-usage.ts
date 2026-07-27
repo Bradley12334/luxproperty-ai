@@ -2,10 +2,10 @@
  * Tracks how many briefs a user has generated this calendar month.
  * Stored in localStorage keyed by "lux_usage_YYYY-MM".
  * Automatically resets each new month.
- * Explorer plan limit: 3 briefs/month.
+ * Explorer plan limit: 2 briefs/month.
  */
 
-const EXPLORER_LIMIT = 3;
+const EXPLORER_LIMIT = 2;
 
 function storageKey(): string {
   const now = new Date();

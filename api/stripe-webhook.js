@@ -1,8 +1,13 @@
 // Vercel Serverless Function — Stripe Webhook Handler
-// Listens for checkout.session.completed and upgrades the user's plan in Supabase
+// Listens for checkout.session.completed and either:
+//   • mode==="subscription" → upgrades the user's plan in Supabase (existing flow)
+//   • mode==="payment"      → grants a one-off Full Brief entitlement (never plan)
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { grantFullBrief } from "../lib/brief/ownership.js";
+import { sessionIsFullBrief } from "../lib/stripe/full-brief.js";
+import { normalizePostcode } from "../lib/brief/resolve.js";
 
 // ─── Plan mapping ────────────────────────────────────────────────────────────
 // Stripe object IDs are MODE-SPECIFIC: test-mode products/prices have different
@@ -106,6 +111,16 @@ export default async function handler(req, res) {
   // Handle checkout completed
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+
+    // ── One-off Full Brief (payment mode) ────────────────────────────────────
+    // Discriminated by session.mode. This path grants a per-outcode entitlement and
+    // NEVER touches users.plan, so the subscription logic below stays byte-identical
+    // for mode==="subscription". It also short-circuits BEFORE the plan resolver —
+    // which would otherwise fail to map a one-off price and return 500 on every Stripe
+    // retry (an infinite retry storm on legitimate one-off payments).
+    if (session.mode === "payment") {
+      return await handleFullBriefPurchase(stripe, supabase, session, res);
+    }
 
     // ── Identity ─────────────────────────────────────────────────────────────
     // client_reference_id is the LuxProperty user id, attached to the Payment
@@ -237,4 +252,65 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ received: true });
+}
+
+// ─── One-off Full Brief grant (payment-mode checkout.session.completed) ────────
+// Kept entirely separate from the subscription plan logic above. Idempotent via the
+// unique stripe_session_id on brief_purchases, so Stripe retries are safe.
+async function handleFullBriefPurchase(stripe, supabase, session, res) {
+  const userId = session.client_reference_id || null;
+
+  // Confirm this payment session really is a Full Brief — match the authoritative
+  // line-item price id (metadata.kind is the belt-and-braces fallback).
+  let lineItems = null;
+  try {
+    lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 5 });
+  } catch (err) {
+    console.error("[full-brief] listLineItems failed for", session.id, err.message);
+    return res.status(500).json({ error: "Could not fetch line items" }); // transient → Stripe retries
+  }
+
+  if (!sessionIsFullBrief(session, lineItems)) {
+    // A payment-mode session we don't recognise (e.g. a future one-off product). Not
+    // ours to grant — acknowledge so Stripe stops retrying.
+    console.warn("[full-brief] payment session is not a Full Brief — ignoring. session:", session.id);
+    return res.status(200).json({ received: true, ignored: true });
+  }
+
+  // Outcode: primary from create-checkout's session metadata; fallback derived from the
+  // metadata postcode the SAME way meta.outcode is (normalizePostcode).
+  let outcode = String(session.metadata?.outcode || "").toUpperCase().replace(/\s+/g, "").trim();
+  if (!outcode && session.metadata?.postcode) {
+    try { outcode = normalizePostcode(session.metadata.postcode).outcode; } catch { /* leave empty */ }
+  }
+
+  if (!userId || !outcode) {
+    // Paid, but not tie-able to an account/district. A retry can't fix this → ack (200)
+    // but log LOUDLY: unfulfilled paid revenue needing manual reconciliation.
+    console.error(
+      "UNFULFILLED FULL BRIEF — payment taken, no grant applied. session:", session.id,
+      "| client_reference_id:", userId, "| outcode:", outcode || "(none)",
+      "| amount:", session.amount_total, session.currency
+    );
+    return res.status(200).json({ received: true, warning: "Could not resolve account/outcode" });
+  }
+
+  try {
+    const { duplicate } = await grantFullBrief({
+      userId,
+      outcode,
+      stripeSessionId: session.id,
+      amountPaid: session.amount_total ?? null,
+      currency: session.currency ?? null,
+    });
+    console.log(
+      `Full Brief granted: user ${userId} → ${outcode} ` +
+      `(${duplicate ? "idempotent replay — already granted" : "new grant"}), session ${session.id}`
+    );
+    return res.status(200).json({ received: true, granted: true, duplicate });
+  } catch (err) {
+    // Genuine DB failure → 500 so Stripe retries (the idempotency key makes retry safe).
+    console.error("[full-brief] grant failed for session", session.id, "-", err?.message || err);
+    return res.status(500).json({ error: "Could not record purchase" });
+  }
 }

@@ -1,42 +1,47 @@
+import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { Check, Minus, Star, Gift, Lock } from "lucide-react";
+import { Check, Minus, Star, Lock, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useCheckout } from "@/hooks/use-checkout";
+import { VerdictCard, LockedSection, type BriefSection } from "@/pages/brief";
 
+// Three offers. Full Brief (£14.99 one-off) is the hero for buyer traffic; Explorer is
+// the free taste; Investor is the professional tier. Professional (£4.99/mo) is RETIRED —
+// removed from the page, no new signups (existing subscribers grandfathered elsewhere).
 const tiers = [
   {
     name: "Explorer",
     price: "Free",
     period: "",
-    description: "Run any UK postcode and get an instant area screen: good fit, mixed, or limited. No card required, no commitment. Good for deciding whether an area is worth your time before you book a viewing.",
+    description: "Screen any UK postcode and get an instant area verdict: good fit, mixed, or limited. 2 free screens a month, no card. The fast way to decide if an area is worth your time before you book a viewing.",
     badge: null,
     style: "default",
     cta: "Try Free — No Card Needed",
     ctaVariant: "outline" as const,
-    stripeUrl: null,
+    stripeUrl: null, // routes to the app to screen a postcode
     reassurance: null,
   },
   {
-    name: "Professional",
-    price: "£4.99",
-    period: "/month",
-    description: "The full brief before you make an offer. Real comparable sold prices, a pre-offer strategy with fair value range and opening offer, 5-year price trend, crime breakdown, planning activity and PDF export. Any UK postcode, unlimited briefs.",
-    badge: "Most Popular",
-    style: "professional",
-    cta: "Get Professional — £4.99/month",
+    name: "Full Brief",
+    price: "£14.99",
+    period: "one-off · one postcode",
+    description: "The complete brief for one postcode at full Investor depth — comparable sold prices, pre-offer strategy, 10-year trend, letting economics, sold-prices map and more. Yours permanently, auto-saved to your account. Screen free, then unlock the postcode you're serious about.",
+    badge: "Most buyers start here",
+    style: "fullbrief",
+    cta: "Screen a postcode",
     ctaVariant: "default" as const,
-    stripeUrl: "https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional",
-    reassurance: "Cancel anytime. No minimum term. No contracts. Secure checkout via Stripe.",
+    stripeUrl: null, // a Full Brief is bought per-postcode from its brief, so route to the app first
+    reassurance: "One-off payment. No subscription. Owned forever — revisit and regenerate free.",
   },
   {
     name: "Investor",
     price: "£39.99",
     period: "/month",
-    description: "For investors running due diligence across a shortlist. Everything in Professional, plus 10-year price trends, rental demand and yield tracking, a sold prices map, and a portfolio dashboard.",
-    badge: "Analyse More",
+    description: "For due diligence across a shortlist. Unlimited full briefs on every postcode, plus a portfolio dashboard, cross-area comparison, sold-prices maps and 10-year trends.",
+    badge: "For professionals",
     style: "investor",
     cta: "Get Investor — £39.99/month",
     ctaVariant: "default" as const,
@@ -48,87 +53,85 @@ const tiers = [
 interface FeatureRow {
   feature: string;
   explorer: boolean | string;
-  professional: boolean | string;
+  fullBrief: boolean | string;
   investor: boolean | string;
 }
 
+// Full Brief serves the FULL Investor-depth brief for the ONE postcode you buy — so it
+// gets every per-brief data row. Only unlimited-across-every-postcode + the portfolio
+// toolkit are Investor-exclusive (see the footnote under the table).
 const features: FeatureRow[] = [
+  // ── The model ───────────────────────────────────────────────────────────────
+  { feature: "Free area screens each month", explorer: "2", fullBrief: "2", investor: "Unlimited" },
+  { feature: "Full brief at Investor depth", explorer: false, fullBrief: "1 postcode, owned", investor: "Every postcode" },
   // ── Explorer (free) ─────────────────────────────────────────────────────────
-  { feature: "Briefs per month", explorer: "3", professional: "Unlimited", investor: "Unlimited" },
-  { feature: "Area screening brief — Good fit / Mixed / Limited fit verdict", explorer: true, professional: true, investor: true },
-  { feature: "Executive summary", explorer: true, professional: true, investor: true },
-  { feature: "Market overview (average price, YoY change)", explorer: true, professional: true, investor: true },
-  { feature: "1-year price trend (Land Registry)", explorer: true, professional: true, investor: true },
-  { feature: "Neighbourhood profile — schools, transport, safety, walkability", explorer: true, professional: true, investor: true },
-  { feature: "Named schools, stations, parks & amenities", explorer: true, professional: true, investor: true },
-  { feature: "Flood & climate risk", explorer: true, professional: true, investor: true },
-  { feature: "Council tax band", explorer: true, professional: true, investor: true },
-  { feature: "Simple commute note", explorer: true, professional: true, investor: true },
-  // ── Professional ─────────────────────────────────────────────────────────────
-  { feature: "5-year price trend — full Land Registry history (not just 1-year)", explorer: false, professional: true, investor: true },
-  { feature: "Property type split", explorer: false, professional: true, investor: true },
-  { feature: "Full commute calculator — times to multiple destinations", explorer: false, professional: true, investor: true },
-  { feature: "Crime breakdown by category (police.uk)", explorer: false, professional: true, investor: true },
-  { feature: "Comparable sales & valuation range", explorer: false, professional: true, investor: true },
-  { feature: "Pre-offer strategy — fair value range, opening range & seller pressure points", explorer: false, professional: true, investor: true },
-  { feature: "Pre-offer questions — what to ask before committing", explorer: false, professional: true, investor: true },
-  { feature: "Planning activity & risk flags", explorer: false, professional: true, investor: true },
-  { feature: "Broadband speed & fibre coverage (Ofcom)", explorer: false, professional: true, investor: true },
-  { feature: "Rental market context — rents & demand", explorer: false, professional: true, investor: true },
-  { feature: "Air quality index", explorer: false, professional: true, investor: true },
-  { feature: "Stamp duty & buying costs — SDLT / LTT", explorer: false, professional: true, investor: true },
-  { feature: "Export to PDF — client-ready format", explorer: false, professional: true, investor: true },
-  { feature: "Save & revisit briefs", explorer: false, professional: true, investor: true },
-  // ── Investor ─────────────────────────────────────────────────────────────────
-  { feature: "10-year price trend — long-run Land Registry history for cross-area comparison", explorer: false, professional: false, investor: true },
-  { feature: "Letting economics — indicative gross yield & sales velocity", explorer: false, professional: false, investor: true },
-  { feature: "Sold prices map — visual layout of recent transactions nearby", explorer: false, professional: false, investor: true },
-  { feature: "Street price ranking — relative pricing within the area", explorer: false, professional: false, investor: true },
-  { feature: "Development tracker — pipeline and local change signals", explorer: false, professional: false, investor: true },
-  { feature: "Portfolio dashboard — save, compare, and revisit multiple briefs", explorer: false, professional: false, investor: true },
-  { feature: "Custom report branding — add your name and firm to PDFs", explorer: false, professional: false, investor: true },
+  { feature: "Area screening brief — Good fit / Mixed / Limited fit verdict", explorer: true, fullBrief: true, investor: true },
+  { feature: "Executive summary", explorer: true, fullBrief: true, investor: true },
+  { feature: "Market overview (average price, YoY change)", explorer: true, fullBrief: true, investor: true },
+  { feature: "1-year price trend (Land Registry)", explorer: true, fullBrief: true, investor: true },
+  { feature: "Neighbourhood profile — schools, transport, safety, walkability", explorer: true, fullBrief: true, investor: true },
+  { feature: "Named schools, stations, parks & amenities", explorer: true, fullBrief: true, investor: true },
+  { feature: "Flood & climate risk", explorer: true, fullBrief: true, investor: true },
+  { feature: "Council tax band", explorer: true, fullBrief: true, investor: true },
+  { feature: "Simple commute note", explorer: true, fullBrief: true, investor: true },
+  // ── Unlocked by the Full Brief (full Investor depth for the owned postcode) ──
+  { feature: "5-year price trend — full Land Registry history (not just 1-year)", explorer: false, fullBrief: true, investor: true },
+  { feature: "10-year price trend — long-run history for cross-area comparison", explorer: false, fullBrief: true, investor: true },
+  { feature: "Property type split", explorer: false, fullBrief: true, investor: true },
+  { feature: "Full commute calculator — times to multiple destinations", explorer: false, fullBrief: true, investor: true },
+  { feature: "Crime breakdown by category (police.uk)", explorer: false, fullBrief: true, investor: true },
+  { feature: "Comparable sales & valuation range", explorer: false, fullBrief: true, investor: true },
+  { feature: "Pre-offer strategy — fair value range, opening range & seller pressure points", explorer: false, fullBrief: true, investor: true },
+  { feature: "Pre-offer questions — what to ask before committing", explorer: false, fullBrief: true, investor: true },
+  { feature: "Planning activity & risk flags", explorer: false, fullBrief: true, investor: true },
+  { feature: "Broadband speed & fibre coverage (Ofcom)", explorer: false, fullBrief: true, investor: true },
+  { feature: "Rental market context — rents & demand", explorer: false, fullBrief: true, investor: true },
+  { feature: "Air quality index", explorer: false, fullBrief: true, investor: true },
+  { feature: "Stamp duty & buying costs — SDLT / LTT", explorer: false, fullBrief: true, investor: true },
+  { feature: "Letting economics — indicative gross yield & sales velocity", explorer: false, fullBrief: true, investor: true },
+  { feature: "Sold prices map — visual layout of recent transactions nearby", explorer: false, fullBrief: true, investor: true },
+  { feature: "Street price ranking — relative pricing within the area", explorer: false, fullBrief: true, investor: true },
+  { feature: "Development tracker — pipeline and local change signals", explorer: false, fullBrief: true, investor: true },
+  { feature: "Save & revisit — owned briefs stay in your account", explorer: false, fullBrief: true, investor: true },
+  // ── Investor only (across every postcode + the portfolio toolkit) ────────────
+  { feature: "Unlimited full briefs — every postcode, not just one", explorer: false, fullBrief: false, investor: true },
+  { feature: "Portfolio dashboard — save, compare, and track multiple areas", explorer: false, fullBrief: false, investor: true },
+  { feature: "Custom report branding — add your name and firm", explorer: false, fullBrief: false, investor: true },
 ];
 
 const faqs = [
   {
-    q: "Can I cancel anytime?",
-    a: "Yes — cancel instantly from your account page, no questions asked, and you won't be charged again.",
+    q: "Is the Full Brief a subscription?",
+    a: "No. It's a one-off £14.99 payment for one postcode, and you own that brief forever — revisit and regenerate it free any time. Nothing recurring, nothing to cancel.",
+  },
+  {
+    q: "Who is the Full Brief for?",
+    a: "Anyone serious about a specific UK property. You've screened the area free — now you want the complete picture, at Investor depth, before you make an offer.",
   },
   {
     q: "Does Explorer really not need a card?",
-    a: "Correct. Explorer is completely free with no payment details required — just enter a postcode and go.",
+    a: "Correct. Explorer is completely free with no payment details required — screen up to 2 postcodes a month, no card, no commitment.",
   },
   {
     q: "Is the data based on official UK sources?",
     a: "Yes — sold prices come from HM Land Registry, crime from police.uk, flood risk from the Environment Agency and planning from local authority records.",
   },
   {
-    q: "Who is Professional best for?",
-    a: "Anyone making a serious offer on a UK property — homebuyers, relocators and advisers who need the full picture before committing.",
-  },
-  {
     q: "What if I'm evaluating multiple properties or areas?",
-    a: "Investor is designed for that — it adds side-by-side area comparison, rental yield tracking and a portfolio dashboard for heavier use.",
+    a: "Investor is designed for that — unlimited full briefs on every postcode, plus side-by-side comparison, yield tracking and a portfolio dashboard. Cancel anytime.",
   },
   {
-    q: "Can I switch plans later?",
-    a: "Yes — upgrade or downgrade at any time from your account page, and the change takes effect immediately.",
+    q: "Do I keep a Full Brief if I never subscribe?",
+    a: "Yes. A Full Brief is yours permanently — it stays in your account under \"My briefs\" and opens instantly whenever you need it, whether or not you're ever on a paid plan.",
   },
 ];
 
 function CellValue({ value, col }: { value: boolean | string; col: string }) {
   const isInvestor = col === "investor";
-  const isPro = col === "professional";
+  const isFullBrief = col === "fullbrief";
   if (typeof value === "string") {
-    if (value === "Coming Soon") {
-      return (
-        <span className="inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-400/50 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 whitespace-nowrap">
-          Coming Soon
-        </span>
-      );
-    }
     return (
-      <span className={`text-sm font-medium ${isInvestor ? "text-amber-600 dark:text-amber-400" : isPro ? "text-primary" : "text-foreground"}`}>
+      <span className={`text-sm font-medium ${isInvestor ? "text-amber-600 dark:text-amber-400" : isFullBrief ? "text-primary" : "text-foreground"}`}>
         {value}
       </span>
     );
@@ -140,8 +143,83 @@ function CellValue({ value, col }: { value: boolean | string; col: string }) {
   );
 }
 
+// ── Real product showcase ────────────────────────────────────────────────────
+// Live-fetches a real, warm sample postcode (E8) ANONYMOUSLY — so it returns the
+// genuine Explorer-tier payload: the real area verdict every visitor gets, plus the
+// real LOCKED previews of the sections a Full Brief unlocks. No mockups, no invented
+// claims — this is the actual product output. Fails closed: if the fetch is slow or
+// errors, the whole section hides rather than showing anything fake.
+const SHOWCASE_POSTCODE = "E8 1NG";
+// A few high-value locked sections to preview (in the order we'd like to show them).
+const SHOWCASE_LOCKED_KEYS = ["nearbySoldPrices", "soldPricesMap", "rentalDemandScore"];
+
+function RealProductShowcase() {
+  const [verdict, setVerdict] = useState<BriefSection | null>(null);
+  const [locked, setLocked] = useState<BriefSection[]>([]);
+  const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        // Anonymous fetch (no auth header) → Explorer payload: real verdict + locked previews.
+        const res = await fetch(`/api/brief?postcode=${encodeURIComponent(SHOWCASE_POSTCODE)}`);
+        const json = await res.json().catch(() => null);
+        if (!alive) return;
+        const sections: BriefSection[] = json?.ok && Array.isArray(json.sections) ? json.sections : [];
+        const v = sections.find((s) => s.key === "areaVerdict" && s.state !== "LOCKED") ?? null;
+        const lockedByKey = new Map(sections.filter((s) => s.state === "LOCKED").map((s) => [s.key, s]));
+        const picks = SHOWCASE_LOCKED_KEYS.map((k) => lockedByKey.get(k)).filter((s): s is BriefSection => !!s);
+        // Fallback: any locked sections if our preferred keys weren't present.
+        const previews = picks.length ? picks : Array.from(lockedByKey.values()).slice(0, 3);
+        if (v && previews.length) {
+          setVerdict(v);
+          setLocked(previews.slice(0, 3));
+          setState("ready");
+        } else {
+          setState("failed");
+        }
+      } catch {
+        if (alive) setState("failed");
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (state === "failed") return null; // fail closed — never show a fake
+
+  return (
+    <section className="pb-12 sm:pb-16">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 className="font-serif text-2xl tracking-tight mb-1">This is the real product</h2>
+        <p className="text-sm text-muted-foreground mb-6 max-w-xl">
+          A live brief for <span className="font-mono text-foreground/70">{SHOWCASE_POSTCODE}</span> — the actual free
+          verdict every visitor gets, and real previews of the sections a Full Brief unlocks. No mockups.
+        </p>
+
+        {state === "loading" ? (
+          <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/20 px-4 py-10 text-sm text-muted-foreground justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading a live sample brief…
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {verdict && <VerdictCard section={verdict} />}
+            {locked.map((s) => (
+              <LockedSection key={s.key} section={s} />
+            ))}
+            <p className="text-xs text-muted-foreground">
+              Every locked section above is included in the full brief — unlocked at Investor depth for the postcode you buy.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function PricingPage() {
-  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 3 briefs/month. Professional at £4.99/month. Investor at £39.99/month. No contracts, cancel anytime.");
+  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 2 briefs/month. Full Brief £14.99 one-off. Investor at £39.99/month. No contracts, cancel anytime.");
   const { startCheckout, authModal } = useCheckout();
   return (
     <div className="flex min-h-screen flex-col">
@@ -156,24 +234,13 @@ export default function PricingPage() {
               Pricing
             </p>
             <h1 className="font-serif text-3xl sm:text-4xl tracking-tight mb-3">
-              Know what you're buying into. Before you offer.
+              Screen free. Own the brief that matters.
             </h1>
             <p className="text-muted-foreground text-base max-w-xl">
-              Property intelligence for any UK postcode. Real comparable sales, risk flags, price history and a pre-offer strategy — in under 60 seconds. Start free. Upgrade when you need the full picture.
+              Screen any UK postcode free. When you're serious about one, unlock its complete brief — comparable sales, pre-offer strategy, risk flags and more — for £14.99, yours permanently. No subscription needed.
             </p>
           </div>
         </section>
-
-        {/* Intro incentive bar */}
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 mb-6">
-          <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-            <Gift className="h-4 w-4 text-primary shrink-0" />
-            <p className="text-sm text-foreground/80">
-              <span className="font-semibold text-primary">First full Investor brief free.</span>{" "}
-              Subscribe to Professional and your very first postcode brief is automatically upgraded to Investor level — 10-year price history, rental demand, sold prices map and more. After that, your plan continues as Professional.
-            </p>
-          </div>
-        </div>
 
         {/* Pricing Cards */}
         <section className="pb-10 sm:pb-14">
@@ -181,7 +248,7 @@ export default function PricingPage() {
             <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3 sm:items-end">
               {tiers.map((tier) => {
                 const isInvestor = tier.style === "investor";
-                const isPro = tier.style === "professional";
+                const isFullBrief = tier.style === "fullbrief";
 
                 return (
                   <div
@@ -189,7 +256,7 @@ export default function PricingPage() {
                     className={`relative flex flex-col rounded-xl p-5 sm:p-6 ${
                       isInvestor
                         ? "bg-[#1A1410] dark:bg-[#1A1410] border border-amber-700/40 shadow-lg shadow-amber-900/10"
-                        : isPro
+                        : isFullBrief
                         ? "bg-card border-2 border-primary/40 shadow-xl shadow-primary/10 sm:-mx-1 sm:scale-[1.04] sm:origin-bottom z-10 sm:pb-8"
                         : "bg-card border border-border"
                     }`}
@@ -259,7 +326,7 @@ export default function PricingPage() {
                     )}
 
                     {/* Shimmer line */}
-                    {isPro && (
+                    {isFullBrief && (
                       <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-primary/70 to-transparent rounded-t-xl" />
                     )}
                     {isInvestor && (
@@ -271,6 +338,9 @@ export default function PricingPage() {
             </div>
           </div>
         </section>
+
+        {/* Real product showcase — live E8 verdict + real locked previews */}
+        <RealProductShowcase />
 
         {/* Social proof */}
         <section className="pb-12 sm:pb-16">
@@ -367,10 +437,10 @@ export default function PricingPage() {
                     <th className="text-center font-medium text-muted-foreground py-3 px-2 w-[20%]">
                       Explorer
                     </th>
-                    <th className="text-center font-medium text-primary py-3 px-2 w-[20%]">
-                      Professional
+                    <th className="text-center font-bold text-primary py-3 px-2 w-[20%]">
+                      Full Brief
                     </th>
-                    <th className="text-center font-bold text-amber-600 dark:text-amber-400 py-3 px-2 w-[20%]">
+                    <th className="text-center font-medium text-amber-600 dark:text-amber-400 py-3 px-2 w-[20%]">
                       Investor
                     </th>
                   </tr>
@@ -386,7 +456,7 @@ export default function PricingPage() {
                         <CellValue value={row.explorer} col="explorer" />
                       </td>
                       <td className="py-3 px-2 text-center bg-primary/[0.03] dark:bg-primary/[0.05]">
-                        <CellValue value={row.professional} col="professional" />
+                        <CellValue value={row.fullBrief} col="fullbrief" />
                       </td>
                       <td className="py-3 px-2 text-center bg-amber-500/[0.04] dark:bg-amber-500/[0.06]">
                         <CellValue value={row.investor} col="investor" />
@@ -396,6 +466,9 @@ export default function PricingPage() {
                 </tbody>
               </table>
             </div>
+            <p className="mt-4 text-xs text-muted-foreground max-w-2xl">
+              The <span className="font-medium text-primary">Full Brief</span> unlocks every section at Investor depth for the <span className="font-medium">one postcode</span> you buy — yours permanently. <span className="font-medium text-amber-600 dark:text-amber-400">Investor</span> unlocks them for every postcode, plus unlimited briefs and the portfolio toolkit.
+            </p>
           </div>
         </section>
 
@@ -406,36 +479,36 @@ export default function PricingPage() {
               Know what you're buying into. Before you offer.
             </h2>
             <p className="text-sm text-muted-foreground mb-2 max-w-md mx-auto">
-              Comparable sales, pre-offer strategy, 5-year price history, crime and planning context, and a PDF you can keep or share. Any UK postcode. Unlimited briefs. First full Investor brief free when you subscribe.
+              Screen any UK postcode free. When you find the one, unlock its complete brief — comparable sales, pre-offer strategy, price history, risk flags and more — yours permanently.
             </p>
             <p className="text-sm font-semibold text-primary mb-6">
-              £4.99/month. Cancel anytime. No minimum term.
+              £14.99, one-off. No subscription. Owned forever.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <div className="flex flex-col items-center gap-1.5">
-                <a
-                  href="https://buy.stripe.com/7sY8wRe7s9yM7ug8gI6Na00?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dprofessional"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    startCheckout(e.currentTarget.href);
-                  }}
-                >
-                  <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-professional">
-                    Get Professional — £4.99/month
+                <Link href="/">
+                  <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-full-brief">
+                    Screen a postcode free
                   </Button>
-                </a>
+                </Link>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Lock className="h-3 w-3" />
-                  Secure checkout via Stripe. Cancel anytime from your account.
+                  No card to screen. Unlock the full brief for £14.99 when you're ready.
                 </span>
               </div>
-              <Link href="/">
-                <Button size="lg" variant="outline" className="text-sm px-8 w-full sm:w-auto" data-testid="button-get-started">
-                  Try free first
+              <a
+                href="https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  startCheckout(e.currentTarget.href);
+                }}
+              >
+                <Button size="lg" variant="outline" className="text-sm px-8 w-full sm:w-auto" data-testid="button-get-investor">
+                  Or go unlimited — Investor
                 </Button>
-              </Link>
+              </a>
             </div>
           </div>
         </section>
