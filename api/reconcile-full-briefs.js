@@ -18,6 +18,11 @@
  * IDEMPOTENT: safe to run repeatedly, concurrently, and interleaved with a late webhook —
  * all converge to exactly one row per purchase.
  *
+ * REFUND-SAFE: a Session's payment_status stays "paid" after a refund, so before granting
+ * we inspect each gap session's PaymentIntent/Charge and exclude any that is refunded (full
+ * or partial), disputed (chargeback), or canceled. Indeterminate refund state fails CLOSED
+ * (skipped, not granted). This runs only over the gap, never the full scan.
+ *
  * TRIGGER: manual, secret-guarded. DRY-RUN by default (reports the gap, grants nothing);
  * ?apply=1 opts in to granting. NOT on any live-request hot path. Cron may call it later.
  *
@@ -53,6 +58,34 @@ function stripeKeyMode(key) {
   if (/^sk_live_|^rk_live_/.test(key)) return "live";
   if (/^sk_test_|^rk_test_/.test(key)) return "test";
   return "unknown";
+}
+
+/**
+ * Has this paid session since been refunded (full/partial), disputed, or its payment
+ * reversed? A Checkout Session's payment_status stays "paid" after a refund, so we must
+ * inspect the underlying PaymentIntent / Charge. Returns true => do NOT (re-)grant.
+ *
+ * THROWS on any indeterminate state (PI missing/unexpanded, API error) as well as on
+ * network failure — the caller's fail-closed handler then skips the grant and records the
+ * session in refundedSkipped. We never fail OPEN here: an unknown refund state must block
+ * the grant, not silently allow it.
+ */
+async function sessionIsRefunded(stripe, sessionId) {
+  const s = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ["payment_intent.latest_charge"],
+  });
+  const pi = s.payment_intent;
+  if (!pi || typeof pi === "string") {
+    throw new Error(`payment_intent unresolved for session ${sessionId} — cannot determine refund state`);
+  }
+  if (pi.status === "canceled") return true;
+  const charge = pi.latest_charge;
+  if (charge && typeof charge === "object") {
+    if (charge.refunded === true) return true;
+    if (Number(charge.amount_refunded) > 0) return true; // partial refund → do not grant
+    if (charge.disputed === true) return true;            // chargeback → block like a refund
+  }
+  return false;
 }
 
 export default async function handler(req, res) {
@@ -165,6 +198,30 @@ export default async function handler(req, res) {
 
   const gap = candidates.filter((c) => !existing.has(c.sessionId));
 
+  // ── 2b. Exclude refunded / disputed / reversed sessions from the grantable set.
+  //        payment_status stays "paid" after a refund, so inspect the PaymentIntent/Charge.
+  //        FAIL CLOSED: if refund status is indeterminate (throw), SKIP the grant rather
+  //        than risk re-granting a refunded purchase. Runs only over the gap (normally 0),
+  //        so it never touches the full scan. ─────────────────────────────────────────────
+  const grantable = [];
+  const refundedSkipped = [];
+  for (const c of gap) {
+    let refunded;
+    try {
+      refunded = await sessionIsRefunded(stripe, c.sessionId);
+    } catch (err) {
+      console.error("[reconcile] refund check failed for", c.sessionId, "— skipping (fail closed):", err?.message || err);
+      refundedSkipped.push({ sessionId: c.sessionId, userId: c.args.userId, outcode: c.args.outcode, reason: "refund-check-failed" });
+      continue;
+    }
+    if (refunded) {
+      console.log("[reconcile] skipping refunded/disputed/reversed session", c.sessionId);
+      refundedSkipped.push({ sessionId: c.sessionId, userId: c.args.userId, outcode: c.args.outcode, reason: "refunded" });
+      continue;
+    }
+    grantable.push(c);
+  }
+
   // ── 3. Report (dry-run) or grant (apply). grantFullBrief is idempotent regardless. ─
   const report = {
     mode: keyMode,
@@ -175,18 +232,20 @@ export default async function handler(req, res) {
     fullBriefPaidSessions: candidates.length,
     alreadyGranted: candidates.length - gap.length,
     gapCount: gap.length,
-    gap: gap.map((c) => ({
+    grantableCount: grantable.length,
+    grantable: grantable.map((c) => ({
       sessionId: c.sessionId,
       userId: c.args.userId,
       outcode: c.args.outcode,
       postcode: c.args.postcode,
     })),
+    refundedSkipped,
     granted: [],
     errors: [],
   };
 
   if (apply) {
-    for (const c of gap) {
+    for (const c of grantable) {
       try {
         const { duplicate } = await grantFullBrief(c.args); // idempotent on stripe_session_id
         report.granted.push({
@@ -209,7 +268,8 @@ export default async function handler(req, res) {
 
   console.log(
     `[reconcile] done — scanned=${scanned} paid=${candidates.length} ` +
-    `already=${report.alreadyGranted} gap=${gap.length} ` +
+    `already=${report.alreadyGranted} gap=${gap.length} grantable=${grantable.length} ` +
+    `refundedSkipped=${refundedSkipped.length} ` +
     `${apply ? `granted=${report.granted.length} errors=${report.errors.length}` : "(dry-run)"}`
   );
 
