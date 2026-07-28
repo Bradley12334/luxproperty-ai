@@ -15,7 +15,8 @@
  * POST /api/my-briefs  (action=claim)
  *   Carry-over hook, called by the client right after sign-up/sign-in. Reads the signed
  *   HttpOnly `lux_anon` cookie (the anonymous brief's postcode), links it to the verified
- *   account (carried_briefs), and clears the cookie so it isn't claimed twice.
+ *   account (carried_briefs), and RE-SETS the cookie as consumed (used=1) — never clears
+ *   it, so signing out can't yield a fresh anonymous free brief.
  *     → 200 { ok: true, claimed: "E8" | null }
  *
  * WHY A SERVER ENDPOINT: brief_purchases / carried_briefs are service-role-only (RLS on,
@@ -31,7 +32,7 @@
 import { verifySessionToken, bearerFromHeader } from "../lib/auth/session-token.js";
 import { listOwnedBriefs } from "../lib/brief/ownership.js";
 import { listCarriedBriefs, saveCarriedBrief } from "../lib/brief/carried-briefs.js";
-import { readAnonState, clearAnonCookie } from "../lib/auth/anon-cookie.js";
+import { readAnonState, buildAnonCookie } from "../lib/auth/anon-cookie.js";
 
 export default async function handler(req, res) {
   const session = verifySessionToken(bearerFromHeader(req.headers.authorization));
@@ -45,14 +46,21 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, claimed: null });
     }
     const anon = readAnonState(req);
-    if (!anon.postcode) {
-      return res.status(200).json({ ok: true, claimed: null });
+    let claimed = null;
+    if (anon.postcode) {
+      const { ok, outcode } = await saveCarriedBrief(session.sub, anon.postcode);
+      if (ok) claimed = outcode;
     }
-    const { ok, outcode } = await saveCarriedBrief(session.sub, anon.postcode);
-    // Clear the cookie either way: once linked (or if the postcode was unusable) it must
-    // not be re-claimed on a later sign-in. The account now owns the record of it.
-    res.setHeader("Set-Cookie", clearAnonCookie());
-    return res.status(200).json({ ok: true, claimed: ok ? outcode : null });
+    // Re-set the cookie as CONSUMED — never CLEAR it. Clearing would let the visitor sign
+    // out and immediately get a fresh anonymous free brief (the bypass loop). We keep
+    // used=1 (and the postcode, so a later sign-in re-claim stays idempotent) so the
+    // anonymous allowance remains spent across sign-out. Only touch the cookie if one
+    // exists — a sign-up with no anonymous brief keeps its untouched (still-unused) state.
+    if (anon.used >= 1 || anon.postcode) {
+      const consumed = buildAnonCookie({ used: 1, postcode: anon.postcode || "" });
+      if (consumed) res.setHeader("Set-Cookie", consumed);
+    }
+    return res.status(200).json({ ok: true, claimed });
   }
 
   if (req.method !== "GET") {

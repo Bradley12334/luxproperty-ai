@@ -46,6 +46,12 @@ const DISPOSABLE_DOMAINS = new Set([
   "temp-mail.org", "throwawaymail.com", "yopmail.com", "trashmail.com",
   "sharklasers.com", "getnada.com", "dispostable.com", "maildrop.cc",
   "fakeinbox.com", "mailnesia.com", "tempinbox.com", "spamgourmet.com",
+  // Extended blocklist — other high-volume disposable providers.
+  "temp-mail.io", "tempmail.plus", "emailondeck.com", "moakt.com", "mohmal.com",
+  "getairmail.com", "tempr.email", "20minutemail.com", "mintemail.com",
+  "email-fake.com", "fakemailgenerator.com", "guerrillamail.info", "grr.la",
+  "mailnator.com", "burnermail.io", "mailcatch.com", "inboxbear.com",
+  "1secmail.com", "byom.de", "discard.email", "trbvm.com",
 ]);
 
 export function validateEmail(raw) {

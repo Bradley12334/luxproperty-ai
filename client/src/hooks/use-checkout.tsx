@@ -132,7 +132,7 @@ export function useCheckout() {
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Your free briefs still work in the meantime.
+              Confirming also unlocks brief generation on your account.
             </p>
             <Button
               variant="outline"

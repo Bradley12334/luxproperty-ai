@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { authHeader } from "@/lib/authStore";
+import { authHeader, getUser } from "@/lib/authStore";
 import { startFullBriefCheckout } from "@/lib/fullBriefCheckout";
 import { AuthModal } from "@/components/auth-modal";
 import { Header } from "@/components/header";
@@ -54,6 +54,7 @@ import {
   ArrowRight,
   Loader2,
   Download,
+  MailCheck,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -130,6 +131,13 @@ interface SignupRequiredResp {
   ok: true;
   signupRequired: true;
   requested?: { postcode: string; outcode: string };
+}
+// Clean verified-email-required response (HTTP 200, not an error): a signed-in account
+// hasn't confirmed its email yet. VerifyEmailGate shows a "confirm your email" state and
+// reuses the existing resend-verification action.
+interface VerifyEmailResp {
+  ok: true;
+  verifyEmailRequired: true;
 }
 
 // ── Reused stepping loader (from the original brief) ─────────────────────────
@@ -477,6 +485,62 @@ function SignUpGateScreen({ resp }: { resp: SignupRequiredResp }) {
       </div>
 
       <AuthModal open={authOpen} defaultTab="signup" onClose={() => setAuthOpen(false)} />
+    </div>
+  );
+}
+
+// ── Verify-email gate — signed in, but email not confirmed ────────────────────
+// Reuses the EXISTING verification flow (no second flow): the same resend-verification
+// endpoint as the checkout gate (use-checkout.tsx). The confirmation email was already
+// sent at sign-up; clicking its link (/verify-email) flips the flag and the next
+// generation proceeds.
+function VerifyEmailGate() {
+  const email = getUser()?.email ?? "";
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  async function resend() {
+    if (resending || resent || !email) return;
+    setResending(true);
+    try {
+      await fetch("/api/auth-email?action=resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setResent(true);
+    } catch {
+      /* quiet — the endpoint never reveals account existence */
+    } finally {
+      setResending(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-lg px-4 sm:px-6 py-16 text-center">
+      <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+        <MailCheck className="h-5 w-5 text-primary" />
+      </div>
+      <h2 className="font-serif text-2xl tracking-tight mb-2">Confirm your email to continue</h2>
+      <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
+        We’ve sent a confirmation link{email ? <> to <span className="font-medium text-foreground">{email}</span></> : null}.
+        Click it to verify your address and your brief will generate straight away. This is a one-time step that keeps
+        your account secure.
+      </p>
+      <div className="flex flex-col items-center gap-3">
+        <Button className="gap-1.5 font-semibold" onClick={resend} disabled={resending || resent} data-testid="button-verify-resend">
+          {resending ? (
+            <><Loader2 className="h-4 w-4 animate-spin" />Sending…</>
+          ) : resent ? (
+            "Confirmation email sent"
+          ) : (
+            "Resend confirmation email"
+          )}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Already confirmed? Refresh this page after clicking the link in your email.
+        </p>
+      </div>
     </div>
   );
 }
@@ -2971,7 +3035,9 @@ export default function BriefPage() {
   const initial = params.id ? safeDecode(params.id) : "";
   const [postcode, setPostcode] = useState(initial);
   const [status, setStatus] = useState<Status>("idle");
-  const [payload, setPayload] = useState<BriefPayload | QuotaExceededResp | SignupRequiredResp | null>(null);
+  const [payload, setPayload] = useState<
+    BriefPayload | QuotaExceededResp | SignupRequiredResp | VerifyEmailResp | null
+  >(null);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [retryNote, setRetryNote] = useState<string | null>(null);
 
@@ -2991,7 +3057,12 @@ export default function BriefPage() {
       try {
         const url = `/api/brief?postcode=${encodeURIComponent(clean)}`;
         const res = await fetch(url, { headers: authHeader() });
-        const json: BriefPayload | QuotaExceededResp | SignupRequiredResp | BriefErrorResp = await res.json();
+        const json:
+          | BriefPayload
+          | QuotaExceededResp
+          | SignupRequiredResp
+          | VerifyEmailResp
+          | BriefErrorResp = await res.json();
 
         // Resolve-altitude failure (invalid postcode / Scotland-NI / guard): these
         // are deterministic — retrying won't change them. Surface immediately.
@@ -3012,6 +3083,13 @@ export default function BriefPage() {
         // show the encouraging sign-up prompt.
         if ("signupRequired" in json && json.signupRequired) {
           setPayload(json as SignupRequiredResp);
+          setStatus("done");
+          return;
+        }
+
+        // Signed in but email not confirmed: a clean 200 — show the verify-email state.
+        if ("verifyEmailRequired" in json && json.verifyEmailRequired) {
+          setPayload(json as VerifyEmailResp);
           setStatus("done");
           return;
         }
@@ -3055,11 +3133,17 @@ export default function BriefPage() {
     runGeneration(postcode);
   }
 
-  // Narrow the payload union: over-quota and sign-up-gate responses carry no sections.
+  // Narrow the payload union: over-quota, sign-up and verify-email responses carry no sections.
   const quotaResp = payload && "quotaExceeded" in payload ? (payload as QuotaExceededResp) : null;
   const signupResp = payload && "signupRequired" in payload ? (payload as SignupRequiredResp) : null;
+  const verifyResp = payload && "verifyEmailRequired" in payload ? (payload as VerifyEmailResp) : null;
   const brief =
-    payload && !("quotaExceeded" in payload) && !("signupRequired" in payload) ? (payload as BriefPayload) : null;
+    payload &&
+    !("quotaExceeded" in payload) &&
+    !("signupRequired" in payload) &&
+    !("verifyEmailRequired" in payload)
+      ? (payload as BriefPayload)
+      : null;
 
   const execSummary = brief?.sections.find((s) => s.key === "executiveSummary");
   const prices = brief?.sections.find((s) => s.key === "pricesTrendNegotiation");
@@ -3128,6 +3212,9 @@ export default function BriefPage() {
 
         {/* Anonymous soft gate — encouraging sign-up prompt, not an error. */}
         {status === "done" && signupResp && <SignUpGateScreen resp={signupResp} />}
+
+        {/* Signed in but email unconfirmed — verify-email state, not an error. */}
+        {status === "done" && verifyResp && <VerifyEmailGate />}
 
         {status === "done" && brief && prices && (
           <div className="brief-print-root mx-auto max-w-3xl px-4 sm:px-6 py-8">
