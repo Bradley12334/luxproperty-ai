@@ -50,7 +50,14 @@ async function warmOne(oc) {
       // skipOverpass=1 — warm the SPARQL transaction cache + non-rate-limited source
       // caches only. Overpass is NEVER called (organic traffic fills it via the combined
       // query), so warming cannot re-trigger the per-IP Overpass rate limit.
-      const res = await fetch(`${BASE}/api/brief?postcode=${encodeURIComponent(pc)}&skipOverpass=1`, { signal: AbortSignal.timeout(120000) });
+      // x-brief-warm authenticates this internal warming pass so it bypasses the anonymous
+      // soft gate and per-IP hard cap (many districts from one IP). Must match the server's
+      // BRIEF_WARM_SECRET; export the same value before running. Without it, warming is
+      // treated as a normal anonymous visitor and will be gated after the first district.
+      const res = await fetch(`${BASE}/api/brief?postcode=${encodeURIComponent(pc)}&skipOverpass=1`, {
+        headers: { "x-brief-warm": process.env.BRIEF_WARM_SECRET || "" },
+        signal: AbortSignal.timeout(120000),
+      });
       const j = await res.json().catch(() => null);
       const ms = Date.now() - t0;
       const price = (j?.sections || []).find((s) => s.key === "pricesTrendNegotiation")?.state;
