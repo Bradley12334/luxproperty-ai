@@ -53,6 +53,7 @@ import {
   Lock,
   ArrowRight,
   Loader2,
+  Download,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ function LoadingState({ retryNote }: { retryNote?: string | null }) {
 // ── Small shared bits ────────────────────────────────────────────────────────
 function TierBadge({ tier }: { tier: "EXP" | "PRO" | "INV" }) {
   return (
-    <Badge variant="outline" className="ml-auto text-[10px] font-semibold uppercase tracking-wide">
+    <Badge variant="outline" className="no-print ml-auto text-[10px] font-semibold uppercase tracking-wide">
       {tier}
     </Badge>
   );
@@ -447,7 +448,7 @@ function YoYFigure({ pct }: { pct: Pct }) {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="space-y-1">
+    <div className="print-keep space-y-1">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="font-serif text-2xl tabular-nums text-foreground">{value}</div>
       {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
@@ -519,7 +520,7 @@ function ExecutiveSummarySection({ section }: { section: BriefSection }) {
       ) : null}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -663,7 +664,7 @@ function PricesSection({ section }: { section: BriefSection }) {
       </div>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -683,7 +684,7 @@ interface SoldItem {
 
 function SoldPriceRow({ item }: { item: SoldItem }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+    <div className="print-keep flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
       <div className="min-w-0">
         <div className="truncate text-sm font-medium text-foreground">{item.address}</div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -763,9 +764,9 @@ function NearbySoldPricesSection({ section }: { section: BriefSection }) {
         ))}
       </div>
 
-      {section.sourceNote && <p className="text-[11px] text-muted-foreground">{section.sourceNote}</p>}
+      {section.sourceNote && <p className="print-footnote text-[11px] text-muted-foreground">{section.sourceNote}</p>}
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -866,7 +867,7 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -931,7 +932,7 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
         <div className="space-y-3">
           <SoldPricesMap centre={centre} subjectLabel={subjectLabel} points={points} />
           {legend.length > 0 && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <div className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-full" style={{ background: "#B8860B" }} />
                 Subject postcode
@@ -944,6 +945,9 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
               ))}
             </div>
           )}
+          {/* No print fallback table here: the same sales are already listed in
+           * full in the Nearby Sold Prices section above. Only the map is hidden
+           * in print; the low/median/high summary stats above survive. */}
           <p className="flex items-start gap-2 text-[11px] italic text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
             {section.disclaimer}
@@ -957,7 +961,7 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
           </div>
           <div>
             {points.map((p) => (
-              <div key={p.id} className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+              <div key={p.id} className="print-keep flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium text-foreground">{p.address}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
@@ -973,7 +977,7 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1224,7 +1228,7 @@ function FloodClimateSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1325,7 +1329,7 @@ function StationsCommuteSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1415,7 +1419,7 @@ function CommuteCalculatorSection({ section }: { section: BriefSection }) {
       </a>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1505,7 +1509,7 @@ function SchoolsSection({ section }: { section: BriefSection }) {
       <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.catchmentCaveat}</Callout>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1588,7 +1592,7 @@ function AmenitiesSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1655,7 +1659,7 @@ function BroadbandSection({ section }: { section: BriefSection }) {
       </a>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1741,7 +1745,7 @@ function AirQualitySection({ section }: { section: BriefSection }) {
       </a>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1903,7 +1907,7 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
           <p>{section.note}</p>
         </div>
         {section.sourceFootnote && (
-          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -1946,7 +1950,7 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
       ) : null}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1974,7 +1978,7 @@ function RentalSnapshotSection({ section }: { section: BriefSection }) {
           <p>{section.note}</p>
         </div>
         {section.sourceFootnote && (
-          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -2019,7 +2023,7 @@ function RentalSnapshotSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2045,7 +2049,7 @@ function CrimeBreakdownSection({ section }: { section: BriefSection }) {
           <p>{section.note}</p>
         </div>
         {section.sourceFootnote && (
-          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -2081,7 +2085,7 @@ function CrimeBreakdownSection({ section }: { section: BriefSection }) {
 
           <div className="space-y-2">
             {d.categories.map((c) => (
-              <div key={c.key} className="flex items-center gap-3">
+              <div key={c.key} className="print-keep flex items-center gap-3">
                 <div className="w-40 shrink-0 truncate text-sm text-foreground">{c.label}</div>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
@@ -2099,7 +2103,7 @@ function CrimeBreakdownSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2151,7 +2155,7 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
         )}
         <div className="grid gap-3 sm:grid-cols-2">
           {d.dimensions.map((dim) => (
-            <div key={dim.key} className="rounded-lg border border-border/60 p-4">
+            <div key={dim.key} className="print-keep rounded-lg border border-border/60 p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-foreground">{dim.title}</span>
                 <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tierClasses(dim.tier)}`}>
@@ -2195,7 +2199,7 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
       </div>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2240,7 +2244,7 @@ function PreOfferQuestionsSection({ section }: { section: BriefSection }) {
         })}
       </div>
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2270,7 +2274,7 @@ function PlanningActivitySection({ section }: { section: BriefSection }) {
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
           <p>{section.note}</p>
         </div>
-        {section.sourceFootnote && <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+        {section.sourceFootnote && <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
       </Card>
     );
   }
@@ -2331,7 +2335,7 @@ function PlanningActivitySection({ section }: { section: BriefSection }) {
         </a>
       </Callout>
 
-      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+      {section.sourceFootnote && <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
     </Card>
   );
 }
@@ -2383,7 +2387,7 @@ function DevelopmentTrackerSection({ section }: { section: BriefSection }) {
         </a>
       )}
 
-      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+      {section.sourceFootnote && <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
     </Card>
   );
 }
@@ -2445,7 +2449,7 @@ function RentalDemandSection({ section }: { section: BriefSection }) {
         <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.methodology}</Callout>
       )}
 
-      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+      {section.sourceFootnote && <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
     </Card>
   );
 }
@@ -2771,28 +2775,108 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
 // ── Meta header ──────────────────────────────────────────────────────────────
 function BriefHeader({ meta }: { meta: BriefMeta }) {
   return (
-    <div className="mb-6">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="outline" className="uppercase tracking-wide">{meta.outcode}</Badge>
-        {meta.outcodeOnly ? (
-          <span>District-wide</span>
-        ) : (
-          meta.ward && <span>{meta.ward}</span>
-        )}
-        {meta.localAuthority && <span>· {meta.localAuthority}</span>}
-        {meta.region && <span>· {meta.region}</span>}
+    // Hidden entirely in print — the print-only header block (postcode, area,
+    // verdict, wordmark) stands in for it, so nothing is duplicated on page 1.
+    <div className="no-print mb-6 flex items-start justify-between gap-4">
+      <div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="outline" className="uppercase tracking-wide">{meta.outcode}</Badge>
+          {meta.outcodeOnly ? (
+            <span>District-wide</span>
+          ) : (
+            meta.ward && <span>{meta.ward}</span>
+          )}
+          {meta.localAuthority && <span>· {meta.localAuthority}</span>}
+          {meta.region && <span>· {meta.region}</span>}
+        </div>
+        <h1 className="mt-2 font-serif text-3xl tracking-tight">
+          {meta.postcode}
+          {meta.outcodeOnly && <span className="ml-2 text-base font-normal text-muted-foreground">· district-wide</span>}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {meta.outcodeOnly
+            ? "Based on the postcode-district centroid — enter a full postcode for a location-specific brief. "
+            : ""}
+          {meta.transactionCount.toLocaleString()} in-district sold prices · {meta.window.startYear}–{meta.window.endYear}
+          {meta.cached ? " · cached" : ""}
+        </p>
       </div>
-      <h1 className="mt-2 font-serif text-3xl tracking-tight">
-        {meta.postcode}
-        {meta.outcodeOnly && <span className="ml-2 text-base font-normal text-muted-foreground">· district-wide</span>}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {meta.outcodeOnly
-          ? "Based on the postcode-district centroid — enter a full postcode for a location-specific brief. "
-          : ""}
-        {meta.transactionCount.toLocaleString()} in-district sold prices · {meta.window.startYear}–{meta.window.endYear}
-        {meta.cached ? " · cached" : ""}
-      </p>
+      {/* Native print → "Save as PDF" (this whole header is hidden in the PDF). */}
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.print()}
+          className="shrink-0 gap-1.5"
+          data-testid="button-download-pdf"
+        >
+          <Download className="h-4 w-4" />
+          <span className="hidden sm:inline">Download PDF</span>
+          <span className="sm:hidden">PDF</span>
+        </Button>
+        <p className="max-w-[15rem] text-right text-[11px] leading-snug text-muted-foreground" data-testid="text-print-tip">
+          Tip: untick “Headers and footers” in the print dialog for a clean PDF.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Print-only header / footer ────────────────────────────────────────────────
+// These render only on paper (see the @media print block in index.css). They
+// carry no interactive controls. The footer's "Generated" date is the payload's
+// own generatedAt (when the brief was built), never `today`. It deliberately
+// makes NO "data as at" currency claim — the underlying sources lag by varying
+// amounts (crime ~2mo, council tax 2024/25, Ofcom 2024, Census 2021).
+function fmtPrintDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  const dt = new Date(iso);
+  if (isNaN(dt.getTime())) return iso;
+  return dt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function printAreaName(meta: BriefMeta): string {
+  const parts: string[] = [];
+  if (!meta.outcodeOnly && meta.ward) parts.push(meta.ward);
+  if (meta.localAuthority) parts.push(meta.localAuthority);
+  if (meta.region) parts.push(meta.region);
+  return parts.join(" · ") || meta.outcode;
+}
+
+// The verdict label + chip tone for the print header, mirroring VerdictCard's
+// on-screen logic (refusal → neutral "Insufficient data").
+function printVerdict(section?: BriefSection): { label: string; tone: VerdictData["chip"]["tone"] } {
+  const d = section?.data as VerdictData | null | undefined;
+  if (!d) return { label: "Screening verdict unavailable", tone: "neutral" };
+  if (d.refused) return { label: "Insufficient data", tone: "neutral" };
+  return { label: d.verdict || d.chip?.label || "See verdict", tone: d.chip?.tone ?? "neutral" };
+}
+
+function BriefPrintHeader({ meta, verdict }: { meta: BriefMeta; verdict?: BriefSection }) {
+  const v = printVerdict(verdict);
+  return (
+    <div className="print-header" aria-hidden="true">
+      <div className="print-header-left">
+        <div className="print-wordmark">
+          Lux<span className="pw-gold">Property</span><span className="pw-ai">.ai</span>
+        </div>
+        <div className="print-postcode">{meta.postcode}</div>
+        <div className="print-area">{printAreaName(meta)}</div>
+      </div>
+      <div className="print-verdict">
+        <span className="print-verdict-label">Area screening verdict</span>
+        <span className={`print-verdict-value ${verdictChipClasses(v.tone)}`}>{v.label}</span>
+      </div>
+    </div>
+  );
+}
+
+function BriefPrintFooter({ meta }: { meta: BriefMeta }) {
+  const date = fmtPrintDate(meta.generatedAt);
+  const pc = meta.postcode.trim();
+  return (
+    <div className="print-footer" aria-hidden="true">
+      Generated {date} · luxproperty.ai/brief/{pc}
     </div>
   );
 }
@@ -2941,7 +3025,7 @@ export default function BriefPage() {
       <Header />
       <main className="flex-1">
         {/* Postcode input — always visible so it can be re-run */}
-        <div className="border-b border-border bg-muted/20">
+        <div className="no-print border-b border-border bg-muted/20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
             <h1 className="font-serif text-2xl tracking-tight mb-1">Property brief</h1>
             <p className="text-sm text-muted-foreground mb-4">
@@ -2979,10 +3063,20 @@ export default function BriefPage() {
         {status === "done" && quotaResp && <OverQuotaScreen resp={quotaResp} />}
 
         {status === "done" && brief && prices && (
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
+          <div className="brief-print-root mx-auto max-w-3xl px-4 sm:px-6 py-8">
+            {/* Print-only: first-page header block + footer repeated every page.
+             * Kept outside the space-y flow so screen layout is unchanged. */}
+            <BriefPrintHeader meta={brief.meta} verdict={areaVerdict} />
+            <BriefPrintFooter meta={brief.meta} />
+            <div className="space-y-6">
             <BriefHeader meta={brief.meta} />
-            <SaveBriefAffordance outcode={brief.meta.outcode} postcode={brief.meta.postcode} owned={!!brief.fullBriefOwned} tier={brief.meta.tier} />
-            <QuotaFunnel quota={brief.quota} />
+            {/* Upgrade block + quota funnel are screen-only nudges (never in the PDF) */}
+            <div className="no-print">
+              <SaveBriefAffordance outcode={brief.meta.outcode} postcode={brief.meta.postcode} owned={!!brief.fullBriefOwned} tier={brief.meta.tier} />
+            </div>
+            <div className="no-print">
+              <QuotaFunnel quota={brief.quota} />
+            </div>
             {areaVerdict && <VerdictCard section={areaVerdict} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
             <div id="sec-neighbourhood">{neighbourhood && <NeighbourhoodSection section={neighbourhood} />}</div>
@@ -3005,6 +3099,7 @@ export default function BriefPage() {
             {renderSection(developmentTracker, DevelopmentTrackerSection)}
             {renderSection(rentalDemand, RentalDemandSection)}
             {renderSection(preOfferQuestions, PreOfferQuestionsSection)}
+            </div>
           </div>
         )}
       </main>
@@ -3023,7 +3118,7 @@ function PropertyTypeSection({ section }: { section: BriefSection }) {
         </SectionHeading>
         <p className="text-sm text-muted-foreground">{section.note}</p>
         {section.sourceFootnote && (
-          <p className="mt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="print-footnote mt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -3055,7 +3150,7 @@ function PropertyTypeSection({ section }: { section: BriefSection }) {
         ))}
       </div>
       {section.sourceFootnote && (
-        <p className="mt-4 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote mt-4 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );

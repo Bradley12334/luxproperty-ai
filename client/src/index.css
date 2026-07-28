@@ -389,3 +389,170 @@
     order: -1;
   }
 }
+
+/* ─── Print / "Download PDF" ────────────────────────────────────────────────
+ * Native print path (window.print → Save as PDF). No PDF library. The PDF is
+ * exactly what the page renders for this user — tier gating is inherited from
+ * the payload, so nothing is shown for print that is hidden on screen. These
+ * three helpers are hidden on screen and only surface on paper.
+ */
+.print-only,
+.print-header,
+.print-footer {
+  display: none;
+}
+
+@media print {
+  /* A4 with sensible margins; extra room at the bottom for the repeating footer */
+  @page {
+    size: A4;
+    margin: 14mm 13mm 18mm 13mm;
+  }
+
+  /* Keep brand colours + verdict chips — browsers strip backgrounds otherwise */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Drop app chrome, the upgrade block, the Download button, and every control.
+   * (.no-print wraps the postcode form, the Full Brief banner and the quota
+   * funnel; header/footer are the site nav + site footer; button/input/form are
+   * any remaining interactive controls e.g. verdict tap-throughs.) */
+  header,
+  footer,
+  .no-print,
+  .no-print * ,
+  button,
+  input,
+  form {
+    display: none !important;
+  }
+
+  /* Leaflet won't render reliably in print — hide the map. The same sales are
+   * already listed in full in the section above it; the low/median/high summary
+   * stats in this section survive. */
+  [data-testid="sold-prices-map"],
+  .leaflet-container {
+    display: none !important;
+  }
+
+  /* Surface the print-only blocks */
+  .print-only {
+    display: block !important;
+  }
+  .print-header {
+    display: flex !important;
+  }
+
+  /* Repeating footer — position:fixed repeats on every printed page */
+  .print-footer {
+    display: block !important;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 2.5mm;
+    border-top: 1px solid hsl(var(--border));
+    background: hsl(var(--background));
+    font-size: 8pt;
+    line-height: 1.4;
+    text-align: center;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Reserve a little space so content is less likely to run under the footer */
+  .brief-print-root {
+    padding-bottom: 10mm;
+  }
+
+  /* Let long section cards flow across pages (forcing whole cards onto one page
+   * strands big gaps). Instead keep only small atomic units whole. Many repeated
+   * rows are <div>s, not <li>/<tr>, so .print-keep is applied directly to them
+   * (sold-price entries, neighbourhood lifestyle cards, crime-category rows,
+   * stat tiles); li/tr cover the genuinely semantic lists/tables. Footnote/
+   * source paragraphs are kept whole too so they don't split mid-sentence. */
+  .print-keep,
+  li,
+  tr,
+  .print-footnote {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* Don't strand a heading — or a small-caps section sub-label — at the foot of
+   * a page, cut off from the content it introduces. The attribute selector
+   * matches the "uppercase tracking-wide" micro-labels used throughout. */
+  h1, h2, h3, h4,
+  [class*="uppercase"][class*="tracking-wide"] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  /* Don't let a source/footnote line start a fresh page on its own. */
+  .print-footnote {
+    break-before: avoid;
+    page-break-before: avoid;
+  }
+  /* Keep at least three lines of prose together across a page break. */
+  p, li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* ── print header block (first page only, in normal flow) ── */
+  .print-header {
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+    border-bottom: 2px solid hsl(var(--primary));
+  }
+  .print-header .print-header-left {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .print-header .print-wordmark {
+    font-family: var(--font-serif);
+    font-size: 12pt;
+    white-space: nowrap;
+    margin-bottom: 8px;
+  }
+  .print-header .print-wordmark .pw-gold { color: hsl(var(--primary)); }
+  .print-header .print-wordmark .pw-ai {
+    font-size: 9pt;
+    color: hsl(var(--muted-foreground));
+  }
+  .print-header .print-postcode {
+    font-family: var(--font-serif);
+    font-size: 22pt;
+    line-height: 1.1;
+    color: hsl(var(--foreground));
+  }
+  .print-header .print-area {
+    font-size: 9.5pt;
+    color: hsl(var(--muted-foreground));
+    margin-top: 2px;
+  }
+  .print-header .print-verdict {
+    text-align: right;
+    max-width: 46%;
+    flex-shrink: 0;
+  }
+  .print-header .print-verdict-label {
+    display: block;
+    font-size: 7pt;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 4px;
+  }
+  .print-header .print-verdict-value {
+    display: inline-block;
+    font-size: 10pt;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    border: 1px solid;
+  }
+}
