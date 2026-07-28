@@ -39,6 +39,13 @@ import { bumpAndCheckIp } from "../lib/brief/anon-limit.js";
 // completes. generate()'s own 50s budget still fires first on a slow upstream.
 export const config = { maxDuration: 60 };
 
+// The ONE postcode for which ?preview=1 is honoured — the pricing page's hardcoded
+// RealProductShowcase demo (client/src/pages/pricing.tsx → SHOWCASE_POSTCODE "E8 1NG"),
+// stored normalised (uppercase, no spaces). preview=1 on any other postcode is ignored, so
+// it cannot be used as a general soft-gate bypass. Even here it only skips the soft gate,
+// never the per-IP hard cap. Keep in sync with the client constant.
+const DEMO_PREVIEW_POSTCODE = "E81NG";
+
 /** Map a typed BriefError code to an HTTP status. */
 const STATUS_BY_CODE = {
   INVALID_POSTCODE: 400,
@@ -94,47 +101,54 @@ export default async function handler(req, res) {
   //   Hard cap  (anti-abuse, WELL above normal use): 10 anonymous generations per IP
   //     per day (hashed IP), backstopping cookie-cycling (incognito / clear-cookies).
   //
-  // Bypasses: crawlers and internal cache-warming get BOTH gates skipped (Googlebot must
-  // crawl freely; warming hits many districts from one IP). The pricing showcase passes
-  // ?preview=1 to skip the soft gate (so a background demo fetch never spends a visitor's
-  // free brief) while still counting toward the hard cap.
+  // TRUST BOUNDARY — the per-IP hard cap runs on EVERY anonymous request and is the only
+  // real anti-abuse control, so nothing a caller can assert may suppress it:
+  //   - A User-Agent is trivially spoofed (curl -A "Googlebot"), so a claimed crawler
+  //     bypasses the SOFT gate ONLY (it sees a full brief, keeping /brief crawlable) —
+  //     never the cap. Real Googlebot crawls from many IPs and won't hit 10/IP/day.
+  //   - ?preview=1 is honoured ONLY for the one hardcoded pricing-demo postcode, and even
+  //     then only skips the soft gate — never the cap. For any other postcode it is ignored.
+  //   - The single genuine full bypass (soft gate AND cap) is the internal cache-warming
+  //     pass, which is authenticated by the BRIEF_WARM_SECRET header — NOT by any spoofable
+  //     UA/query — and must hit many districts from one IP.
   const isAnon = !account.userId;
   let anonSetCookie = null;
-  if (isAnon) {
+  if (isAnon && !isInternalWarm(req)) {
+    // Soft gate — skipped for claimed crawlers and the pricing demo (both UA/query-based,
+    // so they must NOT be trusted to skip the cap). The cap below still runs for them.
     const ua = req.headers["user-agent"];
-    const fullBypass = isCrawler(ua) || isInternalWarm(req);
-    if (!fullBypass) {
-      const softGateBypass = req.query.preview === "1";
-      if (!softGateBypass) {
-        const anon = readAnonState(req);
-        const sameArea = anon.postcode && normPostcode(anon.postcode) === normPostcode(postcode);
-        if (anon.used >= 1 && !sameArea) {
-          // Second area for a returning anonymous visitor → the sign-up prompt.
-          // Encouraging, not punitive (client composes the copy) — a clean 200, not a 4xx.
-          res.setHeader("Cache-Control", "no-store");
-          return res.status(200).json({
-            ok: true,
-            signupRequired: true,
-            requested: { postcode, outcode: requestedOutcode },
-          });
-        }
-        // First-ever free brief → remember it (count + postcode for carry-over on sign-up).
-        // Same-area re-view keeps the existing cookie untouched.
-        if (anon.used < 1) anonSetCookie = buildAnonCookie({ used: 1, postcode });
-      }
-      // About to generate as an anonymous visitor → count it against the per-IP hard cap.
-      const cap = await bumpAndCheckIp(req);
-      if (cap.blocked) {
+    const softGateBypass = isCrawler(ua) || isDemoPreview(req, postcode);
+    if (!softGateBypass) {
+      const anon = readAnonState(req);
+      const sameArea = anon.postcode && normPostcode(anon.postcode) === normPostcode(postcode);
+      if (anon.used >= 1 && !sameArea) {
+        // Second area for a returning anonymous visitor → the sign-up prompt.
+        // Encouraging, not punitive (client composes the copy) — a clean 200, not a 4xx.
         res.setHeader("Cache-Control", "no-store");
-        return res.status(429).json({
-          ok: false,
-          error: {
-            code: "RATE_LIMITED",
-            message:
-              "You’ve generated a lot of briefs from this network today. Please try again tomorrow, or create a free account to keep going.",
-          },
+        return res.status(200).json({
+          ok: true,
+          signupRequired: true,
+          requested: { postcode, outcode: requestedOutcode },
         });
       }
+      // First-ever free brief → remember it (count + postcode for carry-over on sign-up).
+      // Same-area re-view keeps the existing cookie untouched.
+      if (anon.used < 1) anonSetCookie = buildAnonCookie({ used: 1, postcode });
+    }
+    // Per-IP hard cap — enforced on EVERY anonymous request regardless of User-Agent or
+    // ?preview, so a spoofed "Googlebot" (or a preview=1 farmer) is still blocked past the
+    // daily cap. Fail-open on any error (never walls a legitimate visitor).
+    const cap = await bumpAndCheckIp(req);
+    if (cap.blocked) {
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(429).json({
+        ok: false,
+        error: {
+          code: "RATE_LIMITED",
+          message:
+            "You’ve generated a lot of briefs from this network today. Please try again tomorrow, or create a free account to keep going.",
+        },
+      });
     }
   }
 
@@ -213,20 +227,32 @@ export default async function handler(req, res) {
 }
 
 /** Normalised postcode key for same-area comparison: uppercase, no whitespace. */
-function normPostcode(pc) {
+export function normPostcode(pc) {
   return String(pc || "").toUpperCase().replace(/\s+/g, "");
 }
 
 /**
- * Search-engine and link-preview crawlers, which must NOT be soft-gated or rate-capped
- * — they see exactly what a first-time human sees (a full Explorer brief), so every
- * /brief page stays crawlable (requirement: Googlebot can crawl everything it can today).
- * Content is identical to the first-view human experience, so this is not cloaking.
+ * Search-engine and link-preview crawlers, which must not be shown the sign-up wall — so a
+ * claimed crawler bypasses the SOFT gate only (it sees exactly what a first-time human sees,
+ * a full Explorer brief, keeping every /brief page crawlable; identical content, so not
+ * cloaking). It is NOT trusted to skip the per-IP hard cap: a User-Agent is trivially
+ * spoofed, so the cap — the real anti-abuse control — must apply regardless of UA. Real
+ * Googlebot crawls from many IPs and won't approach 10/IP/day.
  */
-function isCrawler(ua) {
+export function isCrawler(ua) {
   const s = typeof ua === "string" ? ua : "";
   if (!s) return false;
   return /bot|crawl|spider|slurp|googlebot|bingbot|applebot|yandex|duckduckbot|baiduspider|facebookexternalhit|embedly|slackbot|whatsapp|telegrambot|discordbot|pinterest|google-inspectiontool|googleother|adsbot-google|mediapartners-google|storebot-google/i.test(s);
+}
+
+/**
+ * The pricing page's background demo fetch (RealProductShowcase) passes ?preview=1 so it
+ * doesn't spend a visitor's one free brief. Honoured ONLY for the single hardcoded demo
+ * postcode — preview=1 on any other postcode is ignored (so it can't be appended to farm
+ * briefs), and even here it skips the soft gate only, never the per-IP hard cap.
+ */
+export function isDemoPreview(req, postcode) {
+  return req.query.preview === "1" && normPostcode(postcode) === DEMO_PREVIEW_POSTCODE;
 }
 
 /**
@@ -235,7 +261,7 @@ function isCrawler(ua) {
  * matched against BRIEF_WARM_SECRET. Absent/empty env → no request can claim the bypass
  * (so this is inert, and safe, on any deployment where the env isn't provisioned).
  */
-function isInternalWarm(req) {
+export function isInternalWarm(req) {
   const secret = process.env.BRIEF_WARM_SECRET;
   if (typeof secret !== "string" || secret.length < 8) return false;
   const provided = req.headers["x-brief-warm"];
