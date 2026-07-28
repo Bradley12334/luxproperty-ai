@@ -201,7 +201,7 @@ function LoadingState({ retryNote }: { retryNote?: string | null }) {
 // ── Small shared bits ────────────────────────────────────────────────────────
 function TierBadge({ tier }: { tier: "EXP" | "PRO" | "INV" }) {
   return (
-    <Badge variant="outline" className="ml-auto text-[10px] font-semibold uppercase tracking-wide">
+    <Badge variant="outline" className="no-print ml-auto text-[10px] font-semibold uppercase tracking-wide">
       {tier}
     </Badge>
   );
@@ -448,7 +448,7 @@ function YoYFigure({ pct }: { pct: Pct }) {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="space-y-1">
+    <div className="print-keep space-y-1">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="font-serif text-2xl tabular-nums text-foreground">{value}</div>
       {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
@@ -520,7 +520,7 @@ function ExecutiveSummarySection({ section }: { section: BriefSection }) {
       ) : null}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -664,7 +664,7 @@ function PricesSection({ section }: { section: BriefSection }) {
       </div>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -764,9 +764,9 @@ function NearbySoldPricesSection({ section }: { section: BriefSection }) {
         ))}
       </div>
 
-      {section.sourceNote && <p className="text-[11px] text-muted-foreground">{section.sourceNote}</p>}
+      {section.sourceNote && <p className="print-footnote text-[11px] text-muted-foreground">{section.sourceNote}</p>}
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -867,7 +867,7 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -945,24 +945,9 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
               ))}
             </div>
           )}
-          {/* Print fallback: the map can't render on paper, so the same sales
-           * plotted above are listed here as a table (print-only). */}
-          {points.length > 0 && (
-            <div className="print-only">
-              {points.map((p) => (
-                <div key={p.id} className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground">{p.address}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {p.propertyType}
-                      {p.monthYear ? ` · ${p.monthYear}` : ""}
-                    </div>
-                  </div>
-                  <div className="shrink-0 font-serif text-base tabular-nums text-foreground">{p.price.formatted}</div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* No print fallback table here: the same sales are already listed in
+           * full in the Nearby Sold Prices section above. Only the map is hidden
+           * in print; the low/median/high summary stats above survive. */}
           <p className="flex items-start gap-2 text-[11px] italic text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
             {section.disclaimer}
@@ -992,7 +977,7 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1243,7 +1228,7 @@ function FloodClimateSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1344,7 +1329,7 @@ function StationsCommuteSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1434,7 +1419,7 @@ function CommuteCalculatorSection({ section }: { section: BriefSection }) {
       </a>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1524,7 +1509,7 @@ function SchoolsSection({ section }: { section: BriefSection }) {
       <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.catchmentCaveat}</Callout>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1607,7 +1592,7 @@ function AmenitiesSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1674,7 +1659,7 @@ function BroadbandSection({ section }: { section: BriefSection }) {
       </a>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1760,7 +1745,7 @@ function AirQualitySection({ section }: { section: BriefSection }) {
       </a>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1922,7 +1907,7 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
           <p>{section.note}</p>
         </div>
         {section.sourceFootnote && (
-          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -1965,7 +1950,7 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
       ) : null}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -1993,7 +1978,7 @@ function RentalSnapshotSection({ section }: { section: BriefSection }) {
           <p>{section.note}</p>
         </div>
         {section.sourceFootnote && (
-          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -2038,7 +2023,7 @@ function RentalSnapshotSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2064,7 +2049,7 @@ function CrimeBreakdownSection({ section }: { section: BriefSection }) {
           <p>{section.note}</p>
         </div>
         {section.sourceFootnote && (
-          <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -2118,7 +2103,7 @@ function CrimeBreakdownSection({ section }: { section: BriefSection }) {
       )}
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2214,7 +2199,7 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
       </div>
 
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2259,7 +2244,7 @@ function PreOfferQuestionsSection({ section }: { section: BriefSection }) {
         })}
       </div>
       {section.sourceFootnote && (
-        <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );
@@ -2289,7 +2274,7 @@ function PlanningActivitySection({ section }: { section: BriefSection }) {
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
           <p>{section.note}</p>
         </div>
-        {section.sourceFootnote && <p className="mt-4 border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+        {section.sourceFootnote && <p className="mt-4 print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
       </Card>
     );
   }
@@ -2350,7 +2335,7 @@ function PlanningActivitySection({ section }: { section: BriefSection }) {
         </a>
       </Callout>
 
-      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+      {section.sourceFootnote && <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
     </Card>
   );
 }
@@ -2402,7 +2387,7 @@ function DevelopmentTrackerSection({ section }: { section: BriefSection }) {
         </a>
       )}
 
-      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+      {section.sourceFootnote && <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
     </Card>
   );
 }
@@ -2464,7 +2449,7 @@ function RentalDemandSection({ section }: { section: BriefSection }) {
         <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.methodology}</Callout>
       )}
 
-      {section.sourceFootnote && <p className="border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
+      {section.sourceFootnote && <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>}
     </Card>
   );
 }
@@ -2790,7 +2775,9 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
 // ── Meta header ──────────────────────────────────────────────────────────────
 function BriefHeader({ meta }: { meta: BriefMeta }) {
   return (
-    <div className="mb-6 flex items-start justify-between gap-4">
+    // Hidden entirely in print — the print-only header block (postcode, area,
+    // verdict, wordmark) stands in for it, so nothing is duplicated on page 1.
+    <div className="no-print mb-6 flex items-start justify-between gap-4">
       <div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline" className="uppercase tracking-wide">{meta.outcode}</Badge>
@@ -2814,26 +2801,33 @@ function BriefHeader({ meta }: { meta: BriefMeta }) {
           {meta.cached ? " · cached" : ""}
         </p>
       </div>
-      {/* Native print → "Save as PDF". Hidden in the printed output itself. */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => window.print()}
-        className="no-print shrink-0 gap-1.5"
-        data-testid="button-download-pdf"
-      >
-        <Download className="h-4 w-4" />
-        <span className="hidden sm:inline">Download PDF</span>
-        <span className="sm:hidden">PDF</span>
-      </Button>
+      {/* Native print → "Save as PDF" (this whole header is hidden in the PDF). */}
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.print()}
+          className="shrink-0 gap-1.5"
+          data-testid="button-download-pdf"
+        >
+          <Download className="h-4 w-4" />
+          <span className="hidden sm:inline">Download PDF</span>
+          <span className="sm:hidden">PDF</span>
+        </Button>
+        <p className="max-w-[15rem] text-right text-[11px] leading-snug text-muted-foreground" data-testid="text-print-tip">
+          Tip: untick “Headers and footers” in the print dialog for a clean PDF.
+        </p>
+      </div>
     </div>
   );
 }
 
 // ── Print-only header / footer ────────────────────────────────────────────────
 // These render only on paper (see the @media print block in index.css). They
-// carry no interactive controls, and the dates come from the payload's own
-// generatedAt — the brief's data-as-at moment, never `today`.
+// carry no interactive controls. The footer's "Generated" date is the payload's
+// own generatedAt (when the brief was built), never `today`. It deliberately
+// makes NO "data as at" currency claim — the underlying sources lag by varying
+// amounts (crime ~2mo, council tax 2024/25, Ofcom 2024, Census 2021).
 function fmtPrintDate(iso: string | undefined): string {
   if (!iso) return "—";
   const dt = new Date(iso);
@@ -2882,7 +2876,7 @@ function BriefPrintFooter({ meta }: { meta: BriefMeta }) {
   const pc = meta.postcode.trim();
   return (
     <div className="print-footer" aria-hidden="true">
-      Generated {date} · Data as at {date} · luxproperty.ai/brief/{pc}
+      Generated {date} · luxproperty.ai/brief/{pc}
     </div>
   );
 }
@@ -3124,7 +3118,7 @@ function PropertyTypeSection({ section }: { section: BriefSection }) {
         </SectionHeading>
         <p className="text-sm text-muted-foreground">{section.note}</p>
         {section.sourceFootnote && (
-          <p className="mt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+          <p className="print-footnote mt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
         )}
       </Card>
     );
@@ -3156,7 +3150,7 @@ function PropertyTypeSection({ section }: { section: BriefSection }) {
         ))}
       </div>
       {section.sourceFootnote && (
-        <p className="mt-4 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote mt-4 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
       )}
     </Card>
   );

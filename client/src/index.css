@@ -429,8 +429,9 @@
     display: none !important;
   }
 
-  /* Leaflet won't render reliably in print — hide the map, keep the sold-price
-   * table (rendered as .print-only alongside it) and the summary stats. */
+  /* Leaflet won't render reliably in print — hide the map. The same sales are
+   * already listed in full in the section above it; the low/median/high summary
+   * stats in this section survive. */
   [data-testid="sold-prices-map"],
   .leaflet-container {
     display: none !important;
@@ -465,14 +466,24 @@
     padding-bottom: 10mm;
   }
 
-  /* Keep each section card whole; don't strand a heading at a page bottom */
-  .shadcn-card {
+  /* Let long section cards flow across pages (avoiding whole-card breaks strands
+   * big gaps). Instead keep only small atomic blocks whole: stat tiles, table
+   * rows and individual list items. */
+  .print-keep,
+  li,
+  tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  /* Don't strand a heading at the foot of a page… */
   h1, h2, h3, h4 {
     break-after: avoid;
     page-break-after: avoid;
+  }
+  /* …and don't let a source/footnote line start a fresh page on its own. */
+  .print-footnote {
+    break-before: avoid;
+    page-break-before: avoid;
   }
 
   /* ── print header block (first page only, in normal flow) ── */
