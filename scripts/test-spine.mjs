@@ -143,6 +143,33 @@ async function main() {
   // garbage input — invalid
   await runRejectCase("NOTAPOSTCODE", ErrorCodes.INVALID_POSTCODE);
 
+  // ── Outcode-isolation regression: prefix-neighbour districts ───────────────
+  // SE1 shares a string prefix with SE10–SE19 and SE1P; N1 with N10–N19 and N1C.
+  // A naive STRSTARTS/startsWith on the raw postcode ("SE1" without the trailing
+  // space) would pull those neighbours in and silently poison every SE1/N1 median.
+  // The spine must return ONLY exact-outcode transactions. These assert exactly that.
+  const outcodeOf = (pc) => {
+    const s = String(pc || "").toUpperCase().trim();
+    const sp = s.indexOf(" ");
+    return sp === -1 ? "" : s.slice(0, sp);
+  };
+  for (const oc of ["SE1", "N1"]) {
+    hr();
+    console.log(`▶ ${oc} (outcode-isolation: must exclude prefix-neighbour districts)`);
+    const set = await getTransactions(oc, YEARS);
+    const bad = set.transactions.filter((t) => outcodeOf(t.postcode) !== oc);
+    const st = computeStats(set);
+    console.log(
+      `   ${set.meta.count} transactions; ${bad.length} with a non-${oc} outcode` +
+        (bad.length ? ` (e.g. ${[...new Set(bad.map((t) => outcodeOf(t.postcode)))].slice(0, 6).join(", ")})` : ""),
+    );
+    console.log(
+      `   median (window)=${formatGBP(st.medianPrice)}   ` +
+        `latest full year ${st.latestYear.year}=${formatGBP(st.latestYear.median)} (n=${st.latestYear.count})`,
+    );
+    check(`${oc}: zero transactions whose outcode is not exactly ${oc}`, bad.length === 0);
+  }
+
   // ── Bare outcodes (district-wide) ──────────────────────────────────────────
   // "E8" with no incode must resolve district-wide (centroid), not hit the invalid
   // card — the SEO guides tell users to "generate your E8 brief".
