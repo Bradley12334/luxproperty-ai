@@ -53,6 +53,7 @@ import {
   Lock,
   ArrowRight,
   Loader2,
+  Download,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -931,7 +932,7 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
         <div className="space-y-3">
           <SoldPricesMap centre={centre} subjectLabel={subjectLabel} points={points} />
           {legend.length > 0 && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <div className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-full" style={{ background: "#B8860B" }} />
                 Subject postcode
@@ -941,6 +942,24 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
                   <span className="h-3 w-3 rounded-full" style={{ background: TIER_DOT[l.tier] ?? "#6b7280" }} />
                   {l.label}
                 </span>
+              ))}
+            </div>
+          )}
+          {/* Print fallback: the map can't render on paper, so the same sales
+           * plotted above are listed here as a table (print-only). */}
+          {points.length > 0 && (
+            <div className="print-only">
+              {points.map((p) => (
+                <div key={p.id} className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground">{p.address}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {p.propertyType}
+                      {p.monthYear ? ` · ${p.monthYear}` : ""}
+                    </div>
+                  </div>
+                  <div className="shrink-0 font-serif text-base tabular-nums text-foreground">{p.price.formatted}</div>
+                </div>
               ))}
             </div>
           )}
@@ -2771,28 +2790,99 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
 // ── Meta header ──────────────────────────────────────────────────────────────
 function BriefHeader({ meta }: { meta: BriefMeta }) {
   return (
-    <div className="mb-6">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="outline" className="uppercase tracking-wide">{meta.outcode}</Badge>
-        {meta.outcodeOnly ? (
-          <span>District-wide</span>
-        ) : (
-          meta.ward && <span>{meta.ward}</span>
-        )}
-        {meta.localAuthority && <span>· {meta.localAuthority}</span>}
-        {meta.region && <span>· {meta.region}</span>}
+    <div className="mb-6 flex items-start justify-between gap-4">
+      <div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="outline" className="uppercase tracking-wide">{meta.outcode}</Badge>
+          {meta.outcodeOnly ? (
+            <span>District-wide</span>
+          ) : (
+            meta.ward && <span>{meta.ward}</span>
+          )}
+          {meta.localAuthority && <span>· {meta.localAuthority}</span>}
+          {meta.region && <span>· {meta.region}</span>}
+        </div>
+        <h1 className="mt-2 font-serif text-3xl tracking-tight">
+          {meta.postcode}
+          {meta.outcodeOnly && <span className="ml-2 text-base font-normal text-muted-foreground">· district-wide</span>}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {meta.outcodeOnly
+            ? "Based on the postcode-district centroid — enter a full postcode for a location-specific brief. "
+            : ""}
+          {meta.transactionCount.toLocaleString()} in-district sold prices · {meta.window.startYear}–{meta.window.endYear}
+          {meta.cached ? " · cached" : ""}
+        </p>
       </div>
-      <h1 className="mt-2 font-serif text-3xl tracking-tight">
-        {meta.postcode}
-        {meta.outcodeOnly && <span className="ml-2 text-base font-normal text-muted-foreground">· district-wide</span>}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {meta.outcodeOnly
-          ? "Based on the postcode-district centroid — enter a full postcode for a location-specific brief. "
-          : ""}
-        {meta.transactionCount.toLocaleString()} in-district sold prices · {meta.window.startYear}–{meta.window.endYear}
-        {meta.cached ? " · cached" : ""}
-      </p>
+      {/* Native print → "Save as PDF". Hidden in the printed output itself. */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => window.print()}
+        className="no-print shrink-0 gap-1.5"
+        data-testid="button-download-pdf"
+      >
+        <Download className="h-4 w-4" />
+        <span className="hidden sm:inline">Download PDF</span>
+        <span className="sm:hidden">PDF</span>
+      </Button>
+    </div>
+  );
+}
+
+// ── Print-only header / footer ────────────────────────────────────────────────
+// These render only on paper (see the @media print block in index.css). They
+// carry no interactive controls, and the dates come from the payload's own
+// generatedAt — the brief's data-as-at moment, never `today`.
+function fmtPrintDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  const dt = new Date(iso);
+  if (isNaN(dt.getTime())) return iso;
+  return dt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function printAreaName(meta: BriefMeta): string {
+  const parts: string[] = [];
+  if (!meta.outcodeOnly && meta.ward) parts.push(meta.ward);
+  if (meta.localAuthority) parts.push(meta.localAuthority);
+  if (meta.region) parts.push(meta.region);
+  return parts.join(" · ") || meta.outcode;
+}
+
+// The verdict label + chip tone for the print header, mirroring VerdictCard's
+// on-screen logic (refusal → neutral "Insufficient data").
+function printVerdict(section?: BriefSection): { label: string; tone: VerdictData["chip"]["tone"] } {
+  const d = section?.data as VerdictData | null | undefined;
+  if (!d) return { label: "Screening verdict unavailable", tone: "neutral" };
+  if (d.refused) return { label: "Insufficient data", tone: "neutral" };
+  return { label: d.verdict || d.chip?.label || "See verdict", tone: d.chip?.tone ?? "neutral" };
+}
+
+function BriefPrintHeader({ meta, verdict }: { meta: BriefMeta; verdict?: BriefSection }) {
+  const v = printVerdict(verdict);
+  return (
+    <div className="print-header" aria-hidden="true">
+      <div className="print-header-left">
+        <div className="print-wordmark">
+          Lux<span className="pw-gold">Property</span><span className="pw-ai">.ai</span>
+        </div>
+        <div className="print-postcode">{meta.postcode}</div>
+        <div className="print-area">{printAreaName(meta)}</div>
+      </div>
+      <div className="print-verdict">
+        <span className="print-verdict-label">Area screening verdict</span>
+        <span className={`print-verdict-value ${verdictChipClasses(v.tone)}`}>{v.label}</span>
+      </div>
+    </div>
+  );
+}
+
+function BriefPrintFooter({ meta }: { meta: BriefMeta }) {
+  const date = fmtPrintDate(meta.generatedAt);
+  const pc = meta.postcode.trim();
+  return (
+    <div className="print-footer" aria-hidden="true">
+      Generated {date} · Data as at {date} · luxproperty.ai/brief/{pc}
     </div>
   );
 }
@@ -2941,7 +3031,7 @@ export default function BriefPage() {
       <Header />
       <main className="flex-1">
         {/* Postcode input — always visible so it can be re-run */}
-        <div className="border-b border-border bg-muted/20">
+        <div className="no-print border-b border-border bg-muted/20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
             <h1 className="font-serif text-2xl tracking-tight mb-1">Property brief</h1>
             <p className="text-sm text-muted-foreground mb-4">
@@ -2979,10 +3069,20 @@ export default function BriefPage() {
         {status === "done" && quotaResp && <OverQuotaScreen resp={quotaResp} />}
 
         {status === "done" && brief && prices && (
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
+          <div className="brief-print-root mx-auto max-w-3xl px-4 sm:px-6 py-8">
+            {/* Print-only: first-page header block + footer repeated every page.
+             * Kept outside the space-y flow so screen layout is unchanged. */}
+            <BriefPrintHeader meta={brief.meta} verdict={areaVerdict} />
+            <BriefPrintFooter meta={brief.meta} />
+            <div className="space-y-6">
             <BriefHeader meta={brief.meta} />
-            <SaveBriefAffordance outcode={brief.meta.outcode} postcode={brief.meta.postcode} owned={!!brief.fullBriefOwned} tier={brief.meta.tier} />
-            <QuotaFunnel quota={brief.quota} />
+            {/* Upgrade block + quota funnel are screen-only nudges (never in the PDF) */}
+            <div className="no-print">
+              <SaveBriefAffordance outcode={brief.meta.outcode} postcode={brief.meta.postcode} owned={!!brief.fullBriefOwned} tier={brief.meta.tier} />
+            </div>
+            <div className="no-print">
+              <QuotaFunnel quota={brief.quota} />
+            </div>
             {areaVerdict && <VerdictCard section={areaVerdict} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
             <div id="sec-neighbourhood">{neighbourhood && <NeighbourhoodSection section={neighbourhood} />}</div>
@@ -3005,6 +3105,7 @@ export default function BriefPage() {
             {renderSection(developmentTracker, DevelopmentTrackerSection)}
             {renderSection(rentalDemand, RentalDemandSection)}
             {renderSection(preOfferQuestions, PreOfferQuestionsSection)}
+            </div>
           </div>
         )}
       </main>
