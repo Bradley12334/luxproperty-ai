@@ -684,7 +684,7 @@ interface SoldItem {
 
 function SoldPriceRow({ item }: { item: SoldItem }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+    <div className="print-keep flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
       <div className="min-w-0">
         <div className="truncate text-sm font-medium text-foreground">{item.address}</div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -961,7 +961,7 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
           </div>
           <div>
             {points.map((p) => (
-              <div key={p.id} className="flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+              <div key={p.id} className="print-keep flex items-start justify-between gap-4 border-b border-border/50 py-3 last:border-0">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium text-foreground">{p.address}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
@@ -2085,7 +2085,7 @@ function CrimeBreakdownSection({ section }: { section: BriefSection }) {
 
           <div className="space-y-2">
             {d.categories.map((c) => (
-              <div key={c.key} className="flex items-center gap-3">
+              <div key={c.key} className="print-keep flex items-center gap-3">
                 <div className="w-40 shrink-0 truncate text-sm text-foreground">{c.label}</div>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
@@ -2155,7 +2155,7 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
         )}
         <div className="grid gap-3 sm:grid-cols-2">
           {d.dimensions.map((dim) => (
-            <div key={dim.key} className="rounded-lg border border-border/60 p-4">
+            <div key={dim.key} className="print-keep rounded-lg border border-border/60 p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-foreground">{dim.title}</span>
                 <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tierClasses(dim.tier)}`}>

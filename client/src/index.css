@@ -466,24 +466,36 @@
     padding-bottom: 10mm;
   }
 
-  /* Let long section cards flow across pages (avoiding whole-card breaks strands
-   * big gaps). Instead keep only small atomic blocks whole: stat tiles, table
-   * rows and individual list items. */
+  /* Let long section cards flow across pages (forcing whole cards onto one page
+   * strands big gaps). Instead keep only small atomic units whole. Many repeated
+   * rows are <div>s, not <li>/<tr>, so .print-keep is applied directly to them
+   * (sold-price entries, neighbourhood lifestyle cards, crime-category rows,
+   * stat tiles); li/tr cover the genuinely semantic lists/tables. Footnote/
+   * source paragraphs are kept whole too so they don't split mid-sentence. */
   .print-keep,
   li,
-  tr {
+  tr,
+  .print-footnote {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  /* Don't strand a heading at the foot of a page… */
-  h1, h2, h3, h4 {
+  /* Don't strand a heading — or a small-caps section sub-label — at the foot of
+   * a page, cut off from the content it introduces. The attribute selector
+   * matches the "uppercase tracking-wide" micro-labels used throughout. */
+  h1, h2, h3, h4,
+  [class*="uppercase"][class*="tracking-wide"] {
     break-after: avoid;
     page-break-after: avoid;
   }
-  /* …and don't let a source/footnote line start a fresh page on its own. */
+  /* Don't let a source/footnote line start a fresh page on its own. */
   .print-footnote {
     break-before: avoid;
     page-break-before: avoid;
+  }
+  /* Keep at least three lines of prose together across a page break. */
+  p, li {
+    orphans: 3;
+    widows: 3;
   }
 
   /* ── print header block (first page only, in normal flow) ── */
