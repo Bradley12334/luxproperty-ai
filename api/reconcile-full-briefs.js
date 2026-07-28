@@ -102,7 +102,7 @@ export default async function handler(req, res) {
   }
   const authz = String(req.headers.authorization || "");
   const bearer = authz.startsWith("Bearer ") ? authz.slice(7).trim() : "";
-  if (!secretEquals(bearer, secret)) {
+  if (!secretEquals(bearer, String(secret).trim())) {
     return res.status(401).json({ error: "Unauthorized.", code: "UNAUTHORIZED" });
   }
 
