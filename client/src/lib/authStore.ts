@@ -194,6 +194,27 @@ function setUser(user: User, token?: string | null) {
     } catch {}
   }
   notify();
+  // Carry-over: the moment a real token lands (sign-up / sign-in / forced reset), claim
+  // any anonymous brief so it appears in "My briefs" instead of being lost. Best-effort
+  // and idempotent server-side (inlined here rather than importing lib/library to avoid a
+  // circular import — library imports authHeader/getToken from this module).
+  if (token) claimAnonCarryover(token);
+}
+
+/**
+ * Link the anonymous soft-gate brief to the now-signed-in account. The server reads the
+ * signed HttpOnly `lux_anon` cookie (sent automatically, same-origin) and records it in
+ * carried_briefs, then clears the cookie. Fire-and-forget: never blocks or fails auth.
+ */
+function claimAnonCarryover(token: string) {
+  try {
+    fetch("/api/my-briefs", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ action: "claim" }),
+    }).catch(() => {});
+  } catch {}
 }
 
 /** Re-reads the signed-in user from the DB (e.g. after email verification). */

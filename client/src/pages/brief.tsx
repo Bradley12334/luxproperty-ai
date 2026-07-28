@@ -123,6 +123,14 @@ interface QuotaExceededResp {
   quota: QuotaStatus;
   requested?: { postcode: string; outcode: string };
 }
+// Clean anonymous soft-gate response (HTTP 200, not an error): a guest has already used
+// their one free brief and asked for a different area. The SignUpGateScreen composes an
+// encouraging "create a free account to continue" prompt from `requested`.
+interface SignupRequiredResp {
+  ok: true;
+  signupRequired: true;
+  requested?: { postcode: string; outcode: string };
+}
 
 // ── Reused stepping loader (from the original brief) ─────────────────────────
 const LOADING_STEPS = [
@@ -422,6 +430,52 @@ function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
       <p className="mt-6 text-xs text-muted-foreground">
         Your free briefs reset on {formatResetDate(quota.resetsOn)}.
       </p>
+      <AuthModal open={authOpen} defaultTab="signup" onClose={() => setAuthOpen(false)} />
+    </div>
+  );
+}
+
+// ── Sign-up gate — the anonymous soft gate (one free brief used) ──────────────
+// Encouraging, not punitive: the guest has SEEN the product work, so we invite them to
+// create a free account to keep exploring new areas. Not an error, not a paywall — a
+// warm nudge. Their first brief (and its postcode) carries over on sign-up.
+function SignUpGateScreen({ resp }: { resp: SignupRequiredResp }) {
+  const outcode = resp.requested?.outcode ?? "";
+  const hasPC = outcode.length > 0;
+  const [authOpen, setAuthOpen] = useState(false);
+
+  return (
+    <div className="mx-auto max-w-lg px-4 sm:px-6 py-16 text-center">
+      <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+        <Sparkles className="h-5 w-5 text-primary" />
+      </div>
+      <h2 className="font-serif text-2xl tracking-tight mb-2">
+        Create a free account to keep exploring
+      </h2>
+      <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
+        You’ve used your free area screening{hasPC ? <> and you’re onto <span className="font-medium text-foreground">{outcode}</span></> : null}.
+        It’s free to keep going — create an account and we’ll save the brief you just generated to{" "}
+        <span className="font-medium text-foreground">My briefs</span>, plus give you more free screenings each month.
+      </p>
+
+      <div className="flex flex-col items-center gap-3">
+        <Button className="gap-1.5 font-semibold" onClick={() => setAuthOpen(true)} data-testid="button-gate-signup">
+          Create free account
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          No card required · your first brief comes with you.
+        </p>
+        <button
+          type="button"
+          onClick={() => setAuthOpen(true)}
+          className="text-sm text-primary underline-offset-4 hover:underline"
+          data-testid="link-gate-signin"
+        >
+          Already have an account? Sign in
+        </button>
+      </div>
+
       <AuthModal open={authOpen} defaultTab="signup" onClose={() => setAuthOpen(false)} />
     </div>
   );
@@ -2917,7 +2971,7 @@ export default function BriefPage() {
   const initial = params.id ? safeDecode(params.id) : "";
   const [postcode, setPostcode] = useState(initial);
   const [status, setStatus] = useState<Status>("idle");
-  const [payload, setPayload] = useState<BriefPayload | QuotaExceededResp | null>(null);
+  const [payload, setPayload] = useState<BriefPayload | QuotaExceededResp | SignupRequiredResp | null>(null);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [retryNote, setRetryNote] = useState<string | null>(null);
 
@@ -2937,7 +2991,7 @@ export default function BriefPage() {
       try {
         const url = `/api/brief?postcode=${encodeURIComponent(clean)}`;
         const res = await fetch(url, { headers: authHeader() });
-        const json: BriefPayload | QuotaExceededResp | BriefErrorResp = await res.json();
+        const json: BriefPayload | QuotaExceededResp | SignupRequiredResp | BriefErrorResp = await res.json();
 
         // Resolve-altitude failure (invalid postcode / Scotland-NI / guard): these
         // are deterministic — retrying won't change them. Surface immediately.
@@ -2950,6 +3004,14 @@ export default function BriefPage() {
         // Over-quota: a clean 200 response, not an error. Show the upgrade screen.
         if ("quotaExceeded" in json && json.quotaExceeded) {
           setPayload(json as QuotaExceededResp);
+          setStatus("done");
+          return;
+        }
+
+        // Anonymous soft gate: a clean 200, not an error. Guest used their free brief —
+        // show the encouraging sign-up prompt.
+        if ("signupRequired" in json && json.signupRequired) {
+          setPayload(json as SignupRequiredResp);
           setStatus("done");
           return;
         }
@@ -2993,9 +3055,11 @@ export default function BriefPage() {
     runGeneration(postcode);
   }
 
-  // Narrow the payload union: over-quota responses carry no sections.
+  // Narrow the payload union: over-quota and sign-up-gate responses carry no sections.
   const quotaResp = payload && "quotaExceeded" in payload ? (payload as QuotaExceededResp) : null;
-  const brief = payload && !("quotaExceeded" in payload) ? (payload as BriefPayload) : null;
+  const signupResp = payload && "signupRequired" in payload ? (payload as SignupRequiredResp) : null;
+  const brief =
+    payload && !("quotaExceeded" in payload) && !("signupRequired" in payload) ? (payload as BriefPayload) : null;
 
   const execSummary = brief?.sections.find((s) => s.key === "executiveSummary");
   const prices = brief?.sections.find((s) => s.key === "pricesTrendNegotiation");
@@ -3061,6 +3125,9 @@ export default function BriefPage() {
 
         {/* Over-quota — clean upgrade screen, not an error. */}
         {status === "done" && quotaResp && <OverQuotaScreen resp={quotaResp} />}
+
+        {/* Anonymous soft gate — encouraging sign-up prompt, not an error. */}
+        {status === "done" && signupResp && <SignUpGateScreen resp={signupResp} />}
 
         {status === "done" && brief && prices && (
           <div className="brief-print-root mx-auto max-w-3xl px-4 sm:px-6 py-8">

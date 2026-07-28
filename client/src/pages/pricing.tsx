@@ -163,7 +163,9 @@ function RealProductShowcase() {
     (async () => {
       try {
         // Anonymous fetch (no auth header) → Explorer payload: real verdict + locked previews.
-        const res = await fetch(`/api/brief?postcode=${encodeURIComponent(SHOWCASE_POSTCODE)}`);
+        // preview=1 exempts this background demo from the anonymous soft gate, so viewing
+        // the pricing page never spends the visitor's one free brief.
+        const res = await fetch(`/api/brief?postcode=${encodeURIComponent(SHOWCASE_POSTCODE)}&preview=1`);
         const json = await res.json().catch(() => null);
         if (!alive) return;
         const sections: BriefSection[] = json?.ok && Array.isArray(json.sections) ? json.sections : [];

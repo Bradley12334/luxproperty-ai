@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { signOut } from "@/lib/authStore";
 import { checkoutUrl } from "@/lib/checkout";
-import { fetchMyBriefs, type OwnedBrief } from "@/lib/library";
+import { fetchMyBriefs, type OwnedBrief, type CarriedBrief } from "@/lib/library";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   User,
@@ -20,6 +20,7 @@ import {
   FileText,
   MapPin,
   Lock,
+  Sparkles,
 } from "lucide-react";
 
 const planDetails = {
@@ -59,6 +60,7 @@ export default function AccountPage() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
   const [ownedBriefs, setOwnedBriefs] = useState<OwnedBrief[]>([]);
+  const [carriedBriefs, setCarriedBriefs] = useState<CarriedBrief[]>([]);
   const [briefsLoading, setBriefsLoading] = useState(true);
 
   useEffect(() => {
@@ -74,7 +76,7 @@ export default function AccountPage() {
     let alive = true;
     setBriefsLoading(true);
     fetchMyBriefs()
-      .then((briefs) => { if (alive) setOwnedBriefs(briefs); })
+      .then(({ owned, carried }) => { if (alive) { setOwnedBriefs(owned); setCarriedBriefs(carried); } })
       .finally(() => { if (alive) setBriefsLoading(false); });
     return () => { alive = false; };
   }, [isSignedIn]);
@@ -276,7 +278,9 @@ export default function AccountPage() {
 
               {briefsLoading ? (
                 <p className="text-sm text-muted-foreground">Loading your briefs…</p>
-              ) : ownedBriefs.length > 0 ? (
+              ) : ownedBriefs.length > 0 || carriedBriefs.length > 0 ? (
+                <div className="space-y-4">
+                {ownedBriefs.length > 0 && (
                 <ul className="space-y-2">
                   {ownedBriefs.map((b) => {
                     // Link to the buyer's TYPED full postcode (the fully-populated point
@@ -315,6 +319,47 @@ export default function AccountPage() {
                     );
                   })}
                 </ul>
+                )}
+
+                {/* Carried-over briefs — generated while anonymous, kept on sign-up. A
+                    bookmark, NOT ownership: regenerating still gates by plan (so we label
+                    it "regenerate anytime", distinct from owned "revisit free"). */}
+                {carriedBriefs.length > 0 && (
+                  <div className="space-y-2">
+                    {ownedBriefs.length > 0 && (
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground pt-1">
+                        Carried over
+                      </p>
+                    )}
+                    <ul className="space-y-2">
+                      {carriedBriefs.map((b) => {
+                        const target = b.postcode || b.outcode;
+                        return (
+                          <li key={`carried-${b.outcode}`}>
+                            <Link href={`/brief/${encodeURIComponent(target)}`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full justify-between gap-2 text-sm h-auto py-2"
+                                data-testid={`button-carried-brief-${b.outcode.toLowerCase()}`}
+                              >
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                                  <span className="font-medium truncate">{b.postcode || b.outcode}</span>
+                                </span>
+                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal shrink-0">
+                                  Saved · regenerate anytime
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </span>
+                              </Button>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                </div>
               ) : (
                 // Locked/empty upsell — shown, not hidden (the save affordance is a surface).
                 <div className="rounded-lg border border-dashed border-border/70 p-4">

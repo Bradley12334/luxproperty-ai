@@ -32,6 +32,8 @@ import { resolveAccountTier } from "../lib/brief/account.js";
 import { monthKey, countGenerations, recordGeneration, quotaStatus } from "../lib/brief/quota.js";
 import { verifySessionToken, bearerFromHeader } from "../lib/auth/session-token.js";
 import { ownsFullBrief, outcodeOf } from "../lib/brief/ownership.js";
+import { readAnonState, buildAnonCookie } from "../lib/auth/anon-cookie.js";
+import { bumpAndCheckIp } from "../lib/brief/anon-limit.js";
 
 // Raise the function ceiling to the Hobby maximum so a cold ~20-30s generation
 // completes. generate()'s own 50s budget still fires first on a slow upstream.
@@ -80,6 +82,62 @@ export default async function handler(req, res) {
   const owned = account.userId ? await ownsFullBrief(account.userId, requestedOutcode) : false;
   const effectiveTier = owned ? "INV" : account.tier;
 
+  // ── Anonymous soft gate + per-IP hard cap ───────────────────────────────────
+  // Applies ONLY to anonymous visitors (no verified account). The signed-in path —
+  // quota, ownership, tier, entitlement — is entirely below and completely untouched.
+  //
+  //   Soft gate  (product funnel): one free brief per anonymous visitor, tracked by a
+  //     signed HttpOnly cookie. A second brief for a DIFFERENT postcode returns a clean
+  //     `signupRequired` 200 (the sign-up prompt). Re-viewing the SAME postcode is not
+  //     re-gated — it's their brief, and this also lets the client's slow-Land-Registry
+  //     retry re-fetch the same postcode without hitting the wall.
+  //   Hard cap  (anti-abuse, WELL above normal use): 10 anonymous generations per IP
+  //     per day (hashed IP), backstopping cookie-cycling (incognito / clear-cookies).
+  //
+  // Bypasses: crawlers and internal cache-warming get BOTH gates skipped (Googlebot must
+  // crawl freely; warming hits many districts from one IP). The pricing showcase passes
+  // ?preview=1 to skip the soft gate (so a background demo fetch never spends a visitor's
+  // free brief) while still counting toward the hard cap.
+  const isAnon = !account.userId;
+  let anonSetCookie = null;
+  if (isAnon) {
+    const ua = req.headers["user-agent"];
+    const fullBypass = isCrawler(ua) || isInternalWarm(req);
+    if (!fullBypass) {
+      const softGateBypass = req.query.preview === "1";
+      if (!softGateBypass) {
+        const anon = readAnonState(req);
+        const sameArea = anon.postcode && normPostcode(anon.postcode) === normPostcode(postcode);
+        if (anon.used >= 1 && !sameArea) {
+          // Second area for a returning anonymous visitor → the sign-up prompt.
+          // Encouraging, not punitive (client composes the copy) — a clean 200, not a 4xx.
+          res.setHeader("Cache-Control", "no-store");
+          return res.status(200).json({
+            ok: true,
+            signupRequired: true,
+            requested: { postcode, outcode: requestedOutcode },
+          });
+        }
+        // First-ever free brief → remember it (count + postcode for carry-over on sign-up).
+        // Same-area re-view keeps the existing cookie untouched.
+        if (anon.used < 1) anonSetCookie = buildAnonCookie({ used: 1, postcode });
+      }
+      // About to generate as an anonymous visitor → count it against the per-IP hard cap.
+      const cap = await bumpAndCheckIp(req);
+      if (cap.blocked) {
+        res.setHeader("Cache-Control", "no-store");
+        return res.status(429).json({
+          ok: false,
+          error: {
+            code: "RATE_LIMITED",
+            message:
+              "You’ve generated a lot of briefs from this network today. Please try again tomorrow, or create a free account to keep going.",
+          },
+        });
+      }
+    }
+  }
+
   // ── Quota (server-enforced, calendar-month, per signed-in account) ──────────
   // Anonymous → no quota (unlimited Explorer sections; funnel nudges sign-in).
   // Counted BEFORE generation so an over-quota request does no work; a warm/cached
@@ -127,6 +185,10 @@ export default async function handler(req, res) {
     }
 
     res.setHeader("Cache-Control", "no-store");
+    // Anonymous first free brief → set the signed soft-gate cookie (marks it used and
+    // remembers the postcode for carry-over on sign-up). Null for signed-in, crawler,
+    // warming, preview, or same-area re-views.
+    if (anonSetCookie) res.setHeader("Set-Cookie", anonSetCookie);
     return res.status(200).json({
       ok: true,
       ...payload,
@@ -148,4 +210,35 @@ export default async function handler(req, res) {
       error: { code: "UPSTREAM_ERROR", message: "Brief generation failed unexpectedly. Please try again." },
     });
   }
+}
+
+/** Normalised postcode key for same-area comparison: uppercase, no whitespace. */
+function normPostcode(pc) {
+  return String(pc || "").toUpperCase().replace(/\s+/g, "");
+}
+
+/**
+ * Search-engine and link-preview crawlers, which must NOT be soft-gated or rate-capped
+ * — they see exactly what a first-time human sees (a full Explorer brief), so every
+ * /brief page stays crawlable (requirement: Googlebot can crawl everything it can today).
+ * Content is identical to the first-view human experience, so this is not cloaking.
+ */
+function isCrawler(ua) {
+  const s = typeof ua === "string" ? ua : "";
+  if (!s) return false;
+  return /bot|crawl|spider|slurp|googlebot|bingbot|applebot|yandex|duckduckbot|baiduspider|facebookexternalhit|embedly|slackbot|whatsapp|telegrambot|discordbot|pinterest|google-inspectiontool|googleother|adsbot-google|mediapartners-google|storebot-google/i.test(s);
+}
+
+/**
+ * Internal cache-warming (scripts/warm-districts.mjs) hits many districts from one IP and
+ * must bypass BOTH gates. Authenticated by a shared secret in the `x-brief-warm` header,
+ * matched against BRIEF_WARM_SECRET. Absent/empty env → no request can claim the bypass
+ * (so this is inert, and safe, on any deployment where the env isn't provisioned).
+ */
+function isInternalWarm(req) {
+  const secret = process.env.BRIEF_WARM_SECRET;
+  if (typeof secret !== "string" || secret.length < 8) return false;
+  const provided = req.headers["x-brief-warm"];
+  const value = Array.isArray(provided) ? provided[0] : provided;
+  return typeof value === "string" && value === secret;
 }
