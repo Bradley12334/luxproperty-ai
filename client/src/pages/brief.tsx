@@ -2634,7 +2634,7 @@ function verdictChipClasses(tone: VerdictData["chip"]["tone"]) {
   }
 }
 
-export function VerdictCard({ section }: { section: BriefSection }) {
+export function VerdictCard({ section, entitled = false }: { section: BriefSection; entitled?: boolean }) {
   const d = section.data as VerdictData | null;
   if (!d) {
     return (
@@ -2753,7 +2753,7 @@ export function VerdictCard({ section }: { section: BriefSection }) {
                 <li key={i} className="rounded-md border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
                   <p className="font-medium text-foreground">{w.headline}</p>
                   {w.detail && <p className="mt-0.5 text-xs text-muted-foreground">{w.detail}</p>}
-                  {w.nextStep && <p className="mt-1 text-xs text-foreground"><span className="font-medium">Next step:</span> {w.nextStep}</p>}
+                  {entitled && w.nextStep && <p className="mt-1 text-xs text-foreground"><span className="font-medium">Next step:</span> {w.nextStep}</p>}
                   <div className="mt-1"><VerdictSourceLink sectionKey={w.sectionKey} /></div>
                 </li>
               ))}
@@ -3231,7 +3231,7 @@ export default function BriefPage() {
             <div className="no-print">
               <QuotaFunnel quota={brief.quota} />
             </div>
-            {areaVerdict && <VerdictCard section={areaVerdict} />}
+            {areaVerdict && <VerdictCard section={areaVerdict} entitled={brief.meta.tier !== "EXP"} />}
             {execSummary && <ExecutiveSummarySection section={execSummary} />}
             <div id="sec-neighbourhood">{neighbourhood && <NeighbourhoodSection section={neighbourhood} />}</div>
             <div id="sec-pricesTrendNegotiation"><PricesSection section={prices} /></div>
