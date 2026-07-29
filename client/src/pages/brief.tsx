@@ -1443,10 +1443,11 @@ function GuidanceBlocks({ guidance }: { guidance: FloodData["guidance"] }) {
 }
 
 function FloodClimateSection({ section }: { section: BriefSection }) {
-  // Free view (step 2): headline rating, planning zone and caveats stay fully visible; the
-  // detail body (live warnings + nearby EA areas) shows behind a fade with a count line,
-  // and historic flooding, surface water, subsidence and "Before you offer" move to the
-  // full brief. Entitled sees the whole body, as today.
+  // Free view (step 2): headline rating, planning zone, insurance line, live-warning status
+  // AND the surface-water + subsidence notes stay fully visible (those notes state what we
+  // DON'T have data for — fading them would look like withheld product). Only the low-value
+  // nearby EA areas list + historic flooding are faded; "Before you offer" moves to the full
+  // brief. Entitled sees the whole body, as today.
   const loc = useContext(BriefLocationContext);
   const entitled = loc?.tier !== "EXP";
   const outcode = loc?.outcode ?? "";
@@ -1567,12 +1568,26 @@ function FloodClimateSection({ section }: { section: BriefSection }) {
           )}
         </>
       ) : (
-        <TruncatedFade line="Full flood detail in the full brief" outcode={outcode}>
-          <div className="space-y-6">
-            <WarningsBlock warnings={d.warnings} />
-            <NearbyAreas nearby={d.nearby} />
-          </div>
-        </TruncatedFade>
+        <>
+          {/* Fully visible: live-warning status + surface-water and subsidence notes — the
+              latter state what we DON'T have data for, so fading them would make honest
+              limits look like withheld product. */}
+          <WarningsBlock warnings={d.warnings} />
+          <GuidanceBlocks guidance={d.guidance} />
+          {/* Faded/truncated: the low-value nearby EA areas list + historic flooding. */}
+          <TruncatedFade line="Full flood detail in the full brief" outcode={outcode}>
+            <div className="space-y-6">
+              <NearbyAreas nearby={d.nearby} />
+              {d.historic?.text && (
+                d.historic.flooded ? (
+                  <Callout tone="warn" icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.historic.text}</Callout>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{d.historic.text}</p>
+                )
+              )}
+            </div>
+          </TruncatedFade>
+        </>
       )}
 
       {section.sourceFootnote && (
