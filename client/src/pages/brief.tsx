@@ -377,6 +377,13 @@ function LockedPreview({
   const loc = useContext(BriefLocationContext);
   // Render the real component over ONLY the sliced rows the server sent.
   const previewSection: BriefSection = { ...section, state: "DATA", data: section.preview };
+  // Street preview carries its own summary figures (per-outcode, from the server payload —
+  // never hardcoded): total streets ranked + the price range. Surface them in the overlay.
+  const p = section.preview;
+  const overlayLine =
+    p && typeof p.qualifyingCount === "number" && p.range?.highest?.formatted && p.range?.lowest?.formatted
+      ? `Preview — ${p.qualifyingCount} streets ranked, ${p.range.lowest.formatted} to ${p.range.highest.formatted}. Full ranking locked.`
+      : "Preview — the full list is locked.";
   return (
     <div className="relative">
       <div aria-hidden={false}>
@@ -386,7 +393,7 @@ function LockedPreview({
       <div className="pointer-events-none relative -mt-20 h-20 bg-gradient-to-t from-background via-background/85 to-transparent" />
       <div className="-mt-3 flex flex-col items-center gap-2 pb-1 text-center">
         <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <Lock className="h-3.5 w-3.5 text-primary" /> Preview — the full list is locked.
+          <Lock className="h-3.5 w-3.5 text-primary" /> {overlayLine}
         </div>
         {loc && loc.tier !== "INV"
           ? <LockedCardCta outcode={loc.outcode} postcode={loc.postcode} />
