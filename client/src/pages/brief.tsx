@@ -280,7 +280,42 @@ function InFullBriefTag() {
 // through renderSection. Consumed ONLY by locked cards, which render ONLY in the
 // non-entitled view — an entitled viewer never sees a LockedSection, so this leaves the
 // entitled view untouched.
-const BriefLocationContext = createContext<{ outcode: string; postcode: string; tier: string } | null>(null);
+const BriefLocationContext = createContext<{ outcode: string; postcode: string; tier: string; window?: { startYear: number; endYear: number } } | null>(null);
+
+// ── Free-view truncation (step 2) ──────────────────────────────────────────────
+// A semi-hidden section shows its leading rows, fades the tail (SCREEN ONLY — fades don't
+// print), and appends a count line naming what's missing. No button (only the keep-cards +
+// the collapse block carry the CTA); the £14.99 price rides along as a PRINT-ONLY line so
+// it still appears on paper (FIX 1 pattern). None of this renders for entitled viewers.
+function FadeTail({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      {children}
+      <div className="no-print pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent" />
+    </div>
+  );
+}
+
+function MoreLine({ line, outcode }: { line: string; outcode: string }) {
+  return (
+    <div className="mt-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Lock className="h-3.5 w-3.5 text-primary/70" /> {line}
+      </div>
+      {/* Print-only: fades and the on-screen CTA don't print, so carry the price on paper. */}
+      <p className="print-only mt-1 text-xs font-semibold text-foreground">Get the full {outcode} brief — £14.99</p>
+    </div>
+  );
+}
+
+function TruncatedFade({ line, outcode, children }: { line: string; outcode: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <FadeTail>{children}</FadeTail>
+      <MoreLine line={line} outcode={outcode} />
+    </div>
+  );
+}
 
 // ── Per-locked-card unlock CTA ─────────────────────────────────────────────────
 // The real £14.99 one-off unlock, on the card itself. Reuses the SINGLE existing
@@ -411,7 +446,7 @@ function LockedPreview({
 // as truncated previews; pre-offer & crime as full locked cards). EVERY other locked
 // section is collapsed into one "Also in the full brief" block, rendered once at the end
 // — replacing the wall of consecutive locked cards.
-const KEEP_LOCKED_FULL = new Set(["nearbySoldPrices", "streetPriceRanking", "preOfferQuestions", "crimeBreakdown"]);
+const KEEP_LOCKED_FULL = new Set(["nearbySoldPrices", "streetPriceRanking", "preOfferQuestions", "crimeBreakdown", "planning"]);
 
 // A locked section that is NOT kept as a full card → collapsed into the aggregate block
 // (so it is not rendered inline). Only ever true in the non-entitled view (entitled
@@ -813,6 +848,12 @@ function ExecutiveSummarySection({ section }: { section: BriefSection }) {
 
 // ── The rebuilt section: Prices, Trend & Negotiation ─────────────────────────
 function PricesSection({ section }: { section: BriefSection }) {
+  // Free view (step 2): the trend table is already server-trimmed to 1 year for EXP; add
+  // the fade + count line. Entitled sees the full depth as today.
+  const loc = useContext(BriefLocationContext);
+  const entitled = loc?.tier !== "EXP";
+  const outcode = loc?.outcode ?? "";
+  const win = loc?.window;
   if (section.state === "UNAVAILABLE") {
     return (
       <Card className="p-6">
@@ -856,31 +897,41 @@ function PricesSection({ section }: { section: BriefSection }) {
       {/* Price trend */}
       <div>
         <SectionHeading icon={<TrendingUp className="h-3.5 w-3.5" />}>Price Trend ({trend.years}-Year)</SectionHeading>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="py-2 pr-4 font-medium">Year</th>
-                <th className="py-2 pr-4 font-medium text-right">Sales</th>
-                <th className="py-2 pr-4 font-medium text-right">Median</th>
-                <th className="py-2 font-medium text-right">Change</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trend.rows.map((r: TrendRow) => (
-                <tr key={r.year} className={`border-b border-border/50 ${r.state === "missing" ? "text-muted-foreground/50" : ""}`}>
-                  <td className="py-2 pr-4 tabular-nums">
-                    {r.year}
-                    {r.state === "sparse" && <span className="ml-2 text-[10px] uppercase tracking-wide text-primary/70">low volume</span>}
-                  </td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{r.count || "—"}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{r.median.formatted}</td>
-                  <td className={`py-2 text-right tabular-nums ${changeColor(r.change.direction ?? dirOf(r.change.raw))}`}>{r.change.formatted}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {(() => {
+          const trendTable = (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="py-2 pr-4 font-medium">Year</th>
+                    <th className="py-2 pr-4 font-medium text-right">Sales</th>
+                    <th className="py-2 pr-4 font-medium text-right">Median</th>
+                    <th className="py-2 font-medium text-right">Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trend.rows.map((r: TrendRow) => (
+                    <tr key={r.year} className={`border-b border-border/50 ${r.state === "missing" ? "text-muted-foreground/50" : ""}`}>
+                      <td className="py-2 pr-4 tabular-nums">
+                        {r.year}
+                        {r.state === "sparse" && <span className="ml-2 text-[10px] uppercase tracking-wide text-primary/70">low volume</span>}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{r.count || "—"}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums">{r.median.formatted}</td>
+                      <td className={`py-2 text-right tabular-nums ${changeColor(r.change.direction ?? dirOf(r.change.raw))}`}>{r.change.formatted}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+          const hiddenYears = win ? win.endYear - win.startYear + 1 - trend.rows.length : 0;
+          return !entitled && win && hiddenYears > 0 ? (
+            <TruncatedFade line={`${hiddenYears} more years (${win.startYear}–${win.endYear}) in the full brief`} outcode={outcode}>
+              {trendTable}
+            </TruncatedFade>
+          ) : trendTable;
+        })()}
         {trend.lowVolumeNote && <p className="mt-3 text-xs text-muted-foreground">{trend.lowVolumeNote}</p>}
       </div>
 
@@ -1392,10 +1443,13 @@ function GuidanceBlocks({ guidance }: { guidance: FloodData["guidance"] }) {
 }
 
 function FloodClimateSection({ section }: { section: BriefSection }) {
-  // Free view (item 4): keep the headline rating, planning zone and caveats; gate the
-  // detail blocks below. Each gated block has its OWN guard so any one can be reverted
-  // independently (flood is the most likely to be reversed).
-  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
+  // Free view (step 2): headline rating, planning zone and caveats stay fully visible; the
+  // detail body (live warnings + nearby EA areas) shows behind a fade with a count line,
+  // and historic flooding, surface water, subsidence and "Before you offer" move to the
+  // full brief. Entitled sees the whole body, as today.
+  const loc = useContext(BriefLocationContext);
+  const entitled = loc?.tier !== "EXP";
+  const outcode = loc?.outcode ?? "";
   if (section.state === "UNAVAILABLE") {
     return (
       <Card className="p-6">
@@ -1483,38 +1537,42 @@ function FloodClimateSection({ section }: { section: BriefSection }) {
         </p>
       )}
 
-      {/* Live warnings — three distinct states */}
-      <WarningsBlock warnings={d.warnings} />
-
-      {/* Nearby named areas with distances — entitled-only (item 4) */}
-      {entitled && <NearbyAreas nearby={d.nearby} />}
-
-      {/* Historic flooding — entitled-only (item 4) */}
-      {entitled && d.historic?.text && (
-        d.historic.flooded ? (
-          <Callout tone="warn" icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.historic.text}</Callout>
-        ) : (
-          <p className="text-sm text-muted-foreground">{d.historic.text}</p>
-        )
-      )}
-
-      {/* Surface water + subsidence guidance — entitled-only (item 4). Own guard, so it
-          reverts independently of the EA areas list and "Before you offer" above/below. */}
-      {entitled && <GuidanceBlocks guidance={d.guidance} />}
-
-      {/* Next steps ("Before you offer") — entitled-only (item 4) */}
-      {entitled && d.nextSteps?.length > 0 && (
-        <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Before you offer</div>
-          <ul className="space-y-2">
-            {d.nextSteps.map((s, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                <span>{s}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Detail body — semi-hidden in the free view (step 2). Free: live warnings + nearby
+          EA areas behind a fade + count line; historic flooding, surface water, subsidence
+          and "Before you offer" are in the full brief. Entitled: the full body, as today. */}
+      {entitled ? (
+        <>
+          <WarningsBlock warnings={d.warnings} />
+          <NearbyAreas nearby={d.nearby} />
+          {d.historic?.text && (
+            d.historic.flooded ? (
+              <Callout tone="warn" icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.historic.text}</Callout>
+            ) : (
+              <p className="text-sm text-muted-foreground">{d.historic.text}</p>
+            )
+          )}
+          <GuidanceBlocks guidance={d.guidance} />
+          {d.nextSteps?.length > 0 && (
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Before you offer</div>
+              <ul className="space-y-2">
+                {d.nextSteps.map((s, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      ) : (
+        <TruncatedFade line="Full flood detail in the full brief" outcode={outcode}>
+          <div className="space-y-6">
+            <WarningsBlock warnings={d.warnings} />
+            <NearbyAreas nearby={d.nearby} />
+          </div>
+        </TruncatedFade>
       )}
 
       {section.sourceFootnote && (
@@ -1558,6 +1616,13 @@ function StationChips({ modes, lines }: { modes: string[]; lines: string[] }) {
 function StationsCommuteSection({ section }: { section: BriefSection }) {
   const d = section.data as StationsCommuteData;
   const stationsAvailable = d.stationsState === "found";
+  // Free view (step 2): the commute headline + note stay; the stations list truncates to
+  // the nearest 2 behind a fade + count line. Entitled sees the full list, as today.
+  const loc = useContext(BriefLocationContext);
+  const entitled = loc?.tier !== "EXP";
+  const outcode = loc?.outcode ?? "";
+  const truncateStations = !entitled && d.stations.length > 2;
+  const shownStations = truncateStations ? d.stations.slice(0, 2) : d.stations;
 
   return (
     <Card className="p-6 space-y-6">
@@ -1600,20 +1665,27 @@ function StationsCommuteSection({ section }: { section: BriefSection }) {
             <Footprints className="h-3.5 w-3.5" />
             Stations within walking range
           </div>
-          <ul className="space-y-2">
-            {d.stations.map((s, i) => (
-              <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
-                <div className="min-w-0">
-                  <div className="truncate text-sm text-foreground">{s.name}</div>
-                  <StationChips modes={s.modes} lines={s.lines} />
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className="text-sm tabular-nums text-foreground">{s.walkMins ? `${s.walkMins} min walk` : s.distanceLabel}</div>
-                  <div className="text-[11px] tabular-nums text-muted-foreground">{s.distanceLabel}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {(() => {
+            const list = (
+              <ul className="space-y-2">
+                {shownStations.map((s, i) => (
+                  <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm text-foreground">{s.name}</div>
+                      <StationChips modes={s.modes} lines={s.lines} />
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-sm tabular-nums text-foreground">{s.walkMins ? `${s.walkMins} min walk` : s.distanceLabel}</div>
+                      <div className="text-[11px] tabular-nums text-muted-foreground">{s.distanceLabel}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            );
+            return truncateStations ? (
+              <TruncatedFade line={`+${d.stations.length - 2} more stations in the full brief`} outcode={outcode}>{list}</TruncatedFade>
+            ) : list;
+          })()}
           <p className="mt-3 text-[11px] text-muted-foreground">{d.walkSpeedNote}</p>
         </div>
       )}
@@ -1730,9 +1802,12 @@ interface SchoolsData {
 function SchoolsSection({ section }: { section: BriefSection }) {
   const d = section.data as SchoolsData;
   const hasSchools = d.schools.length > 0;
-  // Free view (item 4): nearest 3 only; the full list is entitled-only.
-  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
-  const schools = entitled ? d.schools : d.schools.slice(0, 3);
+  // Free view (step 2): nearest 3 behind a fade + count line. Entitled sees all, as today.
+  const loc = useContext(BriefLocationContext);
+  const entitled = loc?.tier !== "EXP";
+  const outcode = loc?.outcode ?? "";
+  const truncateSchools = !entitled && d.schools.length > 3;
+  const shownSchools = truncateSchools ? d.schools.slice(0, 3) : d.schools;
 
   return (
     <Card className="p-6 space-y-5">
@@ -1764,39 +1839,44 @@ function SchoolsSection({ section }: { section: BriefSection }) {
         )}
       </div>
 
-      {hasSchools && (
-        <ul className="space-y-2">
-          {schools.map((s, i) => (
-            <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm text-foreground">{s.name}</span>
-                  {s.specialist && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                      <Accessibility className="h-3 w-3" /> Specialist / SEND
-                    </span>
-                  )}
+      {hasSchools && (() => {
+        const list = (
+          <ul className="space-y-2">
+            {shownSchools.map((s, i) => (
+              <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm text-foreground">{s.name}</span>
+                    {s.specialist && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                        <Accessibility className="h-3 w-3" /> Specialist / SEND
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span className="uppercase tracking-wide text-[10px] text-primary/70">{s.phase}</span>
+                    <a
+                      href={s.ofstedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" /> Ofsted report
+                    </a>
+                  </div>
                 </div>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                  <span className="uppercase tracking-wide text-[10px] text-primary/70">{s.phase}</span>
-                  <a
-                    href={s.ofstedUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" /> Ofsted report
-                  </a>
+                <div className="shrink-0 text-right">
+                  <div className="text-sm tabular-nums text-foreground">{s.walkMins ? `${s.walkMins} min walk` : s.distanceLabel}</div>
+                  <div className="text-[11px] tabular-nums text-muted-foreground">{s.distanceLabel}</div>
                 </div>
-              </div>
-              <div className="shrink-0 text-right">
-                <div className="text-sm tabular-nums text-foreground">{s.walkMins ? `${s.walkMins} min walk` : s.distanceLabel}</div>
-                <div className="text-[11px] tabular-nums text-muted-foreground">{s.distanceLabel}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+              </li>
+            ))}
+          </ul>
+        );
+        return truncateSchools ? (
+          <TruncatedFade line={`+${d.schools.length - 3} more schools in the full brief`} outcode={outcode}>{list}</TruncatedFade>
+        ) : list;
+      })()}
 
       {/* Catchment caveat — always shown */}
       <Callout tone="warn" icon={<Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.catchmentCaveat}</Callout>
@@ -1820,6 +1900,27 @@ const AMENITY_ICON: Record<string, React.ReactNode> = {
 };
 
 function AmenityGroupBlock({ group, entitled }: { group: AmenityGroup; entitled: boolean }) {
+  // Free view (step 2): show 2 named items per category behind a fade (resolves the
+  // "counts with nothing under them / broken fetch" look). Entitled sees the full list.
+  const shown = entitled ? group.items : group.items.slice(0, 2);
+  const faded = !entitled && group.items.length > 2;
+  const list = group.items.length > 0 ? (
+    <ul className="space-y-1.5">
+      {shown.map((it, i) => (
+        <li key={i} className="flex items-center justify-between gap-4 text-sm">
+          <span className="min-w-0 truncate text-foreground">
+            {it.name}
+            <span className="ml-2 text-xs text-muted-foreground">{it.type}</span>
+          </span>
+          <span className="shrink-0 tabular-nums text-muted-foreground">
+            {it.walkMins ? `${it.walkMins} min` : it.distanceLabel}
+          </span>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p className="text-sm text-muted-foreground">None recorded within range.</p>
+  );
   return (
     <div>
       <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1829,24 +1930,7 @@ function AmenityGroupBlock({ group, entitled }: { group: AmenityGroup; entitled:
           {group.total > group.shown ? `${group.shown} of ${group.total} nearby` : `${group.total} nearby`}
         </span>
       </div>
-      {/* Named items are entitled-only (item 4); the free view keeps the count above. */}
-      {entitled && (group.items.length > 0 ? (
-        <ul className="space-y-1.5">
-          {group.items.map((it, i) => (
-            <li key={i} className="flex items-center justify-between gap-4 text-sm">
-              <span className="min-w-0 truncate text-foreground">
-                {it.name}
-                <span className="ml-2 text-xs text-muted-foreground">{it.type}</span>
-              </span>
-              <span className="shrink-0 tabular-nums text-muted-foreground">
-                {it.walkMins ? `${it.walkMins} min` : it.distanceLabel}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted-foreground">None recorded within range.</p>
-      ))}
+      {faded ? <FadeTail>{list}</FadeTail> : list}
     </div>
   );
 }
@@ -1854,8 +1938,10 @@ function AmenityGroupBlock({ group, entitled }: { group: AmenityGroup; entitled:
 function AmenitiesSection({ section }: { section: BriefSection }) {
   const d = section.data as AmenitiesData;
   const hasAny = d.totalFound > 0;
-  // Free view (item 4): category counts only; named items are entitled-only.
-  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
+  // Free view (step 2): 2 named items per category behind a fade + one section count line.
+  const loc = useContext(BriefLocationContext);
+  const entitled = loc?.tier !== "EXP";
+  const outcode = loc?.outcode ?? "";
 
   return (
     <Card className="p-6 space-y-5">
@@ -1886,6 +1972,8 @@ function AmenitiesSection({ section }: { section: BriefSection }) {
           ))}
         </div>
       )}
+
+      {!entitled && hasAny && <MoreLine line="Full amenity list in the full brief" outcode={outcode} />}
 
       {section.sourceFootnote && (
         <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
@@ -2075,7 +2163,11 @@ interface BuyingCostsData {
   stampDutyEntitled: boolean;
 }
 
-function CouncilTaxBlock({ ct, entitled }: { ct: CouncilTaxData; entitled: boolean }) {
+function CouncilTaxBlock({ ct, entitled, outcode }: { ct: CouncilTaxData; entitled: boolean; outcode: string }) {
+  // Free view (step 2): keep Band D fully visible; the A–H band table shows the first 4
+  // bands behind a fade + count line. Entitled sees the full grid, as today.
+  const truncate = !entitled && ct.bands.length > 4;
+  const shownBands = truncate ? ct.bands.slice(0, 4) : ct.bands;
   return (
     <div>
       <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -2088,24 +2180,28 @@ function CouncilTaxBlock({ ct, entitled }: { ct: CouncilTaxData; entitled: boole
         <span className="font-serif text-2xl tabular-nums text-foreground">{ct.bandD.formatted}</span>
         <span className="text-xs text-muted-foreground">/ year</span>
       </div>
-      {/* Full A–H band table is entitled-only (item 4); the free view keeps Band D above. */}
-      {entitled && (
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-        {ct.bands.map((b) => (
-          <div
-            key={b.band}
-            className={`rounded-md border p-2 text-center ${
-              b.isBandD ? "border-primary/50 bg-primary/5" : "border-border"
-            }`}
-          >
-            <div className={`text-[11px] font-semibold uppercase ${b.isBandD ? "text-primary" : "text-muted-foreground"}`}>
-              {b.band}
-            </div>
-            <div className="mt-0.5 text-[11px] tabular-nums text-foreground">{b.formatted}</div>
+      {(() => {
+        const grid = (
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+            {shownBands.map((b) => (
+              <div
+                key={b.band}
+                className={`rounded-md border p-2 text-center ${
+                  b.isBandD ? "border-primary/50 bg-primary/5" : "border-border"
+                }`}
+              >
+                <div className={`text-[11px] font-semibold uppercase ${b.isBandD ? "text-primary" : "text-muted-foreground"}`}>
+                  {b.band}
+                </div>
+                <div className="mt-0.5 text-[11px] tabular-nums text-foreground">{b.formatted}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      )}
+        );
+        return truncate ? (
+          <TruncatedFade line="Full A–H council tax band table in the full brief" outcode={outcode}>{grid}</TruncatedFade>
+        ) : grid;
+      })()}
       <a
         href={ct.checkerUrl}
         target="_blank"
@@ -2194,8 +2290,10 @@ function StampDutyBlock({ sd }: { sd: StampDutyData }) {
 
 function BuyingCostsSection({ section }: { section: BriefSection }) {
   const d = section.data as BuyingCostsData;
-  // Free view (item 4): keep the Band D figure; the full A–H table is entitled-only.
-  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
+  // Free view (step 2): keep the Band D figure; the A–H table truncates behind a fade.
+  const loc = useContext(BriefLocationContext);
+  const entitled = loc?.tier !== "EXP";
+  const outcode = loc?.outcode ?? "";
 
   if (section.state === "UNAVAILABLE" || !d.councilTax) {
     return (
@@ -2227,7 +2325,7 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
         )}
       </div>
 
-      <CouncilTaxBlock ct={d.councilTax} entitled={entitled} />
+      <CouncilTaxBlock ct={d.councilTax} entitled={entitled} outcode={outcode} />
 
       {/* Stamp duty (PRO block): computed at the area median for entitled plans; a
           non-entitled plan sees a titled upgrade preview instead (never a gap). */}
@@ -3409,7 +3507,7 @@ export default function BriefPage() {
              * Kept outside the space-y flow so screen layout is unchanged. */}
             <BriefPrintHeader meta={brief.meta} verdict={areaVerdict} />
             <BriefPrintFooter meta={brief.meta} />
-            <BriefLocationContext.Provider value={{ outcode: brief.meta.outcode, postcode: brief.meta.postcode, tier: brief.meta.tier }}>
+            <BriefLocationContext.Provider value={{ outcode: brief.meta.outcode, postcode: brief.meta.postcode, tier: brief.meta.tier, window: brief.meta.window }}>
             <div className="space-y-6">
             <BriefHeader meta={brief.meta} />
             {/* Upgrade block + quota funnel are screen-only nudges (never in the PDF) */}
