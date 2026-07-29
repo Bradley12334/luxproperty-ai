@@ -2574,10 +2574,6 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
   const loc = useContext(BriefLocationContext);
   const entitled = loc?.tier !== "EXP";
   const outcode = loc?.outcode ?? "";
-  // SCAFFOLDING (temporary): ?nbhd=A / ?nbhd=B toggles the two free-view variants for
-  // comparison. A = badge only + count line; B = first row visible, rest faded. Default B.
-  // Remove this switch (hard-wire the chosen variant) once a variant is picked.
-  const nbhdVariant = (new URLSearchParams(window.location.search).get("nbhd") || "B").toUpperCase() === "A" ? "A" : "B";
   // (a) Gate the "Each rating lists the exact inputs behind it." sentence to entitled
   // viewers — with rows hidden it is no longer true for a free viewer. This depends on that
   // EXACT substring in lib/brief/sections/neighbourhood.js → sourceFootnote; if that copy
@@ -2617,12 +2613,9 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
               </div>
               {(() => {
                 // Insufficient dims have NO input rows — the note IS the content (an honest
-                // "no data" limit, like flood's surface-water note). It stays visible for
-                // entitled and Variant B; Variant A is badge-only by design.
+                // "no data" limit, like flood's surface-water note); always shown.
                 if (dim.tier === "insufficient") {
-                  return (entitled || nbhdVariant === "B")
-                    ? <p className="text-xs text-muted-foreground">{dim.note}</p>
-                    : null;
+                  return <p className="text-xs text-muted-foreground">{dim.note}</p>;
                 }
                 const fullBody = (
                   <dl className="space-y-1">
@@ -2636,14 +2629,8 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
                   </dl>
                 );
                 if (entitled) return fullBody;
-                // Variant A — badge only + count line (all metric rows hidden).
-                if (nbhdVariant === "A") {
-                  return dim.inputs.length > 0
-                    ? <div className="mt-2"><CountLine line={`+${dim.inputs.length} details in the full brief`} /></div>
-                    : null;
-                }
-                // Variant B — first row visible, remaining faded + count line. Every card
-                // therefore shows a row (a single input; insufficient cards show the note).
+                // Free view: first input row visible, the rest faded + count line. Every card
+                // shows a row (a single input; insufficient cards show the note above).
                 if (dim.inputs.length <= 1) return fullBody; // nothing to truncate
                 const firstRow = (
                   <dl className="space-y-1">
