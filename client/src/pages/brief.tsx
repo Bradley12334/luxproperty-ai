@@ -324,6 +324,10 @@ function LockedCardCta({ outcode, postcode }: { outcode: string; postcode: strin
             <>Get the full {outcode} brief — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
           )}
         </Button>
+        {/* Print hides <button> (index.css @media print), so the price would vanish on
+            paper. Carry the SAME label as a print-only line — screen render is unchanged
+            (.print-only is display:none on screen, block in print). */}
+        <p className="print-only text-sm font-semibold text-foreground">Get the full {outcode} brief — £14.99</p>
         <p className="text-[11px] text-muted-foreground">
           One-off payment · unlocks every section for {outcode} permanently.
         </p>
