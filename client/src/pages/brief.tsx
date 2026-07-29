@@ -435,13 +435,12 @@ function LockedPreview({
       ? `Preview — ${p.qualifyingCount} streets ranked, ${p.range.lowest.formatted} to ${p.range.highest.formatted}. Full ranking locked.`
       : "Preview — the full list is locked.";
   return (
-    <div className="relative">
-      <div aria-hidden={false}>
-        <Component section={previewSection} />
-      </div>
-      {/* Fade the tail of the shown rows so it reads as truncated, then the unlock CTA. */}
-      <div className="pointer-events-none relative -mt-20 h-20 bg-gradient-to-t from-background via-background/85 to-transparent" />
-      <div className="-mt-3 flex flex-col items-center gap-2 pb-1 text-center">
+    <div>
+      {/* FIX 5: rows render fully — nothing overlaps them. The previous design faded and
+          overlaid the CTA on top of the last row; a still-visible fade necessarily covers
+          content, so it's removed. The preview line + unlock CTA now sit BELOW the rows. */}
+      <Component section={previewSection} />
+      <div className="mt-3 flex flex-col items-start gap-2">
         <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Lock className="h-3.5 w-3.5 text-primary" /> {overlayLine}
         </div>
