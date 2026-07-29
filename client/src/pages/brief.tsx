@@ -237,11 +237,17 @@ function SectionHeading({
   tier?: "EXP" | "PRO" | "INV";
   children: React.ReactNode;
 }) {
+  // Tier-badge cleanup (free view): the EXP/PRO/INV badge is jargon that implies access
+  // levels which don't exist for the £14.99 product (every locked section unlocks with the
+  // same purchase). Hidden for free viewers; the dashed border + count line + £14.99 CTA
+  // already say everything. Entitled still see it here — removed for entitled in a separate,
+  // deliberate commit.
+  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
   return (
     <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-primary mb-4">
       {icon}
       {children}
-      {tier && <TierBadge tier={tier} />}
+      {entitled && tier && <TierBadge tier={tier} />}
     </h3>
   );
 }
@@ -499,7 +505,6 @@ function AlsoInFullBrief({ sections }: { sections: BriefSection[] }) {
           <li key={s.key} className="flex items-center gap-2 text-sm text-foreground">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
             <span className="truncate">{s.title}</span>
-            <TierBadge tier={s.requiredTier ?? s.minTier} />
           </li>
         ))}
       </ul>
@@ -2371,14 +2376,13 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
         <div className="rounded-lg border border-dashed border-border p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Landmark className="h-3.5 w-3.5" /> Stamp duty estimate
-            <TierBadge tier="PRO" />
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
             Estimated SDLT at the area median, with the additional-property surcharge and leasehold checks.
           </p>
           {/* FIX 4: bare lock — no CTA. Stamp duty stays in place beside the council-tax
-              figures; the dashed border + PRO badge signal it's locked. The single unlock
-              action lives on the Pre-Offer block / top banner, not repeated here. */}
+              figures; the dashed border signals it's locked. The single unlock action lives
+              on the Pre-Offer block / top banner, not repeated here. */}
         </div>
       ) : null}
 
