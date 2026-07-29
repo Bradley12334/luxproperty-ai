@@ -407,6 +407,19 @@ function LockedPreview({
   );
 }
 
+// FIX 2: only these locked sections keep a full card in the free view (comps & street
+// as truncated previews; pre-offer & crime as full locked cards). EVERY other locked
+// section is collapsed into one "Also in the full brief" block, rendered once at the end
+// — replacing the wall of consecutive locked cards.
+const KEEP_LOCKED_FULL = new Set(["nearbySoldPrices", "streetPriceRanking", "preOfferQuestions", "crimeBreakdown"]);
+
+// A locked section that is NOT kept as a full card → collapsed into the aggregate block
+// (so it is not rendered inline). Only ever true in the non-entitled view (entitled
+// viewers have no LOCKED sections), so the entitled view is unaffected.
+function isCollapsedLocked(section: BriefSection | undefined): boolean {
+  return !!section && section.state === "LOCKED" && !KEEP_LOCKED_FULL.has(section.key);
+}
+
 // Render a section, intercepting LOCKED so every gated slot becomes a preview.
 function renderSection(
   section: BriefSection | undefined,
@@ -414,7 +427,9 @@ function renderSection(
 ) {
   if (!section) return null;
   if (section.state === "LOCKED") {
-    // A locked section that carries teaser rows → truncated preview; otherwise the
+    // Collapsed locked sections are rendered once in the aggregate block, not inline.
+    if (isCollapsedLocked(section)) return null;
+    // A kept locked section that carries teaser rows → truncated preview; otherwise the
     // generic titled locked card.
     if (section.previewTruncated && section.preview) {
       return <LockedPreview section={section} Component={Component} />;
@@ -422,6 +437,34 @@ function renderSection(
     return <LockedSection section={section} />;
   }
   return <Component section={section} />;
+}
+
+// FIX 2: the single collapsed block that replaces the wall of locked cards. Lists the
+// remaining locked sections by their EXISTING titles (no wording change) + one shared
+// £14.99 CTA for the whole block. Renders only when there are collapsed sections — i.e.
+// never in the entitled view, so the entitled view stays byte-identical.
+function AlsoInFullBrief({ sections }: { sections: BriefSection[] }) {
+  const loc = useContext(BriefLocationContext);
+  if (sections.length === 0) return null;
+  return (
+    <Card className="border-dashed p-6">
+      <SectionHeading icon={<Lock className="h-3.5 w-3.5" />}>Also in the full brief</SectionHeading>
+      <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+        {sections.map((s) => (
+          <li key={s.key} className="flex items-center gap-2 text-sm text-foreground">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
+            <span className="truncate">{s.title}</span>
+            <TierBadge tier={s.requiredTier ?? s.minTier} />
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5">
+        {loc && loc.tier !== "INV"
+          ? <LockedCardCta outcode={loc.outcode} postcode={loc.postcode} />
+          : <InFullBriefTag />}
+      </div>
+    </Card>
+  );
 }
 
 // ── Quota funnel — sign-in nudge (anonymous) / usage tracker (Explorer) ───────
@@ -3307,6 +3350,10 @@ export default function BriefPage() {
   const developmentTracker = brief?.sections.find((s) => s.key === "developmentTracker");
   const rentalDemand = brief?.sections.find((s) => s.key === "rentalDemandScore");
   const areaVerdict = brief?.sections.find((s) => s.key === "areaVerdict");
+  // FIX 2: locked sections not kept as full cards collapse into one "Also in the full
+  // brief" block at the end. Empty for entitled viewers (they have no LOCKED sections),
+  // preserving the paid order in the payload's section sequence.
+  const collapsedLocked = (brief?.sections ?? []).filter(isCollapsedLocked);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -3394,6 +3441,8 @@ export default function BriefPage() {
             {renderSection(developmentTracker, DevelopmentTrackerSection)}
             {renderSection(rentalDemand, RentalDemandSection)}
             {renderSection(preOfferQuestions, PreOfferQuestionsSection)}
+            {/* FIX 2: the collapsed locked sections, as one compact block (free view only). */}
+            <AlsoInFullBrief sections={collapsedLocked} />
             </div>
             </BriefLocationContext.Provider>
           </div>
