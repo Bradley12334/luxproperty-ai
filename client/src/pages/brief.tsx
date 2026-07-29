@@ -863,6 +863,7 @@ function PricesSection({ section }: { section: BriefSection }) {
   const loc = useContext(BriefLocationContext);
   const entitled = loc?.tier !== "EXP";
   const outcode = loc?.outcode ?? "";
+  const postcode = loc?.postcode ?? "";
   const win = loc?.window;
   if (section.state === "UNAVAILABLE") {
     return (
@@ -964,8 +965,12 @@ function PricesSection({ section }: { section: BriefSection }) {
                 Fair-value range, suggested opening range and buyer leverage points are part of the full brief.
               </span>
             </p>
+            {/* FIX 4: Pre-Offer & Negotiation is the highest-value locked content, so it
+                gets the real £14.99 unlock CTA (not just the scroll-to-banner tag). */}
             <div className="mt-3">
-              <InFullBriefTag />
+              {loc && loc.tier !== "INV"
+                ? <LockedCardCta outcode={outcode} postcode={postcode} />
+                : <InFullBriefTag />}
             </div>
             {neg.notAValuationNote && (
               <p className="mt-4 text-xs italic text-muted-foreground">{neg.notAValuationNote}</p>
@@ -2371,9 +2376,9 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
           <p className="mt-2 text-sm text-muted-foreground">
             Estimated SDLT at the area median, with the additional-property surcharge and leasehold checks.
           </p>
-          <div className="mt-3">
-            <InFullBriefTag />
-          </div>
+          {/* FIX 4: bare lock — no CTA. Stamp duty stays in place beside the council-tax
+              figures; the dashed border + PRO badge signal it's locked. The single unlock
+              action lives on the Pre-Offer block / top banner, not repeated here. */}
         </div>
       ) : null}
 
