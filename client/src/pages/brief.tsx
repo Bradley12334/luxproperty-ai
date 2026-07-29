@@ -894,7 +894,11 @@ function PricesSection({ section }: { section: BriefSection }) {
         {/* Market overview */}
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
           <Stat label={`${mo.latestYear.year} median`} value={mo.latestYear.median.formatted} sub={`${mo.latestYear.count} sales`} />
-          <Stat label={`${trend.rows[0].year}–${mo.latestYear.year} median`} value={mo.windowMedian.formatted} sub={`${mo.totalTransactions} sales`} />
+          {/* Label from the true data-window start (meta.window), NOT the visible trend's
+              first row — for a free viewer the trend is trimmed to 1yr, so trend.rows[0].year
+              was 2025 while windowMedian is the full-window (2016–2025) median. Entitled is
+              unchanged: win.startYear === trend.rows[0].year when the full trend is shown. */}
+          <Stat label={`${win?.startYear ?? trend.rows[0].year}–${mo.latestYear.year} median`} value={mo.windowMedian.formatted} sub={`${mo.totalTransactions} sales`} />
           <div className="space-y-1">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Year-on-year</div>
             <YoYFigure pct={mo.yoyChange} />
