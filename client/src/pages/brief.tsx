@@ -296,14 +296,25 @@ function FadeTail({ children }: { children: React.ReactNode }) {
   );
 }
 
+function CountLine({ line }: { line: string }) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <Lock className="h-3.5 w-3.5 text-primary/70" /> {line}
+    </div>
+  );
+}
+
+// Print-only price line — fades and the on-screen CTA don't print, so carry the £14.99 on
+// paper (FIX 1 pattern). One per truncated section.
+function PrintPrice({ outcode }: { outcode: string }) {
+  return <p className="print-only mt-1 text-xs font-semibold text-foreground">Get the full {outcode} brief — £14.99</p>;
+}
+
 function MoreLine({ line, outcode }: { line: string; outcode: string }) {
   return (
     <div className="mt-2">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Lock className="h-3.5 w-3.5 text-primary/70" /> {line}
-      </div>
-      {/* Print-only: fades and the on-screen CTA don't print, so carry the price on paper. */}
-      <p className="print-only mt-1 text-xs font-semibold text-foreground">Get the full {outcode} brief — £14.99</p>
+      <CountLine line={line} />
+      <PrintPrice outcode={outcode} />
     </div>
   );
 }
@@ -2547,6 +2558,23 @@ function tierClasses(tier: string): string {
 
 function NeighbourhoodSection({ section }: { section: BriefSection }) {
   const d = section.data as NeighbourhoodData | null;
+  // Free view (step 2, added later): each lifestyle card shows title + rating badge; the
+  // metric rows truncate behind a fade with a per-card count line. Entitled sees all.
+  const loc = useContext(BriefLocationContext);
+  const entitled = loc?.tier !== "EXP";
+  const outcode = loc?.outcode ?? "";
+  // SCAFFOLDING (temporary): ?nbhd=A / ?nbhd=B toggles the two free-view variants for
+  // comparison. A = badge only + count line; B = first row visible, rest faded. Default B.
+  // Remove this switch (hard-wire the chosen variant) once a variant is picked.
+  const nbhdVariant = (new URLSearchParams(window.location.search).get("nbhd") || "B").toUpperCase() === "A" ? "A" : "B";
+  // (a) Gate the "Each rating lists the exact inputs behind it." sentence to entitled
+  // viewers — with rows hidden it is no longer true for a free viewer. This depends on that
+  // EXACT substring in lib/brief/sections/neighbourhood.js → sourceFootnote; if that copy
+  // ever changes, the replace safely no-ops and the free viewer just sees the full caveat.
+  const EXACT_INPUTS_SENTENCE = " Each rating lists the exact inputs behind it.";
+  const footnote = entitled
+    ? section.sourceFootnote
+    : (section.sourceFootnote ?? "").replace(EXACT_INPUTS_SENTENCE, "");
   if (!d) {
     return (
       <Card className="p-6">
@@ -2576,23 +2604,58 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
                   {dim.label}
                 </span>
               </div>
-              {dim.tier === "insufficient" ? (
-                <p className="text-xs text-muted-foreground">{dim.note}</p>
-              ) : (
-                <dl className="space-y-1">
-                  {dim.inputs.map((inp, i) => (
-                    <div key={i} className="flex items-baseline justify-between gap-2 text-xs">
-                      <dt className="text-muted-foreground">{inp.label}</dt>
-                      <dd className="text-right text-foreground">{inp.value}</dd>
+              {(() => {
+                // Insufficient dims have NO input rows — the note IS the content (an honest
+                // "no data" limit, like flood's surface-water note). It stays visible for
+                // entitled and Variant B; Variant A is badge-only by design.
+                if (dim.tier === "insufficient") {
+                  return (entitled || nbhdVariant === "B")
+                    ? <p className="text-xs text-muted-foreground">{dim.note}</p>
+                    : null;
+                }
+                const fullBody = (
+                  <dl className="space-y-1">
+                    {dim.inputs.map((inp, i) => (
+                      <div key={i} className="flex items-baseline justify-between gap-2 text-xs">
+                        <dt className="text-muted-foreground">{inp.label}</dt>
+                        <dd className="text-right text-foreground">{inp.value}</dd>
+                      </div>
+                    ))}
+                    {dim.note && <p className="pt-1 text-[11px] text-muted-foreground">{dim.note}</p>}
+                  </dl>
+                );
+                if (entitled) return fullBody;
+                // Variant A — badge only + count line (all metric rows hidden).
+                if (nbhdVariant === "A") {
+                  return dim.inputs.length > 0
+                    ? <div className="mt-2"><CountLine line={`+${dim.inputs.length} details in the full brief`} /></div>
+                    : null;
+                }
+                // Variant B — first row visible, remaining faded + count line. Every card
+                // therefore shows a row (a single input; insufficient cards show the note).
+                if (dim.inputs.length <= 1) return fullBody; // nothing to truncate
+                const firstRow = (
+                  <dl className="space-y-1">
+                    <div className="flex items-baseline justify-between gap-2 text-xs">
+                      <dt className="text-muted-foreground">{dim.inputs[0].label}</dt>
+                      <dd className="text-right text-foreground">{dim.inputs[0].value}</dd>
                     </div>
-                  ))}
-                  {dim.note && <p className="pt-1 text-[11px] text-muted-foreground">{dim.note}</p>}
-                </dl>
-              )}
+                  </dl>
+                );
+                return (
+                  <>
+                    <FadeTail>{firstRow}</FadeTail>
+                    <div className="mt-2"><CountLine line={`+${dim.inputs.length - 1} more`} /></div>
+                  </>
+                );
+              })()}
             </div>
           ))}
         </div>
       </div>
+
+      {/* One print-only £14.99 for the whole section (per-card lines carry the counts). */}
+      {!entitled && <PrintPrice outcode={outcode} />}
 
       {/* Resident sentiment — folded, labelled, dated qualitative sub-block */}
       <div className="rounded-lg border border-dashed border-border/70 p-4">
@@ -2613,7 +2676,7 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
       </div>
 
       {section.sourceFootnote && (
-        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{section.sourceFootnote}</p>
+        <p className="print-footnote border-t border-border/50 pt-4 text-[11px] text-muted-foreground">{footnote}</p>
       )}
     </Card>
   );
