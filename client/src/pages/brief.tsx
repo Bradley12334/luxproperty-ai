@@ -92,6 +92,11 @@ export interface BriefSection {
   requiredTier?: "EXP" | "PRO" | "INV";
   requiredTierLabel?: string;
   cta?: { label: string; target: string };
+  // Truncated-preview fields (server, lib/brief/gate.js): a locked section may tease its
+  // leading rows in `preview` while `data` stays null. Only nearbySoldPrices (2 rows) and
+  // streetPriceRanking (top 3) carry these today.
+  previewTruncated?: boolean;
+  preview?: any;
   data: any;
 }
 // Server-computed quota snapshot (lib/brief/quota.js → quotaStatus).
@@ -281,8 +286,10 @@ const BriefLocationContext = createContext<{ outcode: string; postcode: string; 
 // The real £14.99 one-off unlock, on the card itself. Reuses the SINGLE existing
 // checkout entry point (startFullBriefCheckout) — no new route, endpoint or Stripe
 // call — with the same signed-in / already-owned / error handling as the top banner
-// (SaveBriefAffordance). Shown only to EXP (free) viewers; the £14.99 one-off is not
-// offered to PRO/INV plans (they're pointed to Investor), matching the top banner.
+// (SaveBriefAffordance). Shown to any NON-ENTITLED viewer of this card — EXP (free) and
+// grandfathered PRO alike: a Full Brief purchase resolves the outcode to INV and unlocks
+// it, so a PRO viewer of an INV-locked section now has a route to buy. INV plans/owners
+// never render a locked card, so they never see this.
 function LockedCardCta({ outcode, postcode }: { outcode: string; postcode: string }) {
   const [, navigate] = useLocation();
   const [busy, setBusy] = useState(false);
@@ -330,11 +337,14 @@ function LockedCardCta({ outcode, postcode }: { outcode: string; postcode: strin
 // ── Generic LOCKED section — a titled preview, never a gap ─────────────────────
 // The server (lib/brief/gate.js) drops a locked section's data and sends only
 // { title, description, requiredTier }. This renders it as a preview with a real
-// per-card unlock CTA (EXP viewers) alongside the single banner at the top; a
-// grandfathered PRO viewer keeps the calm "In the full brief" tag (no £14.99 offer).
+// per-card unlock CTA for any non-entitled viewer (EXP or grandfathered PRO), alongside
+// the single banner at the top. INV plans/owners never render a locked card.
 export function LockedSection({ section }: { section: BriefSection }) {
   const tier = section.requiredTier ?? section.minTier;
   const loc = useContext(BriefLocationContext);
+  // Only EXP and PRO viewers ever reach a locked card (INV/owner are entitled to
+  // everything), so tier !== "INV" == "a non-entitled viewer who can buy the £14.99
+  // one-off to unlock this outcode". Fall back to the calm tag only if context is absent.
   return (
     <Card className="relative overflow-hidden border-dashed p-6">
       <SectionHeading icon={<Lock className="h-3.5 w-3.5" />} tier={tier}>
@@ -344,11 +354,45 @@ export function LockedSection({ section }: { section: BriefSection }) {
         {section.description ?? "Part of the full brief."}
       </p>
       <div className="mt-4">
-        {loc && loc.tier === "EXP"
+        {loc && loc.tier !== "INV"
           ? <LockedCardCta outcode={loc.outcode} postcode={loc.postcode} />
           : <InFullBriefTag />}
       </div>
     </Card>
+  );
+}
+
+// ── Truncated-row preview — real leading rows behind a locked overlay ──────────
+// The server (lib/brief/gate.js) sends a locked section's first few rows in `preview`
+// (data stays null). We feed those rows to the SAME section component as a normal DATA
+// section, fade the bottom to signal there's more, and place the real unlock CTA below.
+// Only nearbySoldPrices (2 rows) and streetPriceRanking (top 3) take this path.
+function LockedPreview({
+  section,
+  Component,
+}: {
+  section: BriefSection;
+  Component: React.ComponentType<{ section: BriefSection }>;
+}) {
+  const loc = useContext(BriefLocationContext);
+  // Render the real component over ONLY the sliced rows the server sent.
+  const previewSection: BriefSection = { ...section, state: "DATA", data: section.preview };
+  return (
+    <div className="relative">
+      <div aria-hidden={false}>
+        <Component section={previewSection} />
+      </div>
+      {/* Fade the tail of the shown rows so it reads as truncated, then the unlock CTA. */}
+      <div className="pointer-events-none relative -mt-20 h-20 bg-gradient-to-t from-background via-background/85 to-transparent" />
+      <div className="-mt-3 flex flex-col items-center gap-2 pb-1 text-center">
+        <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Lock className="h-3.5 w-3.5 text-primary" /> Preview — the full list is locked.
+        </div>
+        {loc && loc.tier !== "INV"
+          ? <LockedCardCta outcode={loc.outcode} postcode={loc.postcode} />
+          : <InFullBriefTag />}
+      </div>
+    </div>
   );
 }
 
@@ -358,7 +402,14 @@ function renderSection(
   Component: React.ComponentType<{ section: BriefSection }>,
 ) {
   if (!section) return null;
-  if (section.state === "LOCKED") return <LockedSection section={section} />;
+  if (section.state === "LOCKED") {
+    // A locked section that carries teaser rows → truncated preview; otherwise the
+    // generic titled locked card.
+    if (section.previewTruncated && section.preview) {
+      return <LockedPreview section={section} Component={Component} />;
+    }
+    return <LockedSection section={section} />;
+  }
   return <Component section={section} />;
 }
 
