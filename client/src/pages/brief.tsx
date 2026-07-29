@@ -230,24 +230,22 @@ function TierBadge({ tier }: { tier: "EXP" | "PRO" | "INV" }) {
 
 function SectionHeading({
   icon,
-  tier,
   children,
 }: {
   icon?: React.ReactNode;
   tier?: "EXP" | "PRO" | "INV";
   children: React.ReactNode;
 }) {
-  // Tier-badge cleanup (free view): the EXP/PRO/INV badge is jargon that implies access
-  // levels which don't exist for the £14.99 product (every locked section unlocks with the
-  // same purchase). Hidden for free viewers; the dashed border + count line + £14.99 CTA
-  // already say everything. Entitled still see it here — removed for entitled in a separate,
-  // deliberate commit.
-  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
+  // DELIBERATE entitled-view change (tier-badge cleanup, commit 2/2): the tier badge is now
+  // removed EVERYWHERE, entitled included. A £14.99 owner resolves to INV and would otherwise
+  // see "PRO"/"INV" on sections they've just unlocked — reading as "tiers I still don't have"
+  // exactly when the purchase should feel complete; the badge names a tier the viewer can't
+  // act on. `tier` stays in the prop type (call sites still pass it) but is no longer
+  // rendered. Revert THIS commit alone to restore the entitled-only badges.
   return (
     <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-primary mb-4">
       {icon}
       {children}
-      {entitled && tier && <TierBadge tier={tier} />}
     </h3>
   );
 }
@@ -2259,7 +2257,8 @@ function StampDutyBlock({ sd }: { sd: StampDutyData }) {
       <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         <Landmark className="h-3.5 w-3.5" />
         {sd.regime === "LTT" ? "Land transaction tax (Wales)" : "Stamp duty (SDLT)"}
-        <TierBadge tier="PRO" />
+        {/* DELIBERATE entitled-view change (commit 2/2): retired "PRO" tier badge removed —
+            an entitled viewer shouldn't see a tier name they can't act on. */}
       </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-2">
