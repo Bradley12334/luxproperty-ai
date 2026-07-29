@@ -311,7 +311,7 @@ function CountLine({ line }: { line: string }) {
 // Print-only price line — fades and the on-screen CTA don't print, so carry the £14.99 on
 // paper (FIX 1 pattern). One per truncated section.
 function PrintPrice({ outcode }: { outcode: string }) {
-  return <p className="print-only mt-1 text-xs font-semibold text-foreground">Get the full {outcode} brief — £14.99</p>;
+  return <p className="print-only mt-1 text-xs font-semibold text-foreground">Unlock {outcode} — £14.99</p>;
 }
 
 function MoreLine({ line, outcode }: { line: string; outcode: string }) {
@@ -371,15 +371,15 @@ function LockedCardCta({ outcode, postcode }: { outcode: string; postcode: strin
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <>Get the full {outcode} brief — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+            <>Unlock {outcode} — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
           )}
         </Button>
         {/* Print hides <button> (index.css @media print), so the price would vanish on
             paper. Carry the SAME label as a print-only line — screen render is unchanged
             (.print-only is display:none on screen, block in print). */}
-        <p className="print-only text-sm font-semibold text-foreground">Get the full {outcode} brief — £14.99</p>
+        <p className="print-only text-sm font-semibold text-foreground">Unlock {outcode} — £14.99</p>
         <p className="text-[11px] text-muted-foreground">
-          One-off payment · unlocks every section for {outcode} permanently.
+          Unlocks every postcode in {outcode} — as many properties as you view, permanently.
         </p>
         {note && <p className="text-xs text-destructive" data-testid="text-unlock-error">{note}</p>}
       </div>
@@ -611,13 +611,13 @@ function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
         {hasPC ? (
           <>
             Serious about <span className="font-medium text-foreground">{outcode}</span>? Unlock the full brief — every
-            section at Investor depth, saved to your account and yours to keep. Or go unlimited across every postcode with
+            section at Investor depth, saved to your account and yours to keep. Or go unlimited across every district with
             Investor.
           </>
         ) : (
           <>
             Unlock the full brief on any postcode — every section at Investor depth, saved to your account and yours to
-            keep. Or go unlimited across every postcode with Investor.
+            keep. Or go unlimited across every district with Investor.
           </>
         )}
       </p>
@@ -628,7 +628,7 @@ function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <>Get the full {outcode} brief — £14.99<ArrowRight className="h-4 w-4" /></>
+              <>Unlock {outcode} — £14.99<ArrowRight className="h-4 w-4" /></>
             )}
           </Button>
         ) : (
@@ -3231,7 +3231,7 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <>Get the full {outcode} brief — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+              <>Unlock {outcode} — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
             )}
           </Button>
         </div>
