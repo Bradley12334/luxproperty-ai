@@ -200,8 +200,6 @@ const SCHEMES = [
 
 const RELATED_GUIDES = [
   { href: "/guides/sw3-chelsea-buyers-guide", label: "SW3 — Chelsea buyer's guide" },
-  { href: "/guides/se1-southwark-buyers-guide", label: "SE1 — Southwark buyer's guide" },
-  { href: "/guides/n1-islington-buyers-guide", label: "N1 — Islington buyer's guide" },
 ];
 
 export default function GuideE8HackneyPage() {
