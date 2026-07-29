@@ -1345,6 +1345,10 @@ function GuidanceBlocks({ guidance }: { guidance: FloodData["guidance"] }) {
 }
 
 function FloodClimateSection({ section }: { section: BriefSection }) {
+  // Free view (item 4): keep the headline rating, planning zone and caveats; gate the
+  // detail blocks below. Each gated block has its OWN guard so any one can be reverted
+  // independently (flood is the most likely to be reversed).
+  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
   if (section.state === "UNAVAILABLE") {
     return (
       <Card className="p-6">
@@ -1435,11 +1439,11 @@ function FloodClimateSection({ section }: { section: BriefSection }) {
       {/* Live warnings — three distinct states */}
       <WarningsBlock warnings={d.warnings} />
 
-      {/* Nearby named areas with distances */}
-      <NearbyAreas nearby={d.nearby} />
+      {/* Nearby named areas with distances — entitled-only (item 4) */}
+      {entitled && <NearbyAreas nearby={d.nearby} />}
 
-      {/* Historic flooding */}
-      {d.historic?.text && (
+      {/* Historic flooding — entitled-only (item 4) */}
+      {entitled && d.historic?.text && (
         d.historic.flooded ? (
           <Callout tone="warn" icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}>{d.historic.text}</Callout>
         ) : (
@@ -1447,11 +1451,12 @@ function FloodClimateSection({ section }: { section: BriefSection }) {
         )
       )}
 
-      {/* Surface water + subsidence guidance (labelled, no fabricated rating) */}
-      <GuidanceBlocks guidance={d.guidance} />
+      {/* Surface water + subsidence guidance — entitled-only (item 4). Own guard, so it
+          reverts independently of the EA areas list and "Before you offer" above/below. */}
+      {entitled && <GuidanceBlocks guidance={d.guidance} />}
 
-      {/* Next steps */}
-      {d.nextSteps?.length > 0 && (
+      {/* Next steps ("Before you offer") — entitled-only (item 4) */}
+      {entitled && d.nextSteps?.length > 0 && (
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Before you offer</div>
           <ul className="space-y-2">
@@ -1678,6 +1683,9 @@ interface SchoolsData {
 function SchoolsSection({ section }: { section: BriefSection }) {
   const d = section.data as SchoolsData;
   const hasSchools = d.schools.length > 0;
+  // Free view (item 4): nearest 3 only; the full list is entitled-only.
+  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
+  const schools = entitled ? d.schools : d.schools.slice(0, 3);
 
   return (
     <Card className="p-6 space-y-5">
@@ -1711,7 +1719,7 @@ function SchoolsSection({ section }: { section: BriefSection }) {
 
       {hasSchools && (
         <ul className="space-y-2">
-          {d.schools.map((s, i) => (
+          {schools.map((s, i) => (
             <li key={i} className="flex items-start justify-between gap-4 border-b border-border/50 py-2 last:border-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -1764,7 +1772,7 @@ const AMENITY_ICON: Record<string, React.ReactNode> = {
   health: <Stethoscope className="h-3.5 w-3.5" />,
 };
 
-function AmenityGroupBlock({ group }: { group: AmenityGroup }) {
+function AmenityGroupBlock({ group, entitled }: { group: AmenityGroup; entitled: boolean }) {
   return (
     <div>
       <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1774,7 +1782,8 @@ function AmenityGroupBlock({ group }: { group: AmenityGroup }) {
           {group.total > group.shown ? `${group.shown} of ${group.total} nearby` : `${group.total} nearby`}
         </span>
       </div>
-      {group.items.length > 0 ? (
+      {/* Named items are entitled-only (item 4); the free view keeps the count above. */}
+      {entitled && (group.items.length > 0 ? (
         <ul className="space-y-1.5">
           {group.items.map((it, i) => (
             <li key={i} className="flex items-center justify-between gap-4 text-sm">
@@ -1790,7 +1799,7 @@ function AmenityGroupBlock({ group }: { group: AmenityGroup }) {
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">None recorded within range.</p>
-      )}
+      ))}
     </div>
   );
 }
@@ -1798,6 +1807,8 @@ function AmenityGroupBlock({ group }: { group: AmenityGroup }) {
 function AmenitiesSection({ section }: { section: BriefSection }) {
   const d = section.data as AmenitiesData;
   const hasAny = d.totalFound > 0;
+  // Free view (item 4): category counts only; named items are entitled-only.
+  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
 
   return (
     <Card className="p-6 space-y-5">
@@ -1824,7 +1835,7 @@ function AmenitiesSection({ section }: { section: BriefSection }) {
       {hasAny && (
         <div className="grid gap-6 sm:grid-cols-3">
           {d.groups.map((g) => (
-            <AmenityGroupBlock key={g.key} group={g} />
+            <AmenityGroupBlock key={g.key} group={g} entitled={entitled} />
           ))}
         </div>
       )}
@@ -2017,7 +2028,7 @@ interface BuyingCostsData {
   stampDutyEntitled: boolean;
 }
 
-function CouncilTaxBlock({ ct }: { ct: CouncilTaxData }) {
+function CouncilTaxBlock({ ct, entitled }: { ct: CouncilTaxData; entitled: boolean }) {
   return (
     <div>
       <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -2030,6 +2041,8 @@ function CouncilTaxBlock({ ct }: { ct: CouncilTaxData }) {
         <span className="font-serif text-2xl tabular-nums text-foreground">{ct.bandD.formatted}</span>
         <span className="text-xs text-muted-foreground">/ year</span>
       </div>
+      {/* Full A–H band table is entitled-only (item 4); the free view keeps Band D above. */}
+      {entitled && (
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
         {ct.bands.map((b) => (
           <div
@@ -2045,6 +2058,7 @@ function CouncilTaxBlock({ ct }: { ct: CouncilTaxData }) {
           </div>
         ))}
       </div>
+      )}
       <a
         href={ct.checkerUrl}
         target="_blank"
@@ -2133,6 +2147,8 @@ function StampDutyBlock({ sd }: { sd: StampDutyData }) {
 
 function BuyingCostsSection({ section }: { section: BriefSection }) {
   const d = section.data as BuyingCostsData;
+  // Free view (item 4): keep the Band D figure; the full A–H table is entitled-only.
+  const entitled = useContext(BriefLocationContext)?.tier !== "EXP";
 
   if (section.state === "UNAVAILABLE" || !d.councilTax) {
     return (
@@ -2164,7 +2180,7 @@ function BuyingCostsSection({ section }: { section: BriefSection }) {
         )}
       </div>
 
-      <CouncilTaxBlock ct={d.councilTax} />
+      <CouncilTaxBlock ct={d.councilTax} entitled={entitled} />
 
       {/* Stamp duty (PRO block): computed at the area median for entitled plans; a
           non-entitled plan sees a titled upgrade preview instead (never a gap). */}
