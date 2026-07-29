@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { createContext, useContext, useEffect, useState, type FormEvent } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { authHeader, getUser } from "@/lib/authStore";
 import { startFullBriefCheckout } from "@/lib/fullBriefCheckout";
@@ -269,12 +269,72 @@ function InFullBriefTag() {
   );
 }
 
+// ── Brief location context ────────────────────────────────────────────────────
+// The viewed brief's outcode/postcode/tier, provided once at the render root so every
+// LockedSection's unlock CTA can target the correct district without threading props
+// through renderSection. Consumed ONLY by locked cards, which render ONLY in the
+// non-entitled view — an entitled viewer never sees a LockedSection, so this leaves the
+// entitled view untouched.
+const BriefLocationContext = createContext<{ outcode: string; postcode: string; tier: string } | null>(null);
+
+// ── Per-locked-card unlock CTA ─────────────────────────────────────────────────
+// The real £14.99 one-off unlock, on the card itself. Reuses the SINGLE existing
+// checkout entry point (startFullBriefCheckout) — no new route, endpoint or Stripe
+// call — with the same signed-in / already-owned / error handling as the top banner
+// (SaveBriefAffordance). Shown only to EXP (free) viewers; the £14.99 one-off is not
+// offered to PRO/INV plans (they're pointed to Investor), matching the top banner.
+function LockedCardCta({ outcode, postcode }: { outcode: string; postcode: string }) {
+  const [, navigate] = useLocation();
+  const [busy, setBusy] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function onUnlock() {
+    if (busy) return;
+    setBusy(true);
+    setNote(null);
+    const r = await startFullBriefCheckout(postcode);
+    if (r.status === "redirecting") return; // navigating to Stripe — keep the spinner
+    if (r.status === "signin-required") { setAuthOpen(true); setBusy(false); return; }
+    if (r.status === "already-owned") { navigate(`/brief/${encodeURIComponent(r.outcode || outcode)}`); return; }
+    setNote(r.message); // error
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <div className="flex flex-col items-start gap-1.5">
+        <Button
+          size="sm"
+          onClick={onUnlock}
+          disabled={busy}
+          className="font-semibold"
+          data-testid="button-unlock-locked-section"
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>Get the full {outcode} brief — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+          )}
+        </Button>
+        <p className="text-[11px] text-muted-foreground">
+          One-off payment · unlocks every section for {outcode} permanently.
+        </p>
+        {note && <p className="text-xs text-destructive" data-testid="text-unlock-error">{note}</p>}
+      </div>
+      <AuthModal open={authOpen} defaultTab="signup" onClose={() => setAuthOpen(false)} />
+    </>
+  );
+}
+
 // ── Generic LOCKED section — a titled preview, never a gap ─────────────────────
 // The server (lib/brief/gate.js) drops a locked section's data and sends only
-// { title, description, requiredTier }. This renders it as a preview with the calm
-// "In the full brief" tag; the unlock action is the single banner at the top.
+// { title, description, requiredTier }. This renders it as a preview with a real
+// per-card unlock CTA (EXP viewers) alongside the single banner at the top; a
+// grandfathered PRO viewer keeps the calm "In the full brief" tag (no £14.99 offer).
 export function LockedSection({ section }: { section: BriefSection }) {
   const tier = section.requiredTier ?? section.minTier;
+  const loc = useContext(BriefLocationContext);
   return (
     <Card className="relative overflow-hidden border-dashed p-6">
       <SectionHeading icon={<Lock className="h-3.5 w-3.5" />} tier={tier}>
@@ -284,7 +344,9 @@ export function LockedSection({ section }: { section: BriefSection }) {
         {section.description ?? "Part of the full brief."}
       </p>
       <div className="mt-4">
-        <InFullBriefTag />
+        {loc && loc.tier === "EXP"
+          ? <LockedCardCta outcode={loc.outcode} postcode={loc.postcode} />
+          : <InFullBriefTag />}
       </div>
     </Card>
   );
@@ -3222,6 +3284,7 @@ export default function BriefPage() {
              * Kept outside the space-y flow so screen layout is unchanged. */}
             <BriefPrintHeader meta={brief.meta} verdict={areaVerdict} />
             <BriefPrintFooter meta={brief.meta} />
+            <BriefLocationContext.Provider value={{ outcode: brief.meta.outcode, postcode: brief.meta.postcode, tier: brief.meta.tier }}>
             <div className="space-y-6">
             <BriefHeader meta={brief.meta} />
             {/* Upgrade block + quota funnel are screen-only nudges (never in the PDF) */}
@@ -3254,6 +3317,7 @@ export default function BriefPage() {
             {renderSection(rentalDemand, RentalDemandSection)}
             {renderSection(preOfferQuestions, PreOfferQuestionsSection)}
             </div>
+            </BriefLocationContext.Provider>
           </div>
         )}
       </main>
