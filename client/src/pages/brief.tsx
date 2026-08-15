@@ -98,7 +98,7 @@ export interface BriefSection {
   // Set when the resolved postcode sector diverges from its district by more than
   // sampling error — i.e. the district figure is the wrong level for this address.
   sectorNote?: string | null;
-  sectorVerdict?: "serve-sector" | "warn" | "none" | null;
+  sectorVerdict?: "warn" | "none" | null;
   // The sector's own median, stated as a figure. Present whenever the sector
   // diverges beyond sampling error — it is the fact the withholding copy promises
   // the reader keeps, so it must be RENDERED, not merely described.

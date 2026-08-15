@@ -1,45 +1,46 @@
 /**
  * scripts/test-sector-e2e.mjs
  * ─────────────────────────────────────────────────────────────────────────────
- * END-TO-END assertion on the REAL brief handler with a REAL postcode.
+ * END-TO-END assertion on the REAL brief handler with REAL postcodes, one per
+ * branch the sector classifier can take.
  *
- * WHY THIS EXISTS — the harness gap it closes:
- *   Three defects in the sector-divergence work passed every existing test and
- *   failed in production. All three were at a BOUNDARY, and every harness entered
- *   the pipeline below the boundary by constructing the object the next layer
- *   expected:
- *     1. applySectorPolicy lived inside spineFromAggregate; the harness built its
- *        own spine and never ran it.
- *     2. ResolvedLocation has no `sector` field, so `location.sector ?? null` was
- *        always null and the policy could never fire. The harness supplied a sector
- *        directly, so it never exercised the step that derives one.
- *     3. gate.js rebuilds the negotiation object from an explicit field list that
- *        omitted `withheld`, dropping the explanation below PRO. Any assertion made
- *        on the pre-gate section object misses this entirely.
+ * WHY THIS EXISTS — the harness gaps it closes:
+ *   Defects in this work repeatedly passed every test and failed in production,
+ *   always at a boundary, because each harness entered the pipeline BELOW the
+ *   boundary by constructing the object the next layer expected:
+ *     · applySectorPolicy lived inside spineFromAggregate; the harness built its
+ *       own spine and never ran it.
+ *     · ResolvedLocation had no `sector`, so `location.sector ?? null` was always
+ *       null and the policy could never fire. The harness supplied a sector.
+ *     · gate.js rebuilt the negotiation object from a field list that omitted
+ *       `withheld`. Assertions on the pre-gate object miss that entirely.
+ *     · A report quoted +18.6% and a symmetric CI from a synthetic fixture, both
+ *       formatted like production output.
+ *     · The serve band shipped claiming "figures are for the sector" while every
+ *       figure stayed district-derived — and NO test covered it, because E20 has
+ *       two sectors and neither is a serve case.
  *
- *   The generalisation: A TEST THAT CONSTRUCTS THE INPUT CANNOT DETECT A BUG IN
- *   CONSTRUCTING THE INPUT. So this file constructs nothing. It hands the handler a
- *   postcode STRING and asserts on the JSON the client actually receives — after
- *   resolve, sector derivation, the aggregate read, the policy, section building,
- *   tier gating and serialisation.
+ *   Two rules follow, and this file enforces both:
+ *     1. A TEST THAT CONSTRUCTS THE INPUT CANNOT DETECT A BUG IN CONSTRUCTING IT.
+ *        So this file constructs nothing: postcode strings in, served JSON out.
+ *     2. A TEST THAT COVERS THE CASES YOU THOUGHT OF CANNOT DETECT A BRANCH YOU
+ *        DIDN'T. So it asserts the verdicts exercised equal SECTOR_VERDICTS
+ *        exactly — add a branch and the suite fails until a real postcode covers it.
  *
- * TWO CASES, because a positive alone proves nothing. A mutation that fires the warn
- * band on every request would pass the positive and fail the negative:
- *   E20 3BE  sector E20 3, n=76, +25.2% divergence against a ±6.1% error bar → WARN
- *   E20 1HT  sector E20 1, n=1172, -0.4% divergence, inside its error bar   → NONE
+ * CASES — expected values read from the aggregate, never from a fixture:
+ *   CR0 2AB  CR0 2, n=2,454, -14.2% vs ±1.2%  → warn   (largest district; exposed the serve bug)
+ *   E20 3BE  E20 3, n=76,    +25.2% vs ±6.1%  → warn   (thin but decisive)
+ *   E20 1HT  E20 1, n=1,172, -0.4%  vs ±1.3%  → none   (inside its own error bar)
+ *   LL78 8JJ LL78 8, n=82,   -3.8%  vs ±4.4%  → none   (+ district below the 100-sale floor)
  *
  * MODES
- *   node scripts/test-sector-e2e.mjs
- *     In-process: imports api/brief.js and calls it with a mock req/res. Needs
- *     SUPABASE_URL + SUPABASE_SERVICE_KEY and TX_SOURCE/TX_AGG_DISTRICTS in env.
- *   node scripts/test-sector-e2e.mjs --url https://<deployment>
- *     Over HTTP against a real deployment — the strongest form, and the only one
- *     that also proves the deployed env vars are actually in effect.
+ *   node scripts/test-sector-e2e.mjs --url https://<deployment> --share <token> --expect-sha <sha>
+ *   node scripts/test-sector-e2e.mjs      (in-process; needs SUPABASE_* + TX_* in env)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const WARN_POSTCODE = "E20 3BE";   // sector E20 3 — the divergent one
-const NONE_POSTCODE = "E20 1HT";   // sector E20 1 — the in-line one
+const REPO_SECTOR_VERDICTS = (await import("../lib/brief/tx-agg.js")).SECTOR_VERDICTS;
+
 const urlArg = process.argv.indexOf("--url");
 const BASE = urlArg !== -1 ? process.argv[urlArg + 1] : null;
 const shareArg = process.argv.indexOf("--share");
@@ -47,18 +48,34 @@ const SHARE = shareArg !== -1 ? process.argv[shareArg + 1] : null;
 const shaArg = process.argv.indexOf("--expect-sha");
 const EXPECT_SHA = shaArg !== -1 ? process.argv[shaArg + 1] : null;
 
-/** Real figures for the warn case, read from the aggregate — NOT from a fixture.
- *  Asserting the exact numbers is what stops a synthetic median passing for the real
- *  one: a made-up district median produced +18.6% where the truth is +25.2%, and it
- *  read as plausible because it was formatted like production output. */
-const EXPECT = {
-  districtMedian: 592000,
-  sectorMedian: 741250,
-  sectorCount: 76,
-  sectorCiLo: 680000,
-  sectorCiHi: 770000,
-  divergencePctRounded: 25.2,
-};
+/** One case per branch. Figures are the aggregate's actual values — asserting them
+ *  exactly is what stops a synthetic median passing for the real one. */
+const CASES = [
+  {
+    postcode: "CR0 2AB", sector: "CR0 2", verdict: "warn",
+    districtMedian: 352500, districtCount: 16713,
+    sectorMedian: 302600, sectorCount: 2454, ciLo: 300000, ciHi: 307000, divergence: -14.2,
+    belowFloor: false,
+  },
+  {
+    postcode: "E20 3BE", sector: "E20 3", verdict: "warn",
+    districtMedian: 592000, districtCount: 1248,
+    sectorMedian: 741250, sectorCount: 76, ciLo: 680000, ciHi: 770000, divergence: 25.2,
+    belowFloor: false,
+  },
+  {
+    postcode: "E20 1HT", sector: "E20 1", verdict: "none",
+    districtMedian: 592000, districtCount: 1248,
+    sectorMedian: 589500, sectorCount: 1172, divergence: -0.4,
+    belowFloor: false,
+  },
+  {
+    postcode: "LL78 8JJ", sector: "LL78 8", verdict: "none",
+    districtMedian: null, districtCount: 90,
+    sectorMedian: 228500, sectorCount: 82, divergence: -3.8,
+    belowFloor: true, // district has 90 sales — under the 100-sale floor, no median stated
+  },
+];
 
 /** Vercel SSO-protected previews answer 307 to an auth handshake that sets a cookie.
  *  fetch follows the redirect but does not carry Set-Cookie across it, so the
@@ -122,99 +139,103 @@ function priceSection(body) {
 const bar = "─".repeat(78);
 
 console.log(`\n${"═".repeat(78)}`);
-console.log(`SECTOR DIVERGENCE — END-TO-END, through the real handler`);
+console.log(`SECTOR DIVERGENCE — END-TO-END, every branch, through the real handler`);
 console.log(`${"═".repeat(78)}`);
 console.log(`mode: ${BASE ? `HTTP against ${BASE}` : "in-process (api/brief.js)"}`);
 if (EXPECT_SHA) console.log(`expecting build: ${EXPECT_SHA}`);
+console.log(`branches the classifier can emit: ${REPO_SECTOR_VERDICTS.join(", ")}`);
 
-// ── POSITIVE: the warn band must fire ────────────────────────────────────────
-console.log(`\n▶ ${WARN_POSTCODE} — sector E20 3, +25.2% divergence, 4.2x its error bar\n${bar}`);
-{
-  const { status, body, raw } = await getBrief(WARN_POSTCODE);
-  check("handler returned 200", status === 200, `got ${status}${raw ? ` — ${raw}` : ""}`);
+const verdictsSeen = new Set();
 
-  // WHICH BUILD, WHICH PATH — asserted before anything else, so a pass can never be
-  // reported against a deployment other than the one under test.
+for (const c of CASES) {
+  console.log(`\n▶ ${c.postcode} — sector ${c.sector}, ${c.divergence > 0 ? "+" : ""}${c.divergence}% → expect "${c.verdict}"${c.belowFloor ? " (district below the 100-sale floor)" : ""}\n${bar}`);
+  const { status, body, raw } = await getBrief(c.postcode);
+  check(`${c.postcode}: handler returned 200`, status === 200, `got ${status}${raw ? ` — ${raw}` : ""}`);
+  if (status !== 200) continue;
+
   const meta = body?.meta || {};
   console.log(`   · build ${meta.build?.commit?.slice(0, 8) ?? "unknown"} (${meta.build?.ref ?? "?"}/${meta.build?.env ?? "?"}) · spine "${meta.spineSource ?? "?"}"`);
   if (EXPECT_SHA) {
-    check(`deployment is ${EXPECT_SHA.slice(0, 8)}`, (meta.build?.commit || "").startsWith(EXPECT_SHA),
+    check(`${c.postcode}: deployment is ${EXPECT_SHA.slice(0, 8)}`, (meta.build?.commit || "").startsWith(EXPECT_SHA),
       `served by ${meta.build?.commit ?? "unknown"}`);
   }
-  check("price spine came from the aggregate", meta.spineSource === "aggregate", `got ${JSON.stringify(meta.spineSource)}`);
-  check("sector resolved from the full postcode", meta.sector === "E20 3", `got ${JSON.stringify(meta.sector)}`);
+  check(`${c.postcode}: spine is the aggregate`, meta.spineSource === "aggregate", `got ${JSON.stringify(meta.spineSource)}`);
+  check(`${c.postcode}: sector derived from the postcode`, meta.sector === c.sector, `got ${JSON.stringify(meta.sector)}`);
 
   const sec = priceSection(body);
-  check("price section present", !!sec, sec ? "" : "no pricesTrendNegotiation in payload");
+  check(`${c.postcode}: price section present`, !!sec);
+  if (!sec) continue;
 
-  if (sec) {
-    check("served from the aggregate (asOf present)", !!sec.asOf?.published,
-      `asOf=${JSON.stringify(sec.asOf)} — null means the SPARQL path served this`);
-    check("sectorVerdict === 'warn'", sec.sectorVerdict === "warn", `got ${JSON.stringify(sec.sectorVerdict)}`);
-    check("sectorNote is non-empty", typeof sec.sectorNote === "string" && sec.sectorNote.length > 40,
-      `got ${JSON.stringify(sec.sectorNote)}`);
-    check("sectorNote names the sector", /E20 3/.test(sec.sectorNote || ""));
+  check(`${c.postcode}: dated from source_published`, !!sec.asOf?.published, `got ${JSON.stringify(sec.asOf)}`);
 
-    // The note PROMISES the sector's own median is stated. The previous suite checked
-    // only the note, so it passed while £741,250 appeared nowhere on the page. A
-    // promise in copy is not evidence that the thing promised is rendered.
+  const verdict = sec.sectorVerdict ?? "none";
+  verdictsSeen.add(verdict);
+  check(`${c.postcode}: verdict is "${c.verdict}"`, verdict === c.verdict, `got ${JSON.stringify(verdict)}`);
+  check(`${c.postcode}: verdict is one the code declares`, REPO_SECTOR_VERDICTS.includes(verdict),
+    `"${verdict}" is not in SECTOR_VERDICTS`);
+
+  // ── The grain claim. C removed the serve band: the brief reports DISTRICT
+  //    figures and must never say otherwise. This is the assertion that would have
+  //    caught CR0 2AB reading "Figures are for postcode sector CR0 2".
+  const mo = sec.data?.marketOverview;
+  if (!c.belowFloor) {
+    check(`${c.postcode}: headline median is the DISTRICT median`, mo?.windowMedian?.raw === c.districtMedian,
+      `expected ${c.districtMedian}, got ${mo?.windowMedian?.raw}`);
+    check(`${c.postcode}: headline count is the DISTRICT count`, mo?.totalTransactions === c.districtCount,
+      `expected ${c.districtCount}, got ${mo?.totalTransactions}`);
+  } else {
+    check(`${c.postcode}: below-floor district states no median`, mo == null || mo?.windowMedian?.raw == null,
+      `expected no median, got ${mo?.windowMedian?.raw}`);
+    check(`${c.postcode}: below-floor states its count and range`, sec.data?.priceRange != null || sec.data?.totalTransactions != null);
+  }
+  check(`${c.postcode}: no copy claims the figures are sector-level`,
+    !/figures are for postcode sector|figures are for sector/i.test(JSON.stringify(sec)),
+    "the deleted serve-band copy is still being emitted");
+
+  if (verdict === "warn") {
+    check(`${c.postcode}: sectorNote present`, typeof sec.sectorNote === "string" && sec.sectorNote.length > 40);
+    check(`${c.postcode}: sectorNote names the sector`, (sec.sectorNote || "").includes(c.sector));
+    check(`${c.postcode}: sectorNote says figures describe the district`, /describe the whole of|whole of /i.test(sec.sectorNote || ""));
+
     const fig = sec.sectorFigure;
-    check("sectorFigure is present", !!fig, "the withholding copy promises this figure is shown");
-    check("sector median is the real figure", fig?.median?.raw === EXPECT.sectorMedian,
-      `expected ${EXPECT.sectorMedian}, got ${fig?.median?.raw}`);
-    check("sector sale count is stated", fig?.count === EXPECT.sectorCount, `expected ${EXPECT.sectorCount}, got ${fig?.count}`);
-    check("sector CI is the aggregate's, not a symmetric invention",
-      fig?.range?.low === EXPECT.sectorCiLo && fig?.range?.high === EXPECT.sectorCiHi,
-      `expected ${EXPECT.sectorCiLo}-${EXPECT.sectorCiHi}, got ${fig?.range?.low}-${fig?.range?.high}`);
-    check("divergence is +25.2% against the real district median",
-      Math.abs((fig?.vsDistrict?.pct ?? 0) - EXPECT.divergencePctRounded) < 0.1,
-      `expected ~${EXPECT.divergencePctRounded}%, got ${fig?.vsDistrict?.pct}`);
-    check("district median is the real one", sec.data?.marketOverview?.windowMedian?.raw === EXPECT.districtMedian,
-      `expected ${EXPECT.districtMedian}, got ${sec.data?.marketOverview?.windowMedian?.raw}`);
+    check(`${c.postcode}: sectorFigure present`, !!fig, "the note promises this figure is shown");
+    check(`${c.postcode}: sector median is the real figure`, fig?.median?.raw === c.sectorMedian,
+      `expected ${c.sectorMedian}, got ${fig?.median?.raw}`);
+    check(`${c.postcode}: sector count stated`, fig?.count === c.sectorCount, `expected ${c.sectorCount}, got ${fig?.count}`);
+    check(`${c.postcode}: sector CI is the aggregate's, not an invention`,
+      fig?.range?.low === c.ciLo && fig?.range?.high === c.ciHi,
+      `expected ${c.ciLo}-${c.ciHi}, got ${fig?.range?.low}-${fig?.range?.high}`);
+    check(`${c.postcode}: divergence matches the aggregate`,
+      Math.abs((fig?.vsDistrict?.pct ?? 0) - c.divergence) < 0.1, `expected ~${c.divergence}%, got ${fig?.vsDistrict?.pct}`);
 
     const neg = sec.data?.negotiation;
-    check("negotiation block present", !!neg);
-    check("fairValueRange withheld", neg?.fairValueRange == null, `got ${JSON.stringify(neg?.fairValueRange)}`);
-    check("openingRange withheld", neg?.openingRange == null, `got ${JSON.stringify(neg?.openingRange)}`);
-    // This is the assertion that catches the gate dropping the field on the way out.
-    check("negotiation.withheld survives gating", typeof neg?.withheld === "string" && neg.withheld.length > 40,
+    check(`${c.postcode}: fairValueRange withheld`, neg?.fairValueRange == null);
+    check(`${c.postcode}: openingRange withheld`, neg?.openingRange == null);
+    check(`${c.postcode}: withheld reason survives gating`, typeof neg?.withheld === "string" && neg.withheld.length > 40,
       `got ${JSON.stringify(neg?.withheld)}`);
-    check("withheld copy says the omission is deliberate", /deliberate/i.test(neg?.withheld || ""));
-  }
-}
-
-// ── NEGATIVE: an in-line sector must NOT fire ────────────────────────────────
-console.log(`\n▶ ${NONE_POSTCODE} — sector E20 1, -0.4% divergence, inside its error bar\n${bar}`);
-{
-  const { status, body, raw } = await getBrief(NONE_POSTCODE);
-  check("handler returned 200", status === 200, `got ${status}${raw ? ` — ${raw}` : ""}`);
-  const sec = priceSection(body);
-  check("price section present", !!sec);
-
-  if (sec) {
-    check("served from the aggregate (asOf present)", !!sec.asOf?.published);
-    check("sectorVerdict is not 'warn'", sec.sectorVerdict !== "warn", `got ${JSON.stringify(sec.sectorVerdict)}`);
-    check("no sectorNote", !sec.sectorNote, `got ${JSON.stringify(sec.sectorNote)}`);
-    check("no sectorFigure", !sec.sectorFigure, `an in-line sector must not get its own headline figure — got ${JSON.stringify(sec.sectorFigure?.median?.raw)}`);
-
+    check(`${c.postcode}: withheld copy does not claim too few sector sales`,
+      !/not enough evidence to state a sector figure/i.test(neg?.withheld || ""),
+      "false for a 2,454-sale sector whose median IS stated");
+  } else {
+    check(`${c.postcode}: no sectorNote`, !sec.sectorNote, `got ${JSON.stringify(sec.sectorNote)}`);
+    check(`${c.postcode}: no sectorFigure`, !sec.sectorFigure, `got ${JSON.stringify(sec.sectorFigure?.median?.raw)}`);
     const neg = sec.data?.negotiation;
-    // The negotiation block is PRO-gated, and an anonymous request is EXP — so the
-    // ranges are absent for TIER reasons here, not sector ones. Asserting them
-    // present unconditionally was wrong about the product, not a finding about it.
-    // Either way `withheld` must stay null: that is what distinguishes "locked
-    // behind a tier" from "deliberately not quoted", and it is the assertion that
-    // catches code withholding unconditionally, since gate.js carries the field
-    // through even when locked.
-    if (neg?.locked) {
-      check("negotiation is tier-locked, not sector-withheld", neg.locked === true);
-      check("nothing withheld for sector reasons", neg?.withheld == null, `got ${JSON.stringify(neg?.withheld)}`);
-    } else {
-      check("fairValueRange IS shown", neg?.fairValueRange != null, "an in-line sector must still get its ranges");
-      check("openingRange IS shown", neg?.openingRange != null);
-      check("nothing withheld", neg?.withheld == null, `got ${JSON.stringify(neg?.withheld)}`);
-    }
+    // Absent ranges here are the PRO tier gate, not a sector withholding. `withheld`
+    // staying null is what separates the two, and catches unconditional withholding.
+    check(`${c.postcode}: nothing withheld for sector reasons`, neg?.withheld == null, `got ${JSON.stringify(neg?.withheld)}`);
   }
 }
+
+// ── BRANCH COVERAGE — the rule that would have caught the untested serve band ──
+console.log(`\n▶ Branch coverage\n${bar}`);
+const declared = [...REPO_SECTOR_VERDICTS].sort();
+const exercised = [...verdictsSeen].sort();
+console.log(`   declared:  ${declared.join(", ")}`);
+console.log(`   exercised: ${exercised.join(", ") || "(none)"}`);
+const uncovered = declared.filter((v) => !verdictsSeen.has(v));
+check(`every declared verdict has a real-postcode case`, uncovered.length === 0,
+  uncovered.length ? `no case covers: ${uncovered.join(", ")} — add one before shipping` : "");
+check(`no case produced an undeclared verdict`, exercised.every((v) => declared.includes(v)));
 
 console.log(`\n${bar}`);
 console.log(`${passed} passed, ${failed} failed`);

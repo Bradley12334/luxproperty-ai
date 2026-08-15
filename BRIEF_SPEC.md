@@ -14,6 +14,16 @@ Only brief-pipeline files may be modified. NEVER modify: homepage, about, pricin
 - FRESHNESS IS PART OF THE CONTRACT. Every price figure is dated from `source_published` whether or not it is stale. A missing or unparseable date is a REFUSAL, not an assumption of freshness. Past 60 days the aggregate is refused outright. The serving window comes from `window_start`/`window_end` on the row, never computed from the clock.
 - WRONG-LEVEL RULE: wherever the brief tells a reader that a figure is the wrong level for their address (e.g. the sector-divergence warn band), NO valuation or offer range anchored to that figure may be shown alongside it. Facts stay (district median, sector median, counts, the sales); claims derived from the wrong anchor are withheld, and the copy states that the omission is deliberate.
 
+### Sector grain — one rule, and the end state we are not at
+The brief reports at **district grain** and says so. Where the resolved postcode's sector diverges from its district by more than the sector's own 90% sampling error (and has >= 30 sales), the brief:
+- states that sector's median as a figure in its own right, with its sale count and range;
+- says plainly that the figures below describe the district, not the address;
+- withholds any fair-value or opening-offer range, because those are anchored to a district median now known to be the wrong level for this address (the WRONG-LEVEL RULE above).
+
+There is deliberately **no third "serve the sector" band**. One shipped briefly and was removed: it told the reader "figures are for postcode sector CR0 2" while every figure downstream remained district-derived — on CR0 2AB, a district median of £352,500 over 16,713 district sales, and a negotiation range ~15% above the sector's own level. Nothing had ever been implemented to swap the figures; the copy was the whole feature.
+
+**Intended end state (B), and its blocker.** Serving a genuinely sector-level brief means `stats` derived from the sector's own series — which the aggregate already supports, since sector rows carry `txCount/median/ciLo/ciHi/p25/p75/min/max/byYear`. It is blocked on what the aggregate does **not** carry at sector grain: `streets[]`, `recent[]` sales, and `byType`. Without those, a "sector brief" would show a sector median beside a district street ranking, district comparables and a district type split — mixing grains inside one section, and making `street-ranking`'s vs-area baseline a meaningless ratio. Closing that is a **design change with a data-model change behind it, not a bug fix**: it needs the offline aggregation to emit sector-grain streets and recent sales, and every section to state its own grain.
+
 ### What the aggregate validation does and does NOT cover
 The offline aggregate was validated against all 1,906 cached SPARQL payloads by HM Land Registry transaction GUID (`~/Documents/ppd-agg/validate.mjs`). **This is district-grain verification only.** Do not read it later as full verification of the aggregate:
 - **Verified**: district transaction counts, window median and CI, the byYear series, street groupings and medians, the recent-sale set by transaction id, and the trailing-3-year count. All divergence traced to Land Registry deletions and amendments between snapshots; worst district median moved 1.12%.
