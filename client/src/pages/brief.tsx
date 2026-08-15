@@ -99,6 +99,16 @@ export interface BriefSection {
   // sampling error — i.e. the district figure is the wrong level for this address.
   sectorNote?: string | null;
   sectorVerdict?: "serve-sector" | "warn" | "none" | null;
+  // The sector's own median, stated as a figure. Present whenever the sector
+  // diverges beyond sampling error — it is the fact the withholding copy promises
+  // the reader keeps, so it must be RENDERED, not merely described.
+  sectorFigure?: {
+    sector: string;
+    median: Money;
+    count: number | null;
+    range: { low: number; high: number; formatted: string } | null;
+    vsDistrict: { pct: number; formatted: string } | null;
+  } | null;
   entitled?: boolean;
   comingSoon?: boolean;
   pending?: boolean;
@@ -906,6 +916,36 @@ function PricesSection({ section }: { section: BriefSection }) {
             to assume how current a price figure is. */}
         {section.asOf && (
           <p className="mb-3 text-xs text-muted-foreground">{section.asOf.statement}</p>
+        )}
+
+        {/* The sector's own median, beside the district's. Rendered BEFORE the note
+            so the note's reference to "the sector's own median" is true of the page. */}
+        {section.sectorFigure && (
+          <div className="mb-5 rounded-lg border border-primary/40 bg-primary/5 p-4">
+            <div className="mb-2 text-xs uppercase tracking-wide text-primary">
+              Sector {section.sectorFigure.sector} — this address
+            </div>
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+              <div className="font-serif text-2xl tabular-nums text-foreground">
+                {section.sectorFigure.median.formatted}
+              </div>
+              {section.sectorFigure.count != null && (
+                <div className="text-xs text-muted-foreground">
+                  from {section.sectorFigure.count.toLocaleString()} recorded sales
+                </div>
+              )}
+              {section.sectorFigure.vsDistrict && (
+                <div className="text-xs text-muted-foreground">
+                  {section.sectorFigure.vsDistrict.formatted} vs the district
+                </div>
+              )}
+            </div>
+            {section.sectorFigure.range && (
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Likely range {section.sectorFigure.range.formatted}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Sector divergence: the district figure is the wrong level for this address. */}
