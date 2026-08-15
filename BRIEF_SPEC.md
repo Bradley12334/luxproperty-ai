@@ -10,6 +10,15 @@ Only brief-pipeline files may be modified. NEVER modify: homepage, about, pricin
 - One transaction set: Land Registry filtered `postcode LIKE 'DISTRICT %'` (trailing space — N1 must not match N10–N19), deduplicated on transaction ID.
 - EVERY price statistic (median, YoY, 10-year trend, price/m², fair value, opening range) derives from this single set via one stats module. No section runs its own divergent price query.
 - Scottish/NI postcodes rejected cleanly: "England & Wales only." Invalid postcodes error clearly.
+- SOURCE: the offline PPD aggregate (`brief_tx_agg_district` / `brief_tx_agg_sector`), gated per district by `TX_SOURCE` + `TX_AGG_DISTRICTS`, falling back to the live Land Registry SPARQL scan. Both sources normalise to one Spine object (`lib/brief/tx-source.js`) and run through one derivation (`deriveStats` in `lib/brief/stats.js`), so the two paths cannot diverge in presentation.
+- FRESHNESS IS PART OF THE CONTRACT. Every price figure is dated from `source_published` whether or not it is stale. A missing or unparseable date is a REFUSAL, not an assumption of freshness. Past 60 days the aggregate is refused outright. The serving window comes from `window_start`/`window_end` on the row, never computed from the clock.
+- WRONG-LEVEL RULE: wherever the brief tells a reader that a figure is the wrong level for their address (e.g. the sector-divergence warn band), NO valuation or offer range anchored to that figure may be shown alongside it. Facts stay (district median, sector median, counts, the sales); claims derived from the wrong anchor are withheld, and the copy states that the omission is deliberate.
+
+### What the aggregate validation does and does NOT cover
+The offline aggregate was validated against all 1,906 cached SPARQL payloads by HM Land Registry transaction GUID (`~/Documents/ppd-agg/validate.mjs`). **This is district-grain verification only.** Do not read it later as full verification of the aggregate:
+- **Verified**: district transaction counts, window median and CI, the byYear series, street groupings and medians, the recent-sale set by transaction id, and the trailing-3-year count. All divergence traced to Land Registry deletions and amendments between snapshots; worst district median moved 1.12%.
+- **NOT verified against any baseline**: every sector median, count and CI, and the serve/warn/none divergence classification. The SPARQL spine had no sector concept, so no baseline exists by construction. The sector grain is instead checked by independent recomputation from the raw CSVs down a separate code path (`~/Documents/ppd-agg/verify-sectors.mjs`), plus reconciliation of sector counts to district counts.
+- **NOT verifiable at all** from the frozen corpus: `paon`, `saon`, `town`, `propertyType` and `tenure` on recent sales. The cache dump projected those fields away, so no comparison is possible — they rest on the parser mirroring `lib/brief/transactions.js`, not on measurement.
 
 ## Section render states (every section, no exceptions)
 - DATA: full section with real figures + source footnote.
