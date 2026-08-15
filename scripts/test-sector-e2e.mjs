@@ -198,10 +198,21 @@ console.log(`\n▶ ${NONE_POSTCODE} — sector E20 1, -0.4% divergence, inside i
     check("no sectorFigure", !sec.sectorFigure, `an in-line sector must not get its own headline figure — got ${JSON.stringify(sec.sectorFigure?.median?.raw)}`);
 
     const neg = sec.data?.negotiation;
-    // Without this the suite would pass against code that withholds unconditionally.
-    check("fairValueRange IS shown", neg?.fairValueRange != null, "an in-line sector must still get its ranges");
-    check("openingRange IS shown", neg?.openingRange != null);
-    check("nothing withheld", neg?.withheld == null, `got ${JSON.stringify(neg?.withheld)}`);
+    // The negotiation block is PRO-gated, and an anonymous request is EXP — so the
+    // ranges are absent for TIER reasons here, not sector ones. Asserting them
+    // present unconditionally was wrong about the product, not a finding about it.
+    // Either way `withheld` must stay null: that is what distinguishes "locked
+    // behind a tier" from "deliberately not quoted", and it is the assertion that
+    // catches code withholding unconditionally, since gate.js carries the field
+    // through even when locked.
+    if (neg?.locked) {
+      check("negotiation is tier-locked, not sector-withheld", neg.locked === true);
+      check("nothing withheld for sector reasons", neg?.withheld == null, `got ${JSON.stringify(neg?.withheld)}`);
+    } else {
+      check("fairValueRange IS shown", neg?.fairValueRange != null, "an in-line sector must still get its ranges");
+      check("openingRange IS shown", neg?.openingRange != null);
+      check("nothing withheld", neg?.withheld == null, `got ${JSON.stringify(neg?.withheld)}`);
+    }
   }
 }
 
