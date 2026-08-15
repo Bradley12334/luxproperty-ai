@@ -34,7 +34,10 @@
  *   LL78 8JJ LL78 8, n=82,   -3.8%  vs ±4.4%  → none   (+ district below the 100-sale floor)
  *
  * MODES
- *   node scripts/test-sector-e2e.mjs --url https://<deployment> --share <token> --expect-sha <sha>
+ *   node scripts/test-sector-e2e.mjs --url https://<deployment> --share <token> \
+ *        --expect-sha <sha> --warm-secret <BRIEF_WARM_SECRET>
+ *   (--warm-secret exempts the suite from the per-IP anon cap; without it two runs
+ *    exhaust the daily allowance and every case 429s.)
  *   node scripts/test-sector-e2e.mjs      (in-process; needs SUPABASE_* + TX_* in env)
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -47,6 +50,13 @@ const shareArg = process.argv.indexOf("--share");
 const SHARE = shareArg !== -1 ? process.argv[shareArg + 1] : null;
 const shaArg = process.argv.indexOf("--expect-sha");
 const EXPECT_SHA = shaArg !== -1 ? process.argv[shaArg + 1] : null;
+const warmArg = process.argv.indexOf("--warm-secret");
+/** api/brief.js applies a per-IP anonymous cap (10/day) and answers 429 past it. A
+ *  four-case suite burns nearly half of that per run, so two runs exhaust it and every
+ *  case fails for a reason that has nothing to do with the code under test. The
+ *  handler already exempts internal warming via BRIEF_WARM_SECRET — the same mechanism
+ *  warm-districts.mjs uses — so the suite identifies itself the same way. */
+const WARM_SECRET = warmArg !== -1 ? process.argv[warmArg + 1] : process.env.BRIEF_WARM_SECRET || null;
 
 /** One case per branch. Figures are the aggregate's actual values — asserting them
  *  exactly is what stops a synthetic median passing for the real one. */
@@ -103,7 +113,11 @@ async function getBrief(postcode) {
   if (BASE) {
     await authenticate();
     const res = await fetch(`${BASE.replace(/\/$/, "")}/api/brief?postcode=${encodeURIComponent(postcode)}`, {
-      headers: { Accept: "application/json", ...(sessionCookie ? { Cookie: sessionCookie } : {}) },
+      headers: {
+        Accept: "application/json",
+        ...(sessionCookie ? { Cookie: sessionCookie } : {}),
+        ...(WARM_SECRET ? { "x-brief-warm": WARM_SECRET } : {}),
+      },
     });
     const text = await res.text();
     try { return { status: res.status, body: JSON.parse(text) }; }
@@ -113,7 +127,7 @@ async function getBrief(postcode) {
   const { default: handler } = await import("../api/brief.js");
   // Minimal Vercel-shaped req/res. Deliberately NOT a reimplementation of the
   // handler's logic — it only captures what the handler writes.
-  const req = { method: "GET", query: { postcode }, headers: {}, cookies: {} };
+  const req = { method: "GET", query: { postcode }, headers: WARM_SECRET ? { "x-brief-warm": WARM_SECRET } : {}, cookies: {} };
   let status = 200;
   let body = null;
   const res = {
@@ -150,7 +164,10 @@ const verdictsSeen = new Set();
 for (const c of CASES) {
   console.log(`\n▶ ${c.postcode} — sector ${c.sector}, ${c.divergence > 0 ? "+" : ""}${c.divergence}% → expect "${c.verdict}"${c.belowFloor ? " (district below the 100-sale floor)" : ""}\n${bar}`);
   const { status, body, raw } = await getBrief(c.postcode);
-  check(`${c.postcode}: handler returned 200`, status === 200, `got ${status}${raw ? ` — ${raw}` : ""}`);
+  check(`${c.postcode}: handler returned 200`, status === 200,
+    status === 429
+      ? "429 RATE_LIMITED — the per-IP anon cap, not a product failure. Pass --warm-secret <BRIEF_WARM_SECRET> to exempt the suite."
+      : `got ${status}${raw ? ` — ${raw}` : ""}`);
   if (status !== 200) continue;
 
   const meta = body?.meta || {};
