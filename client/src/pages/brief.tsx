@@ -97,6 +97,9 @@ export interface BriefSection {
   // streetPriceRanking (top 3) carry these today.
   previewTruncated?: boolean;
   preview?: any;
+  // Serve-stale bridge (server): ISO date the sold-price set was fetched, present ONLY when
+  // this section is rendered from a dated fallback rather than live data → shows the caveat.
+  dataAsOf?: string | null;
   data: any;
 }
 // Server-computed quota snapshot (lib/brief/quota.js → quotaStatus).
@@ -469,6 +472,26 @@ function isCollapsedLocked(section: BriefSection | undefined): boolean {
   return !!section && section.state === "LOCKED" && !KEEP_LOCKED_FULL.has(section.key);
 }
 
+// Serve-stale bridge: a slim, visible caveat shown on any section rendered from a dated
+// sold-price fallback (server sets section.dataAsOf). No silent staleness.
+function fmtAsOf(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+function StaleDataNote({ asOf }: { asOf?: string | null }) {
+  if (!asOf) return null;
+  const d = fmtAsOf(asOf);
+  if (!d) return null;
+  return (
+    <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <span>Sold price data as of {d} — live HM Land Registry updates are temporarily unavailable.</span>
+    </div>
+  );
+}
+
 // Render a section, intercepting LOCKED so every gated slot becomes a preview.
 function renderSection(
   section: BriefSection | undefined,
@@ -485,7 +508,12 @@ function renderSection(
     }
     return <LockedSection section={section} />;
   }
-  return <Component section={section} />;
+  return (
+    <>
+      <StaleDataNote asOf={section.dataAsOf} />
+      <Component section={section} />
+    </>
+  );
 }
 
 // FIX 2: the single collapsed block that replaces the wall of locked cards. Lists the
@@ -3594,9 +3622,9 @@ export default function BriefPage() {
               <QuotaFunnel quota={brief.quota} />
             </div>
             {areaVerdict && <VerdictCard section={areaVerdict} entitled={brief.meta.tier !== "EXP"} />}
-            {execSummary && <ExecutiveSummarySection section={execSummary} />}
+            {execSummary && <><StaleDataNote asOf={execSummary.dataAsOf} /><ExecutiveSummarySection section={execSummary} /></>}
             <div id="sec-neighbourhood">{neighbourhood && <NeighbourhoodSection section={neighbourhood} />}</div>
-            <div id="sec-pricesTrendNegotiation"><PricesSection section={prices} /></div>
+            <div id="sec-pricesTrendNegotiation"><StaleDataNote asOf={prices?.dataAsOf} /><PricesSection section={prices} /></div>
             {renderSection(nearby, NearbySoldPricesSection)}
             {renderSection(streets, StreetRankingSection)}
             {renderSection(soldMap, SoldPricesMapSection)}
