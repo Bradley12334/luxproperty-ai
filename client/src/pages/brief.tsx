@@ -1132,10 +1132,12 @@ function NearbySoldPricesSection({ section }: { section: BriefSection }) {
 
 // ── Street Price Ranking (INV) ───────────────────────────────────────────────
 interface StreetRow {
-  rank: number;
   street: string;
   count: number;
   median: Money;
+  // The band the street's own sales actually support. Shown because two streets a
+  // few percent apart are not distinguishable, and a bare median hides that.
+  range: { low: number; high: number; formatted: string } | null;
   vsArea: { pct: number; formatted: string; direction: "above" | "below" | "inline" } | null;
 }
 
@@ -1148,17 +1150,19 @@ function StreetList({ rows }: { rows: StreetRow[] }) {
             <th className="py-2 pr-4 font-medium">Street</th>
             <th className="py-2 pr-4 font-medium text-right">Sales</th>
             <th className="py-2 pr-4 font-medium text-right">Median</th>
+            <th className="py-2 pr-4 font-medium text-right">Likely range</th>
             <th className="py-2 font-medium text-right">vs area</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.street} className="border-b border-border/50">
-              <td className="py-2 pr-4">
-                <span className="tabular-nums text-muted-foreground">{r.rank}.</span> {r.street}
-              </td>
+              <td className="py-2 pr-4">{r.street}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{r.count}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{r.median.formatted}</td>
+              <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground text-xs">
+                {r.range ? r.range.formatted : "—"}
+              </td>
               <td className={`py-2 text-right tabular-nums ${r.vsArea ? changeColor(r.vsArea.direction === "above" ? "up" : r.vsArea.direction === "below" ? "down" : "flat") : "text-muted-foreground"}`}>
                 {r.vsArea ? r.vsArea.formatted : "—"}
               </td>
@@ -1185,7 +1189,9 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
     );
   }
 
-  const { top, bottom, areaMedian } = section.data as { top: StreetRow[]; bottom: StreetRow[]; areaMedian: Money | null };
+  const { top, bottom, areaMedian, blockClaim } = section.data as {
+    top: StreetRow[]; bottom: StreetRow[]; areaMedian: Money | null; blockClaim: boolean;
+  };
 
   return (
     <Card className="p-6 space-y-6">
@@ -1203,15 +1209,15 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
 
         {areaMedian && (
           <p className="mb-4 text-sm text-muted-foreground">
-            Area median across all ranked streets: <span className="font-medium text-foreground tabular-nums">{areaMedian.formatted}</span>. Streets are ranked by the median of their recorded sales — the sale count shows how much evidence sits behind each.
+            Area median across all listed streets: <span className="font-medium text-foreground tabular-nums">{areaMedian.formatted}</span>. Streets are grouped into a dearer and a cheaper set, not placed in order — the gaps between neighbouring streets are smaller than the uncertainty in their medians. The sale count shows how much evidence sits behind each.
           </p>
         )}
       </div>
 
       {top.length > 0 && (
         <div>
-          {bottom.length > 0 && (
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Highest median</div>
+          {bottom.length > 0 && blockClaim && (
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dearer streets</div>
           )}
           <StreetList rows={top} />
         </div>
@@ -1219,7 +1225,7 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
 
       {bottom.length > 0 && (
         <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lowest median</div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cheaper streets</div>
           <StreetList rows={bottom} />
         </div>
       )}
