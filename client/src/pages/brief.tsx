@@ -73,7 +73,15 @@ import {
 type SectionState = "DATA" | "SPARSE" | "UNAVAILABLE" | "LOCKED" | "COMING_SOON" | "PENDING";
 interface Money { raw: number | null; formatted: string }
 interface Pct { raw: number | null; formatted: string; direction?: "up" | "down" | "flat" }
-interface TrendRow { year: number; count: number; median: Money; change: Pct; state: "data" | "sparse" | "missing" }
+interface TrendRow {
+  year: number; count: number; median: Money; change: Pct;
+  // The range the year's own sales support — shown for low-volume years, where the
+  // median is real but its uncertainty is the point.
+  range: { low: number; high: number; formatted: string } | null;
+  medianWithheld: string | null;
+  changeSuppressed: string | null;
+  state: "data" | "sparse" | "missing";
+}
 interface LeveragePoint { signal: string; text: string }
 export interface BriefSection {
   key: string;
@@ -968,7 +976,12 @@ function PricesSection({ section }: { section: BriefSection }) {
                         {r.state === "sparse" && <span className="ml-2 text-[10px] uppercase tracking-wide text-primary/70">low volume</span>}
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums">{r.count || "—"}</td>
-                      <td className="py-2 pr-4 text-right tabular-nums">{r.median.formatted}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums">
+                        {r.median.formatted}
+                        {r.state === "sparse" && r.range && (
+                          <div className="text-[10px] font-normal text-muted-foreground">{r.range.formatted}</div>
+                        )}
+                      </td>
                       <td className={`py-2 text-right tabular-nums ${changeColor(r.change.direction ?? dirOf(r.change.raw))}`}>{r.change.formatted}</td>
                     </tr>
                   ))}
@@ -983,7 +996,13 @@ function PricesSection({ section }: { section: BriefSection }) {
             </TruncatedFade>
           ) : trendTable;
         })()}
-        {trend.lowVolumeNote && <p className="mt-3 text-xs text-muted-foreground">{trend.lowVolumeNote}</p>}
+        {Array.isArray(trend.notes) && trend.notes.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {trend.notes.map((n: string) => (
+              <p key={n} className="text-xs text-muted-foreground">{n}</p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Negotiation / pre-offer — PRO. Below PRO the server sends neg.locked with
