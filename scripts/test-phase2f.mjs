@@ -77,14 +77,20 @@ async function main() {
 
   // ── Pre-offer Questions — trigger gating ────────────────────────────────────
   hr(); console.log("▶ Pre-offer Questions — trigger gating");
-  const txLease = { transactions: Array.from({ length: 20 }, (_, i) => ({ category: "standard", date: "2024-06-01", tenure: i < 14 ? "Leasehold" : "Freehold", newBuild: i < 7 })) };
-  const q = buildPreOfferQuestionsSection({ stats: softStats, txSet: txLease, floodData: { riskBand: "Medium", planningZone: 2 }, crimeData }, E8, "INV");
+  // Spine shape (post tx-source): composition signals read `recent`, volume reads
+  // `recentWindowCount`. Both sources populate these, so the section no longer needs
+  // a raw transaction set — which the aggregate path does not have.
+  const spineLease = {
+    recent: Array.from({ length: 20 }, (_, i) => ({ category: "standard", date: "2024-06-01", tenure: i < 14 ? "Leasehold" : "Freehold", newBuild: i < 7 })),
+    recentWindowCount: 20,
+  };
+  const q = buildPreOfferQuestionsSection({ stats: softStats, spine: spineLease, floodData: { riskBand: "Medium", planningZone: 2 }, crimeData }, E8, "INV");
   const keys = q.data.groups.map((g) => g.key);
   check("flood trigger fired", keys.includes("flood"));
   check("softening-price trigger fired", keys.includes("pricing"));
   check("leasehold trigger fired (14/20)", keys.includes("leasehold"));
   check("universal set always present", keys.includes("universal"));
-  const qNone = buildPreOfferQuestionsSection({ stats: risingStats, txSet: { transactions: Array.from({ length: 10 }, () => ({ category: "standard", date: "2024-01-01", tenure: "Freehold", newBuild: false })) }, floodData: { riskBand: "Very Low", planningZone: 1 }, crimeData: { total: 0, categories: [] } }, E8, "INV");
+  const qNone = buildPreOfferQuestionsSection({ stats: risingStats, spine: { recent: Array.from({ length: 10 }, () => ({ category: "standard", date: "2024-01-01", tenure: "Freehold", newBuild: false })), recentWindowCount: 10 }, floodData: { riskBand: "Very Low", planningZone: 1 }, crimeData: { total: 0, categories: [] } }, E8, "INV");
   check("no triggers → only universal set", qNone.data.groups.length === 1 && qNone.data.groups[0].key === "universal");
 
   // ── Planning Activity — LIVE planning.data.gov.uk ───────────────────────────
