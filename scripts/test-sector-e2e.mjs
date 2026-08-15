@@ -44,6 +44,21 @@ const urlArg = process.argv.indexOf("--url");
 const BASE = urlArg !== -1 ? process.argv[urlArg + 1] : null;
 const shareArg = process.argv.indexOf("--share");
 const SHARE = shareArg !== -1 ? process.argv[shareArg + 1] : null;
+const shaArg = process.argv.indexOf("--expect-sha");
+const EXPECT_SHA = shaArg !== -1 ? process.argv[shaArg + 1] : null;
+
+/** Real figures for the warn case, read from the aggregate — NOT from a fixture.
+ *  Asserting the exact numbers is what stops a synthetic median passing for the real
+ *  one: a made-up district median produced +18.6% where the truth is +25.2%, and it
+ *  read as plausible because it was formatted like production output. */
+const EXPECT = {
+  districtMedian: 592000,
+  sectorMedian: 741250,
+  sectorCount: 76,
+  sectorCiLo: 680000,
+  sectorCiHi: 770000,
+  divergencePctRounded: 25.2,
+};
 
 /** Vercel SSO-protected previews answer 307 to an auth handshake that sets a cookie.
  *  fetch follows the redirect but does not carry Set-Cookie across it, so the
@@ -110,12 +125,25 @@ console.log(`\n${"═".repeat(78)}`);
 console.log(`SECTOR DIVERGENCE — END-TO-END, through the real handler`);
 console.log(`${"═".repeat(78)}`);
 console.log(`mode: ${BASE ? `HTTP against ${BASE}` : "in-process (api/brief.js)"}`);
+if (EXPECT_SHA) console.log(`expecting build: ${EXPECT_SHA}`);
 
 // ── POSITIVE: the warn band must fire ────────────────────────────────────────
 console.log(`\n▶ ${WARN_POSTCODE} — sector E20 3, +25.2% divergence, 4.2x its error bar\n${bar}`);
 {
   const { status, body, raw } = await getBrief(WARN_POSTCODE);
   check("handler returned 200", status === 200, `got ${status}${raw ? ` — ${raw}` : ""}`);
+
+  // WHICH BUILD, WHICH PATH — asserted before anything else, so a pass can never be
+  // reported against a deployment other than the one under test.
+  const meta = body?.meta || {};
+  console.log(`   · build ${meta.build?.commit?.slice(0, 8) ?? "unknown"} (${meta.build?.ref ?? "?"}/${meta.build?.env ?? "?"}) · spine "${meta.spineSource ?? "?"}"`);
+  if (EXPECT_SHA) {
+    check(`deployment is ${EXPECT_SHA.slice(0, 8)}`, (meta.build?.commit || "").startsWith(EXPECT_SHA),
+      `served by ${meta.build?.commit ?? "unknown"}`);
+  }
+  check("price spine came from the aggregate", meta.spineSource === "aggregate", `got ${JSON.stringify(meta.spineSource)}`);
+  check("sector resolved from the full postcode", meta.sector === "E20 3", `got ${JSON.stringify(meta.sector)}`);
+
   const sec = priceSection(body);
   check("price section present", !!sec, sec ? "" : "no pricesTrendNegotiation in payload");
 
@@ -126,6 +154,23 @@ console.log(`\n▶ ${WARN_POSTCODE} — sector E20 3, +25.2% divergence, 4.2x it
     check("sectorNote is non-empty", typeof sec.sectorNote === "string" && sec.sectorNote.length > 40,
       `got ${JSON.stringify(sec.sectorNote)}`);
     check("sectorNote names the sector", /E20 3/.test(sec.sectorNote || ""));
+
+    // The note PROMISES the sector's own median is stated. The previous suite checked
+    // only the note, so it passed while £741,250 appeared nowhere on the page. A
+    // promise in copy is not evidence that the thing promised is rendered.
+    const fig = sec.sectorFigure;
+    check("sectorFigure is present", !!fig, "the withholding copy promises this figure is shown");
+    check("sector median is the real figure", fig?.median?.raw === EXPECT.sectorMedian,
+      `expected ${EXPECT.sectorMedian}, got ${fig?.median?.raw}`);
+    check("sector sale count is stated", fig?.count === EXPECT.sectorCount, `expected ${EXPECT.sectorCount}, got ${fig?.count}`);
+    check("sector CI is the aggregate's, not a symmetric invention",
+      fig?.range?.low === EXPECT.sectorCiLo && fig?.range?.high === EXPECT.sectorCiHi,
+      `expected ${EXPECT.sectorCiLo}-${EXPECT.sectorCiHi}, got ${fig?.range?.low}-${fig?.range?.high}`);
+    check("divergence is +25.2% against the real district median",
+      Math.abs((fig?.vsDistrict?.pct ?? 0) - EXPECT.divergencePctRounded) < 0.1,
+      `expected ~${EXPECT.divergencePctRounded}%, got ${fig?.vsDistrict?.pct}`);
+    check("district median is the real one", sec.data?.marketOverview?.windowMedian?.raw === EXPECT.districtMedian,
+      `expected ${EXPECT.districtMedian}, got ${sec.data?.marketOverview?.windowMedian?.raw}`);
 
     const neg = sec.data?.negotiation;
     check("negotiation block present", !!neg);
@@ -150,6 +195,7 @@ console.log(`\n▶ ${NONE_POSTCODE} — sector E20 1, -0.4% divergence, inside i
     check("served from the aggregate (asOf present)", !!sec.asOf?.published);
     check("sectorVerdict is not 'warn'", sec.sectorVerdict !== "warn", `got ${JSON.stringify(sec.sectorVerdict)}`);
     check("no sectorNote", !sec.sectorNote, `got ${JSON.stringify(sec.sectorNote)}`);
+    check("no sectorFigure", !sec.sectorFigure, `an in-line sector must not get its own headline figure — got ${JSON.stringify(sec.sectorFigure?.median?.raw)}`);
 
     const neg = sec.data?.negotiation;
     // Without this the suite would pass against code that withholds unconditionally.
