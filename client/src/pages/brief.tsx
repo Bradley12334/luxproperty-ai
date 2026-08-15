@@ -1028,7 +1028,7 @@ function PricesSection({ section }: { section: BriefSection }) {
   );
 }
 
-// ── Nearby Sold Prices (PRO) ─────────────────────────────────────────────────
+// ── Recent sales in {outcode} (PRO) — key `nearbySoldPrices` (contract) ──────
 interface SoldItem {
   id: string;
   address: string;
@@ -1304,7 +1304,7 @@ function SoldPricesMapSection({ section }: { section: BriefSection }) {
             </div>
           )}
           {/* No print fallback table here: the same sales are already listed in
-           * full in the Nearby Sold Prices section above. Only the map is hidden
+           * full in the "Recent sales" section above. Only the map is hidden
            * in print; the low/median/high summary stats above survive. */}
           <p className="flex items-start gap-2 text-[11px] italic text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
