@@ -84,6 +84,13 @@ export interface BriefSection {
   sourceFootnote?: string;
   sourceNote?: string;
   disclaimer?: string;
+  // Sold-price provenance. Present whenever the price spine came from the offline
+  // PPD aggregate; null on the legacy live-scan path, which has no publication date.
+  asOf?: { published: string; label: string; statement: string; refreshOverdue: boolean } | null;
+  // Set when the resolved postcode sector diverges from its district by more than
+  // sampling error — i.e. the district figure is the wrong level for this address.
+  sectorNote?: string | null;
+  sectorVerdict?: "serve-sector" | "warn" | "none" | null;
   entitled?: boolean;
   comingSoon?: boolean;
   pending?: boolean;
@@ -880,17 +887,43 @@ function PricesSection({ section }: { section: BriefSection }) {
     );
   }
 
-  const { marketOverview: mo, trend, negotiation: neg } = section.data;
+  const { marketOverview: mo, trend, negotiation: neg, priceRange } = section.data;
 
   return (
     <Card className="p-6 space-y-8">
       <div>
         <SectionHeading icon={<BarChart3 className="h-3.5 w-3.5" />}>{section.title}</SectionHeading>
 
+        {/* Dated on every render, not only when stale — the reader should never have
+            to assume how current a price figure is. */}
+        {section.asOf && (
+          <p className="mb-3 text-xs text-muted-foreground">{section.asOf.statement}</p>
+        )}
+
+        {/* Sector divergence: the district figure is the wrong level for this address. */}
+        {section.sectorNote && (
+          <div className="mb-5 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <p className="text-muted-foreground">{section.sectorNote}</p>
+          </div>
+        )}
+
         {section.state === "SPARSE" && section.note && (
           <div className="mb-5 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
             <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
             <p className="text-muted-foreground">{section.note}</p>
+          </div>
+        )}
+
+        {/* Too few sales to state a typical price. The recorded sales survive as
+            facts; the count and the SPREAD are stated so the list below cannot be
+            read as an implied average. marketOverview is null in this state. */}
+        {!mo && (
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            <Stat label="Recorded sales" value={String(section.data.totalTransactions ?? 0)} sub="in this district" />
+            {priceRange && (
+              <Stat label="Range of those sales" value={`${priceRange.low.formatted} – ${priceRange.high.formatted}`} sub="lowest to highest" />
+            )}
           </div>
         )}
 
@@ -981,6 +1014,19 @@ function PricesSection({ section }: { section: BriefSection }) {
           </div>
         ) : (
         <>
+        {/* A deliberate omission must LOOK deliberate. An unexplained blank where a
+            number used to be reads as a load failure, which is worse than the figure
+            we removed — so the reason renders in the space the ranges vacated. */}
+        {neg.withheld && (
+          <div className="rounded-lg border border-primary/40 bg-primary/5 p-4">
+            <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-wide text-primary">
+              <Info className="h-3.5 w-3.5" />
+              No negotiation range quoted
+            </div>
+            <p className="text-sm text-muted-foreground">{neg.withheld}</p>
+          </div>
+        )}
+
         <div className="grid gap-6 sm:grid-cols-2">
           {neg.fairValueRange && (
             <div className="rounded-lg border border-border p-4">
