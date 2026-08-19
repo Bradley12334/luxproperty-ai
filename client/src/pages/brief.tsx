@@ -74,7 +74,15 @@ import {
 type SectionState = "DATA" | "SPARSE" | "UNAVAILABLE" | "LOCKED" | "COMING_SOON" | "PENDING";
 interface Money { raw: number | null; formatted: string }
 interface Pct { raw: number | null; formatted: string; direction?: "up" | "down" | "flat" }
-interface TrendRow { year: number; count: number; median: Money; change: Pct; state: "data" | "sparse" | "missing" }
+interface TrendRow {
+  year: number; count: number; median: Money; change: Pct;
+  // The range the year's own sales support — shown for low-volume years, where the
+  // median is real but its uncertainty is the point.
+  range: { low: number; high: number; formatted: string } | null;
+  medianWithheld: string | null;
+  changeSuppressed: string | null;
+  state: "data" | "sparse" | "missing";
+}
 interface LeveragePoint { signal: string; text: string }
 export interface BriefSection {
   key: string;
@@ -85,6 +93,23 @@ export interface BriefSection {
   sourceFootnote?: string;
   sourceNote?: string;
   disclaimer?: string;
+  // Sold-price provenance. Present whenever the price spine came from the offline
+  // PPD aggregate; null on the legacy live-scan path, which has no publication date.
+  asOf?: { published: string; label: string; statement: string; refreshOverdue: boolean } | null;
+  // Set when the resolved postcode sector diverges from its district by more than
+  // sampling error — i.e. the district figure is the wrong level for this address.
+  sectorNote?: string | null;
+  sectorVerdict?: "warn" | "none" | null;
+  // The sector's own median, stated as a figure. Present whenever the sector
+  // diverges beyond sampling error — it is the fact the withholding copy promises
+  // the reader keeps, so it must be RENDERED, not merely described.
+  sectorFigure?: {
+    sector: string;
+    median: Money;
+    count: number | null;
+    range: { low: number; high: number; formatted: string } | null;
+    vsDistrict: { pct: number; formatted: string } | null;
+  } | null;
   entitled?: boolean;
   comingSoon?: boolean;
   pending?: boolean;
@@ -881,17 +906,73 @@ function PricesSection({ section }: { section: BriefSection }) {
     );
   }
 
-  const { marketOverview: mo, trend, negotiation: neg } = section.data;
+  const { marketOverview: mo, trend, negotiation: neg, priceRange } = section.data;
 
   return (
     <Card className="p-6 space-y-8">
       <div>
         <SectionHeading icon={<BarChart3 className="h-3.5 w-3.5" />}>{section.title}</SectionHeading>
 
+        {/* Dated on every render, not only when stale — the reader should never have
+            to assume how current a price figure is. */}
+        {section.asOf && (
+          <p className="mb-3 text-xs text-muted-foreground">{section.asOf.statement}</p>
+        )}
+
+        {/* The sector's own median, beside the district's. Rendered BEFORE the note
+            so the note's reference to "the sector's own median" is true of the page. */}
+        {section.sectorFigure && (
+          <div className="mb-5 rounded-lg border border-primary/40 bg-primary/5 p-4">
+            <div className="mb-2 text-xs uppercase tracking-wide text-primary">
+              Sector {section.sectorFigure.sector} — this address
+            </div>
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+              <div className="font-serif text-2xl tabular-nums text-foreground">
+                {section.sectorFigure.median.formatted}
+              </div>
+              {section.sectorFigure.count != null && (
+                <div className="text-xs text-muted-foreground">
+                  from {section.sectorFigure.count.toLocaleString()} recorded sales
+                </div>
+              )}
+              {section.sectorFigure.vsDistrict && (
+                <div className="text-xs text-muted-foreground">
+                  {section.sectorFigure.vsDistrict.formatted} vs the district
+                </div>
+              )}
+            </div>
+            {section.sectorFigure.range && (
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Likely range {section.sectorFigure.range.formatted}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sector divergence: the district figure is the wrong level for this address. */}
+        {section.sectorNote && (
+          <div className="mb-5 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <p className="text-muted-foreground">{section.sectorNote}</p>
+          </div>
+        )}
+
         {section.state === "SPARSE" && section.note && (
           <div className="mb-5 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
             <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
             <p className="text-muted-foreground">{section.note}</p>
+          </div>
+        )}
+
+        {/* Too few sales to state a typical price. The recorded sales survive as
+            facts; the count and the SPREAD are stated so the list below cannot be
+            read as an implied average. marketOverview is null in this state. */}
+        {!mo && (
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            <Stat label="Recorded sales" value={String(section.data.totalTransactions ?? 0)} sub="in this district" />
+            {priceRange && (
+              <Stat label="Range of those sales" value={`${priceRange.low.formatted} – ${priceRange.high.formatted}`} sub="lowest to highest" />
+            )}
           </div>
         )}
 
@@ -936,7 +1017,12 @@ function PricesSection({ section }: { section: BriefSection }) {
                         {r.state === "sparse" && <span className="ml-2 text-[10px] uppercase tracking-wide text-primary/70">low volume</span>}
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums">{r.count || "—"}</td>
-                      <td className="py-2 pr-4 text-right tabular-nums">{r.median.formatted}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums">
+                        {r.median.formatted}
+                        {r.state === "sparse" && r.range && (
+                          <div className="text-[10px] font-normal text-muted-foreground">{r.range.formatted}</div>
+                        )}
+                      </td>
                       <td className={`py-2 text-right tabular-nums ${changeColor(r.change.direction ?? dirOf(r.change.raw))}`}>{r.change.formatted}</td>
                     </tr>
                   ))}
@@ -951,7 +1037,13 @@ function PricesSection({ section }: { section: BriefSection }) {
             </TruncatedFade>
           ) : trendTable;
         })()}
-        {trend.lowVolumeNote && <p className="mt-3 text-xs text-muted-foreground">{trend.lowVolumeNote}</p>}
+        {Array.isArray(trend.notes) && trend.notes.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {trend.notes.map((n: string) => (
+              <p key={n} className="text-xs text-muted-foreground">{n}</p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Negotiation / pre-offer — PRO. Below PRO the server sends neg.locked with
@@ -982,6 +1074,19 @@ function PricesSection({ section }: { section: BriefSection }) {
           </div>
         ) : (
         <>
+        {/* A deliberate omission must LOOK deliberate. An unexplained blank where a
+            number used to be reads as a load failure, which is worse than the figure
+            we removed — so the reason renders in the space the ranges vacated. */}
+        {neg.withheld && (
+          <div className="rounded-lg border border-primary/40 bg-primary/5 p-4">
+            <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-wide text-primary">
+              <Info className="h-3.5 w-3.5" />
+              No negotiation range quoted
+            </div>
+            <p className="text-sm text-muted-foreground">{neg.withheld}</p>
+          </div>
+        )}
+
         <div className="grid gap-6 sm:grid-cols-2">
           {neg.fairValueRange && (
             <div className="rounded-lg border border-border p-4">
@@ -1133,10 +1238,12 @@ function NearbySoldPricesSection({ section }: { section: BriefSection }) {
 
 // ── Street Price Ranking (INV) ───────────────────────────────────────────────
 interface StreetRow {
-  rank: number;
   street: string;
   count: number;
   median: Money;
+  // The band the street's own sales actually support. Shown because two streets a
+  // few percent apart are not distinguishable, and a bare median hides that.
+  range: { low: number; high: number; formatted: string } | null;
   vsArea: { pct: number; formatted: string; direction: "above" | "below" | "inline" } | null;
 }
 
@@ -1149,17 +1256,19 @@ function StreetList({ rows }: { rows: StreetRow[] }) {
             <th className="py-2 pr-4 font-medium">Street</th>
             <th className="py-2 pr-4 font-medium text-right">Sales</th>
             <th className="py-2 pr-4 font-medium text-right">Median</th>
+            <th className="py-2 pr-4 font-medium text-right">Likely range</th>
             <th className="py-2 font-medium text-right">vs area</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.street} className="border-b border-border/50">
-              <td className="py-2 pr-4">
-                <span className="tabular-nums text-muted-foreground">{r.rank}.</span> {r.street}
-              </td>
+              <td className="py-2 pr-4">{r.street}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{r.count}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{r.median.formatted}</td>
+              <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground text-xs">
+                {r.range ? r.range.formatted : "—"}
+              </td>
               <td className={`py-2 text-right tabular-nums ${r.vsArea ? changeColor(r.vsArea.direction === "above" ? "up" : r.vsArea.direction === "below" ? "down" : "flat") : "text-muted-foreground"}`}>
                 {r.vsArea ? r.vsArea.formatted : "—"}
               </td>
@@ -1186,7 +1295,9 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
     );
   }
 
-  const { top, bottom, areaMedian } = section.data as { top: StreetRow[]; bottom: StreetRow[]; areaMedian: Money | null };
+  const { top, bottom, areaMedian, blockClaim } = section.data as {
+    top: StreetRow[]; bottom: StreetRow[]; areaMedian: Money | null; blockClaim: boolean;
+  };
 
   return (
     <Card className="p-6 space-y-6">
@@ -1204,15 +1315,15 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
 
         {areaMedian && (
           <p className="mb-4 text-sm text-muted-foreground">
-            Area median across all ranked streets: <span className="font-medium text-foreground tabular-nums">{areaMedian.formatted}</span>. Streets are ranked by the median of their recorded sales — the sale count shows how much evidence sits behind each.
+            Area median across all listed streets: <span className="font-medium text-foreground tabular-nums">{areaMedian.formatted}</span>. Streets are grouped into a dearer and a cheaper set, not placed in order — the gaps between neighbouring streets are smaller than the uncertainty in their medians. The sale count shows how much evidence sits behind each.
           </p>
         )}
       </div>
 
       {top.length > 0 && (
         <div>
-          {bottom.length > 0 && (
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Highest median</div>
+          {bottom.length > 0 && blockClaim && (
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dearer streets</div>
           )}
           <StreetList rows={top} />
         </div>
@@ -1220,7 +1331,7 @@ function StreetRankingSection({ section }: { section: BriefSection }) {
 
       {bottom.length > 0 && (
         <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lowest median</div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cheaper streets</div>
           <StreetList rows={bottom} />
         </div>
       )}

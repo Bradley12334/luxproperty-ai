@@ -10,6 +10,29 @@ Only brief-pipeline files may be modified. NEVER modify: homepage, about, pricin
 - One transaction set: Land Registry filtered `postcode LIKE 'DISTRICT %'` (trailing space — N1 must not match N10–N19), deduplicated on transaction ID.
 - EVERY price statistic (median, YoY, 10-year trend, price/m², fair value, opening range) derives from this single set via one stats module. No section runs its own divergent price query.
 - Scottish/NI postcodes rejected cleanly: "England & Wales only." Invalid postcodes error clearly.
+- SOURCE: the offline PPD aggregate (`brief_tx_agg_district` / `brief_tx_agg_sector`), gated per district by `TX_SOURCE` + `TX_AGG_DISTRICTS`, falling back to the live Land Registry SPARQL scan. Both sources normalise to one Spine object (`lib/brief/tx-source.js`) and run through one derivation (`deriveStats` in `lib/brief/stats.js`), so the two paths cannot diverge in presentation.
+- FRESHNESS IS PART OF THE CONTRACT. Every price figure is dated from `source_published` whether or not it is stale. A missing or unparseable date is a REFUSAL, not an assumption of freshness. Past 60 days the aggregate is refused outright. The serving window comes from `window_start`/`window_end` on the row, never computed from the clock.
+- WRONG-LEVEL RULE: wherever the brief tells a reader that a figure is the wrong level for their address (e.g. the sector-divergence warn band), NO valuation or offer range anchored to that figure may be shown alongside it. Facts stay (district median, sector median, counts, the sales); claims derived from the wrong anchor are withheld, and the copy states that the omission is deliberate.
+
+### Sector grain — one rule, and the end state we are not at
+The brief reports at **district grain** and says so. Where the resolved postcode's sector diverges from its district by more than the sector's own 90% sampling error (and has >= 30 sales), the brief:
+- states that sector's median as a figure in its own right, with its sale count and range;
+- says plainly that the figures below describe the district, not the address;
+- withholds any fair-value or opening-offer range, because those are anchored to a district median now known to be the wrong level for this address (the WRONG-LEVEL RULE above).
+
+There is deliberately **no third "serve the sector" band**. One shipped briefly and was removed: it told the reader "figures are for postcode sector CR0 2" while every figure downstream remained district-derived — on CR0 2AB, a district median of £352,500 over 16,713 district sales, and a negotiation range ~15% above the sector's own level. Nothing had ever been implemented to swap the figures; the copy was the whole feature.
+
+**Sector-grain serving (B) is the REMEDY for the withholding, not a nice-to-have.** The one rule above withholds a negotiation range from **6,596 sectors — 79.4% of all sectors** — and for most of them the withholding is a statement about our data, not about the evidence. CR0 2 has **2,454 recorded sales**: that is more than enough to anchor a fair-value range on, comfortably past the 300-sale valuation floor the district rule uses. We withhold anyway, because a range anchored to the *district* median would be ~14% wrong for that address and we have no *sector*-anchored range to offer instead.
+
+That is a data gap with a known fix, not a limitation of the method. The sector aggregate already carries everything `statsFromAggregate` consumes (`txCount/median/ciLo/ciHi/p25/p75/min/max/byYear`), so sector-anchored medians, trends and valuation ranges are computable today. What is missing is sector-grain `streets[]`, `recent[]` sales and `byType` — without them a "sector brief" would put a sector median beside a district street ranking, district comparables and a district type split, mixing grains inside one section and making `street-ranking`'s vs-area baseline a meaningless ratio.
+
+Closing it requires the offline aggregation (`~/Documents/ppd-agg/aggregate.mjs`) to emit streets and recent sales at sector grain, and every section to state which grain it covers. That is a data-model change plus a design change — but it is scoped, and until it lands the correct reading of a withheld range is "we cannot yet anchor this to your sector", not "your sector cannot be valued".
+
+### What the aggregate validation does and does NOT cover
+The offline aggregate was validated against all 1,906 cached SPARQL payloads by HM Land Registry transaction GUID (`~/Documents/ppd-agg/validate.mjs`). **This is district-grain verification only.** Do not read it later as full verification of the aggregate:
+- **Verified**: district transaction counts, window median and CI, the byYear series, street groupings and medians, the recent-sale set by transaction id, and the trailing-3-year count. All divergence traced to Land Registry deletions and amendments between snapshots; worst district median moved 1.12%.
+- **NOT verified against any baseline**: every sector median, count and CI, and the serve/warn/none divergence classification. The SPARQL spine had no sector concept, so no baseline exists by construction. The sector grain is instead checked by independent recomputation from the raw CSVs down a separate code path (`~/Documents/ppd-agg/verify-sectors.mjs`), plus reconciliation of sector counts to district counts.
+- **NOT verifiable at all** from the frozen corpus: `paon`, `saon`, `town`, `propertyType` and `tenure` on recent sales. The cache dump projected those fields away, so no comparison is possible — they rest on the parser mirroring `lib/brief/transactions.js`, not on measurement.
 
 ## Section render states (every section, no exceptions)
 - DATA: full section with real figures + source footnote.
