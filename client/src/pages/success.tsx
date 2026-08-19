@@ -22,7 +22,7 @@ export default function SuccessPage() {
 
   const { user } = useAuth();
   const [plan, setPlan] = useState<"professional" | "investor" | null>(null);
-  // The £14.99 one-off Full Brief carries its owned district as ?fullbrief=<OUTCODE> and
+  // The £149 one-off Full Brief carries its owned district as ?fullbrief=<OUTCODE> and
   // the buyer's TYPED full postcode as ?pc=<POSTCODE> (both set by create-checkout's
   // success_url). It is NOT a subscription. outcode is the entitlement; pc drives routing.
   const [fullBrief, setFullBrief] = useState<string | null>(null);

@@ -3,7 +3,7 @@ Build contract. Paste at the top of every pricing session. Scope: Stripe product
 
 ## The new structure (ships as ONE coherent event)
 - EXPLORER — free. 2 briefs/month (changed from 3). Area screening. The funnel.
-- FULL BRIEF — £14.99 one-off. The complete Investor-depth brief for ONE postcode, permanently owned, auto-saved to the buyer's account. THE HERO for buyer traffic.
+- FULL BRIEF — £149 one-off. The complete Investor-depth brief for ONE postcode, permanently owned, auto-saved to the buyer's account. THE HERO for buyer traffic.
 - INVESTOR — £39.99/mo unchanged. Unlimited everything + portfolio + cross-area tools. The professional product.
 - PROFESSIONAL (£4.99/mo) — RETIRED: removed from the page, no new signups. Existing PRO subscribers GRANDFATHERED (keep PRO until they cancel; Stripe subscriptions untouched; PRO tier stays in the entitlement config for them and for depth-variant machinery — it just stops being sold).
 
@@ -26,7 +26,7 @@ Build contract. Paste at the top of every pricing session. Scope: Stripe product
 
 ## Quota change
 - EXPLORER_MONTHLY_QUOTA: 3 → 2 (the named constant). Ships in the same deploy as the one-off — never before it.
-- The quota wall and locked-preview CTAs updated to offer BOTH paths contextually: "Get the full brief on this postcode — £14.99, yours permanently" alongside the Investor subscription. Wall copy stays sell-not-scold.
+- The quota wall and locked-preview CTAs updated to offer BOTH paths contextually: "Get the full brief on this postcode — £149, yours permanently" alongside the Investor subscription. Wall copy stays sell-not-scold.
 
 ## Pricing page redesign
 - Three offers, hierarchy: Full Brief heroed for buyer traffic; Explorer as the taste; Investor as the professional tier.
@@ -39,13 +39,13 @@ Build contract. Paste at the top of every pricing session. Scope: Stripe product
 - When built: server-rendered from the tier-filtered payload (the gating rule), for Full Brief owners (owned postcodes) + Investor (any generated brief). Function budget: 6/12 — room exists.
 
 ## Out of scope
-Credit pack (5 for £39.99) — deferred until the £14.99 proves itself. Ad changes — after one clean week of data. Trust-model — done. Guide rewrites — Bradley + Claude chat, separately.
+Credit pack (5 for £39.99) — deferred until the £149 proves itself. Ad changes — after one clean week of data. Trust-model — done. Guide rewrites — Bradley + Claude chat, separately.
 
 ## Verification gates (non-negotiable, in order)
 1. Stripe products verified in the LIVE dashboard (IDs, mode, amount) before code references them.
 2. TEST MODE end-to-end: sign in → buy (test card) → webhook → entitlement row → full brief served for that postcode → auto-saved in library → OTHER postcodes still gated → quota untouched → repeat-purchase of the same postcode handled sanely (blocked or idempotent — propose which).
 3. Anonymous buy attempt → routed through sign-in, then completes correctly.
-4. LIVE purchase: real £14.99, real card, full chain verified, then refunded via Stripe. The refund does NOT need to auto-revoke in v1 — log revocation handling as a ledger item, propose the manual process.
+4. LIVE purchase: real £149, real card, full chain verified, then refunded via Stripe. The refund does NOT need to auto-revoke in v1 — log revocation handling as a ledger item, propose the manual process.
 5. Quota: fresh account walls after 2; wall shows both paths.
 6. Existing PRO and INV accounts: behaviour identical before/after (grandfathering proven).
 7. Harnesses green including the extended payload-grep. Branch → preview → all gates → master. Rollback stated before merge.

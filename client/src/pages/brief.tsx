@@ -263,7 +263,7 @@ function SectionHeading({
   children: React.ReactNode;
 }) {
   // DELIBERATE entitled-view change (tier-badge cleanup, commit 2/2): the tier badge is now
-  // removed EVERYWHERE, entitled included. A £14.99 owner resolves to INV and would otherwise
+  // removed EVERYWHERE, entitled included. A £149 owner resolves to INV and would otherwise
   // see "PRO"/"INV" on sections they've just unlocked — reading as "tiers I still don't have"
   // exactly when the purchase should feel complete; the badge names a tier the viewer can't
   // act on. `tier` stays in the prop type (call sites still pass it) but is no longer
@@ -282,14 +282,14 @@ const FULL_BRIEF_BANNER_ID = "full-brief-unlock";
 
 // ── "In the full brief" tag ──────────────────────────────────────────────────
 // The calm marker on a locked section. Tapping scrolls to the single unlock banner
-// at the top of the brief (the £14.99 Full Brief / Investor CTA lives there).
+// at the top of the brief (the £149 Full Brief / Investor CTA lives there).
 function InFullBriefTag() {
   return (
     <button
       type="button"
       onClick={() => {
         // Scroll to the single unlock banner (Explorer). If it isn't present — e.g. a
-        // grandfathered Professional, for whom the £14.99 banner is hidden — fall back
+        // grandfathered Professional, for whom the £149 banner is hidden — fall back
         // to the plans page (Investor) rather than a dead tap.
         const el = document.getElementById(FULL_BRIEF_BANNER_ID);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -315,7 +315,7 @@ const BriefLocationContext = createContext<{ outcode: string; postcode: string; 
 // ── Free-view truncation (step 2) ──────────────────────────────────────────────
 // A semi-hidden section shows its leading rows, fades the tail (SCREEN ONLY — fades don't
 // print), and appends a count line naming what's missing. No button (only the keep-cards +
-// the collapse block carry the CTA); the £14.99 price rides along as a PRINT-ONLY line so
+// the collapse block carry the CTA); the £149 price rides along as a PRINT-ONLY line so
 // it still appears on paper (FIX 1 pattern). None of this renders for entitled viewers.
 function FadeTail({ children }: { children: React.ReactNode }) {
   return (
@@ -334,10 +334,10 @@ function CountLine({ line }: { line: string }) {
   );
 }
 
-// Print-only price line — fades and the on-screen CTA don't print, so carry the £14.99 on
+// Print-only price line — fades and the on-screen CTA don't print, so carry the £149 on
 // paper (FIX 1 pattern). One per truncated section.
 function PrintPrice({ outcode }: { outcode: string }) {
-  return <p className="print-only mt-1 text-xs font-semibold text-foreground">Unlock {outcode} — £14.99</p>;
+  return <p className="print-only mt-1 text-xs font-semibold text-foreground">Unlock {outcode} — £149</p>;
 }
 
 function MoreLine({ line, outcode }: { line: string; outcode: string }) {
@@ -359,7 +359,7 @@ function TruncatedFade({ line, outcode, children }: { line: string; outcode: str
 }
 
 // ── Per-locked-card unlock CTA ─────────────────────────────────────────────────
-// The real £14.99 one-off unlock, on the card itself. Reuses the SINGLE existing
+// The real £149 one-off unlock, on the card itself. Reuses the SINGLE existing
 // checkout entry point (startFullBriefCheckout) — no new route, endpoint or Stripe
 // call — with the same signed-in / already-owned / error handling as the top banner
 // (SaveBriefAffordance). Shown to any NON-ENTITLED viewer of this card — EXP (free) and
@@ -397,13 +397,13 @@ function LockedCardCta({ outcode, postcode }: { outcode: string; postcode: strin
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <>Unlock {outcode} — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+            <>Unlock {outcode} — £149<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
           )}
         </Button>
         {/* Print hides <button> (index.css @media print), so the price would vanish on
             paper. Carry the SAME label as a print-only line — screen render is unchanged
             (.print-only is display:none on screen, block in print). */}
-        <p className="print-only text-sm font-semibold text-foreground">Unlock {outcode} — £14.99</p>
+        <p className="print-only text-sm font-semibold text-foreground">Unlock {outcode} — £149</p>
         <p className="text-[11px] text-muted-foreground">
           Unlocks every postcode in {outcode} — as many properties as you view, permanently.
         </p>
@@ -423,7 +423,7 @@ export function LockedSection({ section }: { section: BriefSection }) {
   const tier = section.requiredTier ?? section.minTier;
   const loc = useContext(BriefLocationContext);
   // Only EXP and PRO viewers ever reach a locked card (INV/owner are entitled to
-  // everything), so tier !== "INV" == "a non-entitled viewer who can buy the £14.99
+  // everything), so tier !== "INV" == "a non-entitled viewer who can buy the £149
   // one-off to unlock this outcode". Fall back to the calm tag only if context is absent.
   return (
     <Card className="relative overflow-hidden border-dashed p-6">
@@ -516,7 +516,7 @@ function renderSection(
 
 // FIX 2: the single collapsed block that replaces the wall of locked cards. Lists the
 // remaining locked sections by their EXISTING titles (no wording change) + one shared
-// £14.99 CTA for the whole block. Renders only when there are collapsed sections — i.e.
+// £149 CTA for the whole block. Renders only when there are collapsed sections — i.e.
 // never in the entitled view, so the entitled view stays byte-identical.
 function AlsoInFullBrief({ sections }: { sections: BriefSection[] }) {
   const loc = useContext(BriefLocationContext);
@@ -597,7 +597,7 @@ function QuotaFunnel({ quota }: { quota?: QuotaStatus }) {
 }
 
 // ── Over-quota screen — clean, not an error ──────────────────────────────────
-// Sell-not-scold, contextual to the postcode they just tried. Both paths: the £14.99
+// Sell-not-scold, contextual to the postcode they just tried. Both paths: the £149
 // Full Brief on THIS district (hero) + Investor unlimited. If the tried postcode isn't
 // purchasable (empty outcode), the generic "any postcode" variant renders instead so
 // the buy button never targets nothing.
@@ -654,13 +654,13 @@ function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <>Unlock {outcode} — £14.99<ArrowRight className="h-4 w-4" /></>
+              <>Unlock {outcode} — £149<ArrowRight className="h-4 w-4" /></>
             )}
           </Button>
         ) : (
           <Link href="/pricing">
             <Button className="gap-1.5 font-semibold" data-testid="button-wall-full-brief">
-              Get the full brief — £14.99
+              Get the full brief — £149
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -1064,7 +1064,7 @@ export function PricesSection({ section }: { section: BriefSection }) {
               </span>
             </p>
             {/* FIX 4: Pre-Offer & Negotiation is the highest-value locked content, so it
-                gets the real £14.99 unlock CTA (not just the scroll-to-banner tag). */}
+                gets the real £149 unlock CTA (not just the scroll-to-banner tag). */}
             <div className="mt-3">
               {loc && loc.tier !== "INV"
                 ? <LockedCardCta outcode={outcode} postcode={postcode} />
@@ -2766,7 +2766,7 @@ function NeighbourhoodSection({ section }: { section: BriefSection }) {
         </div>
       </div>
 
-      {/* One print-only £14.99 for the whole section (per-card lines carry the counts). */}
+      {/* One print-only £149 for the whole section (per-card lines carry the counts). */}
       {!entitled && <PrintPrice outcode={outcode} />}
 
       {/* Resident sentiment — folded, labelled, dated qualitative sub-block */}
@@ -3280,7 +3280,7 @@ function ErrorState({ error }: { error: { code: string; message: string } }) {
 }
 
 // ── Save / own affordance ────────────────────────────────────────────────────
-// The £14.99 one-off "save this brief permanently" surface. Owned → a calm ownership
+// The £149 one-off "save this brief permanently" surface. Owned → a calm ownership
 // confirmation. Not owned → a LOCKED upsell (shown, not hidden) that starts the Full
 // Brief checkout for THIS district. Anonymous → the same button opens sign-in first.
 // NOTE: final CTA/upsell wording is finalised in Step 5 (the wall/CTA copy propose-gate);
@@ -3303,7 +3303,7 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
     );
   }
 
-  // The £14.99 upsell is ONLY for Explorer-tier (free) viewers who don't own this
+  // The £149 upsell is ONLY for Explorer-tier (free) viewers who don't own this
   // district. A subscriber whose PLAN already grants full/higher depth — Investor, or a
   // grandfathered Professional — must never be shown a one-off upsell for access they
   // already have. Their brief is served at their plan tier, so tier is PRO/INV here
@@ -3345,7 +3345,7 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <>Unlock {outcode} — £14.99<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
+              <>Unlock {outcode} — £149<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></>
             )}
           </Button>
         </div>

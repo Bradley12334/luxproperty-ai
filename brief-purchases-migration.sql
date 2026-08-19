@@ -1,7 +1,7 @@
 -- brief-purchases-migration.sql  (pricing restructure; NEW table, no existing schema touched)
 -- Applied: 2026-07-25 via Supabase MCP (migration name: create_brief_purchases)
 -- ─────────────────────────────────────────────────────────────────────────────
--- ONE-OFF FULL BRIEF OWNERSHIP — the £14.99 permanent, per-postcode purchase.
+-- ONE-OFF FULL BRIEF OWNERSHIP — the £149 permanent, per-postcode purchase.
 --
 -- WHY A NEW TABLE (not postcode_entitlements):
 --   postcode_entitlements already models per-outcode paid access, but (a) it has NO
@@ -30,7 +30,7 @@ create table if not exists public.brief_purchases (
   user_id            uuid        not null references public.users(id) on delete cascade,
   outcode            text        not null,               -- normalised district, e.g. "SW1A"
   stripe_session_id  text        not null unique,        -- idempotency: Stripe retries the webhook
-  amount_paid        integer,                             -- pence, audit (1499)
+  amount_paid        integer,                             -- pence, audit (14900)
   currency           text,                                -- audit ("gbp")
   granted_at         timestamptz not null default now()
 );

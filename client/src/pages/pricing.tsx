@@ -9,7 +9,7 @@ import { useCheckout } from "@/hooks/use-checkout";
 import { track } from "@/lib/analytics";
 import { VerdictCard, LockedSection, type BriefSection } from "@/pages/brief";
 
-// Three offers. Full Brief (£14.99 one-off) is the hero for buyer traffic; Explorer is
+// Three offers. Full Brief (£149 one-off) is the hero for buyer traffic; Explorer is
 // the free taste; Investor is the professional tier. Professional (£4.99/mo) is RETIRED —
 // removed from the page, no new signups (existing subscribers grandfathered elsewhere).
 const tiers = [
@@ -27,7 +27,7 @@ const tiers = [
   },
   {
     name: "Full Brief",
-    price: "£14.99",
+    price: "£149",
     period: "one-off · one postcode",
     description: "The complete brief for one postcode at full Investor depth — comparable sold prices, pre-offer strategy, 10-year trend, letting economics, sold-prices map and more. Yours permanently, auto-saved to your account. Screen free, then unlock the postcode you're serious about.",
     badge: "Most buyers start here",
@@ -103,7 +103,7 @@ const features: FeatureRow[] = [
 const faqs = [
   {
     q: "Is the Full Brief a subscription?",
-    a: "No. It's a one-off £14.99 payment for one postcode, and you own that brief forever — revisit and regenerate it free any time. Nothing recurring, nothing to cancel.",
+    a: "No. It's a one-off £149 payment for one postcode, and you own that brief forever — revisit and regenerate it free any time. Nothing recurring, nothing to cancel.",
   },
   {
     q: "Who is the Full Brief for?",
@@ -222,7 +222,7 @@ function RealProductShowcase() {
 }
 
 export default function PricingPage() {
-  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 2 briefs/month. Full Brief £14.99 one-off. Investor at £39.99/month. No contracts, cancel anytime.");
+  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 2 briefs/month. Full Brief £149 one-off. Investor at £39.99/month. No contracts, cancel anytime.");
   const { startCheckout, authModal } = useCheckout();
   const [, navigate] = useLocation();
   return (
@@ -241,7 +241,7 @@ export default function PricingPage() {
               Screen free. Own the brief that matters.
             </h1>
             <p className="text-muted-foreground text-base max-w-xl">
-              Screen any UK postcode free. When you're serious about one, unlock its complete brief — comparable sales, pre-offer strategy, risk flags and more — for £14.99, yours permanently. No subscription needed.
+              Screen any UK postcode free. When you're serious about one, unlock its complete brief — comparable sales, pre-offer strategy, risk flags and more — for £149, yours permanently. No subscription needed.
             </p>
           </div>
         </section>
@@ -317,7 +317,7 @@ export default function PricingPage() {
                         } else if (isFullBrief) {
                           // Full Brief is bought per-postcode from within a brief, so route
                           // to the app to screen first — carrying intent so the landing page
-                          // foregrounds the postcode field and the £14.99 unlock framing.
+                          // foregrounds the postcode field and the £149 unlock framing.
                           track("fullbrief_cta_click");
                           navigate("/?intent=fullbrief");
                         } else {
@@ -493,7 +493,7 @@ export default function PricingPage() {
               Screen any UK postcode free. When you find the one, unlock its complete brief — comparable sales, pre-offer strategy, price history, risk flags and more — yours permanently.
             </p>
             <p className="text-sm font-semibold text-primary mb-6">
-              £14.99, one-off. No subscription. Owned forever.
+              £149, one-off. No subscription. Owned forever.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <div className="flex flex-col items-center gap-1.5">
@@ -509,7 +509,7 @@ export default function PricingPage() {
                 </Link>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Lock className="h-3 w-3" />
-                  No card to screen. Unlock the full brief for £14.99 when you're ready.
+                  No card to screen. Unlock the full brief for £149 when you're ready.
                 </span>
               </div>
               <a

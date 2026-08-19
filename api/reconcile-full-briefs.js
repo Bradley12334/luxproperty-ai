@@ -3,7 +3,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * SAFETY NET for the money path. If a checkout.session.completed webhook is ever missed
  * (delivery failure, downtime, endpoint misconfig — all of which we have seen), a buyer
- * must NEVER be left having paid £14.99 with no grant. This endpoint finds paid Full Brief
+ * must NEVER be left having paid £149 with no grant. This endpoint finds paid Full Brief
  * Checkout Sessions that have NO brief_purchases row and grants them, reusing grantFullBrief
  * UNCHANGED. It is purely additive: it does not alter the webhook, checkout, or entitlement.
  *

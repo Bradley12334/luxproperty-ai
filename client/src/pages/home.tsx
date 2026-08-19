@@ -27,7 +27,7 @@ import { validatePostcodeInput } from "@/lib/postcodeValidation";
 import { track } from "@/lib/analytics";
 
 export default function Home() {
-  useDocumentTitle("", "Honest property intelligence for UK buyers. Screen any postcode free, then own the complete brief for £14.99 — comparable sold prices, pre-offer strategy and risk flags, built only on official UK data.");
+  useDocumentTitle("", "Honest property intelligence for UK buyers. Screen any postcode free, then own the complete brief for £149 — comparable sold prices, pre-offer strategy and risk flags, built only on official UK data.");
   const [query, setQuery] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [, navigate] = useLocation();
@@ -35,7 +35,7 @@ export default function Home() {
 
   // Full Brief intent — set by the pricing CTAs (/?intent=fullbrief). Read client-side
   // only; the "/" route matches with any query string, so no server/routing change.
-  // In this mode the hero foregrounds the £14.99 unlock and the postcode field, but the
+  // In this mode the hero foregrounds the £149 unlock and the postcode field, but the
   // free screen stays the CTA — the free brief IS the demo; the in-brief banner sells.
   const intent =
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("intent") : null;
@@ -83,8 +83,8 @@ export default function Home() {
                 </h1>
                 <p className="mt-5 text-[15px] text-foreground/60 leading-relaxed max-w-[440px]">
                   {fullBriefIntent
-                    ? "Start with a free area screen on the postcode you're serious about — then unlock its complete brief for £14.99, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices."
-                    : "Screen any UK postcode free and get an instant area verdict — Good fit, Mixed, or Limited. Serious about one? Unlock its complete brief for £14.99, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices."}
+                    ? "Start with a free area screen on the postcode you're serious about — then unlock its complete brief for £149, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices."
+                    : "Screen any UK postcode free and get an instant area verdict — Good fit, Mixed, or Limited. Serious about one? Unlock its complete brief for £149, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices."}
                 </p>
 
                 <form
@@ -691,7 +691,7 @@ export default function Home() {
               Screen free. Own the brief that matters.
             </h2>
             <p className="text-[13px] text-foreground/50 mb-10 max-w-md">
-              Start free. Own the complete brief on the postcode that matters — £14.99, one-off. Or go unlimited with Investor.
+              Start free. Own the complete brief on the postcode that matters — £149, one-off. Or go unlimited with Investor.
             </p>
 
             {/* Cards: Explorer and Investor sit slightly lower visually */}
@@ -745,7 +745,7 @@ export default function Home() {
                 </span>
                 <h3 className="text-[13px] font-semibold text-foreground mb-4">Full Brief</h3>
                 <div className="mb-1">
-                  <span className="font-serif text-3xl tracking-tight text-foreground">£14.99</span>
+                  <span className="font-serif text-3xl tracking-tight text-foreground">£149</span>
                   <span className="text-sm text-foreground/40 ml-0.5">one-off</span>
                 </div>
                 <p className="text-[12px] text-foreground/50 mb-5 leading-relaxed">
@@ -776,7 +776,7 @@ export default function Home() {
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                 >
-                  Get the Full Brief — £14.99
+                  Get the Full Brief — £149
                 </Button>
                 <p className="mt-2 text-[10px] text-foreground/30 text-center">One-off payment · No subscription · Owned forever</p>
               </div>
@@ -836,7 +836,7 @@ export default function Home() {
               Know what you're buying into. Before you offer.
             </h2>
             <p className="text-[14px] text-foreground/45 mb-9 max-w-md mx-auto leading-relaxed">
-              Screen any UK postcode free. When you find the one, own its complete brief for £14.99 — permanently.
+              Screen any UK postcode free. When you find the one, own its complete brief for £149 — permanently.
             </p>
             <Button
               size="lg"

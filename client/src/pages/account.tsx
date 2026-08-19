@@ -31,7 +31,7 @@ const planDetails = {
     features: ["2 briefs per month", "Area screening brief — Good fit / Mixed / Limited fit", "Market overview (average price & YoY change)", "1-year price trend (Land Registry)", "Neighbourhood profile — schools, transport, walkability", "Flood risk & council tax band", "Named stations, schools & amenities"],
     upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
     upgradeTo: "Investor — £39.99/month",
-    upgradeDescription: "Want the full picture on one postcode? Run its brief and unlock it for £14.99 — yours permanently. Or go unlimited across every postcode with Investor: comparable sales, 10-year trends, sold-prices maps and a portfolio dashboard.",
+    upgradeDescription: "Want the full picture on one postcode? Run its brief and unlock it for £149 — yours permanently. Or go unlimited across every postcode with Investor: comparable sales, 10-year trends, sold-prices maps and a portfolio dashboard.",
   },
   professional: {
     label: "Professional",
@@ -262,7 +262,7 @@ export default function AccountPage() {
               )}
             </Card>
 
-            {/* My briefs — owned Full Briefs (£14.99 one-off purchases). Distinct from
+            {/* My briefs — owned Full Briefs (£149 one-off purchases). Distinct from
                 the Investor portfolio: this is "postcodes you own & revisit free", not the
                 compare/track toolset. Always shown — free users see the locked upsell. */}
             <Card className="p-5 sm:p-6">
@@ -368,7 +368,7 @@ export default function AccountPage() {
                     <div>
                       <p className="text-sm text-foreground/80 mb-1">You don't own any full briefs yet.</p>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        Screen any UK postcode free, then unlock its complete Investor-depth brief for £14.99 — yours permanently, saved here.
+                        Screen any UK postcode free, then unlock its complete Investor-depth brief for £149 — yours permanently, saved here.
                       </p>
                     </div>
                   </div>

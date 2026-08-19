@@ -93,7 +93,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, verifyEmailRequired: true });
   }
 
-  // ── Full Brief ownership (the £14.99 one-off) ───────────────────────────────
+  // ── Full Brief ownership (the £149 one-off) ───────────────────────────────
   // If this account OWNS the Full Brief for the requested district, it is served at
   // INVESTOR depth regardless of plan, and the generation NEVER consumes free quota
   // (owned regen is free forever). Ownership is keyed by outcode, derived here without
@@ -152,7 +152,7 @@ export default async function handler(req, res) {
     // Clean, non-error over-quota response — NOT a 4xx, NOT a bypass. The client
     // (OverQuotaScreen) composes the wall copy — single source of truth — from this
     // contextual data. `requested.outcode` is non-empty for a plausible postcode and
-    // drives the "full {PC} brief — £14.99" variant; empty (garbage input) → the
+    // drives the "full {PC} brief — £149" variant; empty (garbage input) → the
     // generic "any postcode" variant so the buy button never targets nothing.
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({

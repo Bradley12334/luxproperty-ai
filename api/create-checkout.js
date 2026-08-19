@@ -4,7 +4,7 @@
  * POST /api/create-checkout   body: { postcode }
  * Auth: Authorization: Bearer <session token>   (server-verified; NO client userId)
  *
- * Mints a PAYMENT-MODE Stripe Checkout Session for the £14.99 one-off Full Brief on a
+ * Mints a PAYMENT-MODE Stripe Checkout Session for the £149 one-off Full Brief on a
  * specific postcode's district (outcode). Unlike the static Payment Links used for the
  * subscriptions, a server-created session lets us embed:
  *   - client_reference_id = the VERIFIED userId (the webhook grants this exact account)

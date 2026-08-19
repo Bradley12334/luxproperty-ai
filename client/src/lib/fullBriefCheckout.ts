@@ -1,5 +1,5 @@
 // ─── Full Brief one-off checkout (client wiring) ─────────────────────────────
-// The ONE sanctioned way to start a £14.99 Full Brief purchase for a postcode.
+// The ONE sanctioned way to start a £149 Full Brief purchase for a postcode.
 // Calls the server (POST /api/create-checkout) with the VERIFIED session token —
 // never a client userId — and returns a discriminated result the caller renders:
 //
