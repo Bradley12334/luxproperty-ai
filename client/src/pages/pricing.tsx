@@ -3,9 +3,10 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Check, Minus, Star, Lock, Loader2 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useCheckout } from "@/hooks/use-checkout";
+import { track } from "@/lib/analytics";
 import { VerdictCard, LockedSection, type BriefSection } from "@/pages/brief";
 
 // Three offers. Full Brief (£14.99 one-off) is the hero for buyer traffic; Explorer is
@@ -31,7 +32,7 @@ const tiers = [
     description: "The complete brief for one postcode at full Investor depth — comparable sold prices, pre-offer strategy, 10-year trend, letting economics, sold-prices map and more. Yours permanently, auto-saved to your account. Screen free, then unlock the postcode you're serious about.",
     badge: "Most buyers start here",
     style: "fullbrief",
-    cta: "Screen a postcode",
+    cta: "Choose your postcode to unlock",
     ctaVariant: "default" as const,
     stripeUrl: null, // a Full Brief is bought per-postcode from its brief, so route to the app first
     reassurance: "One-off payment. No subscription. Owned forever — revisit and regenerate free.",
@@ -223,6 +224,7 @@ function RealProductShowcase() {
 export default function PricingPage() {
   useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 2 briefs/month. Full Brief £14.99 one-off. Investor at £39.99/month. No contracts, cancel anytime.");
   const { startCheckout, authModal } = useCheckout();
+  const [, navigate] = useLocation();
   return (
     <div className="flex min-h-screen flex-col">
       {authModal}
@@ -312,8 +314,15 @@ export default function PricingPage() {
                       onClick={() => {
                         if (tier.stripeUrl) {
                           startCheckout(tier.stripeUrl);
+                        } else if (isFullBrief) {
+                          // Full Brief is bought per-postcode from within a brief, so route
+                          // to the app to screen first — carrying intent so the landing page
+                          // foregrounds the postcode field and the £14.99 unlock framing.
+                          track("fullbrief_cta_click");
+                          navigate("/?intent=fullbrief");
                         } else {
-                          window.location.href = "/";
+                          // Explorer (free) — straight to the app to screen a postcode.
+                          navigate("/");
                         }
                       }}
                     >
@@ -488,8 +497,13 @@ export default function PricingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <div className="flex flex-col items-center gap-1.5">
-                <Link href="/">
-                  <Button size="lg" className="text-sm font-semibold px-8 w-full sm:w-auto" data-testid="button-start-full-brief">
+                <Link href="/?intent=fullbrief">
+                  <Button
+                    size="lg"
+                    className="text-sm font-semibold px-8 w-full sm:w-auto"
+                    data-testid="button-start-full-brief"
+                    onClick={() => track("fullbrief_cta_click")}
+                  >
                     Screen a postcode free
                   </Button>
                 </Link>

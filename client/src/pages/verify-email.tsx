@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { refreshUser } from "@/lib/authStore";
+import { track } from "@/lib/analytics";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 /**
@@ -42,6 +43,7 @@ export default function VerifyEmailPage() {
         }
         // Pull the updated record so emailVerified is true in this session too.
         await refreshUser();
+        track("verification_completed");
         setStatus("ok");
       } catch {
         setStatus("error");

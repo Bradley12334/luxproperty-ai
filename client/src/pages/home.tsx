@@ -24,6 +24,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { validatePostcodeInput } from "@/lib/postcodeValidation";
+import { track } from "@/lib/analytics";
 
 export default function Home() {
   useDocumentTitle("", "Honest property intelligence for UK buyers. Screen any postcode free, then own the complete brief for £14.99 — comparable sold prices, pre-offer strategy and risk flags, built only on official UK data.");
@@ -31,6 +32,14 @@ export default function Home() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { startCheckout, authModal } = useCheckout();
+
+  // Full Brief intent — set by the pricing CTAs (/?intent=fullbrief). Read client-side
+  // only; the "/" route matches with any query string, so no server/routing change.
+  // In this mode the hero foregrounds the £14.99 unlock and the postcode field, but the
+  // free screen stays the CTA — the free brief IS the demo; the in-brief banner sells.
+  const intent =
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("intent") : null;
+  const fullBriefIntent = intent === "fullbrief";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +51,7 @@ export default function Home() {
       setValidationError(check.reason);
       return;
     }
+    track("postcode_entered", { intent: intent ?? "none" });
     navigate(`/brief/${encodeURIComponent(trimmed)}`);
   };
 
@@ -72,7 +82,9 @@ export default function Home() {
                   <em className="text-primary not-italic">Before you offer.</em>
                 </h1>
                 <p className="mt-5 text-[15px] text-foreground/60 leading-relaxed max-w-[440px]">
-                  Screen any UK postcode free and get an instant area verdict — Good fit, Mixed, or Limited. Serious about one? Unlock its complete brief for £14.99, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices.
+                  {fullBriefIntent
+                    ? "Start with a free area screen on the postcode you're serious about — then unlock its complete brief for £14.99, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices."
+                    : "Screen any UK postcode free and get an instant area verdict — Good fit, Mixed, or Limited. Serious about one? Unlock its complete brief for £14.99, yours permanently. Every figure traces to HM Land Registry, police.uk, Ofsted and the Environment Agency. No AI estimates. No portal prices."}
                 </p>
 
                 <form
@@ -86,6 +98,7 @@ export default function Home() {
                       type="text"
                       placeholder="SW3 1AA, LS6 2EX, RG1 2AB…"
                       value={query}
+                      autoFocus={fullBriefIntent}
                       onChange={(e) => {
                         setQuery(e.target.value);
                         if (validationError) setValidationError(null);
@@ -101,7 +114,7 @@ export default function Home() {
                     className="h-12 px-6 text-[13px] font-semibold tracking-wide shrink-0"
                     data-testid="button-generate"
                   >
-                    Generate Free Brief <ArrowRight className="ml-1.5 h-4 w-4" />
+                    {fullBriefIntent ? "See the free brief" : "Generate Free Brief"} <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
                 </form>
 

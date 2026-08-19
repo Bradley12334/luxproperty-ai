@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type FormEvent } from "
 import { useParams, Link, useLocation } from "wouter";
 import { authHeader, getUser } from "@/lib/authStore";
 import { startFullBriefCheckout } from "@/lib/fullBriefCheckout";
+import { track } from "@/lib/analytics";
 import { AuthModal } from "@/components/auth-modal";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -350,7 +351,7 @@ function LockedCardCta({ outcode, postcode }: { outcode: string; postcode: strin
     if (busy) return;
     setBusy(true);
     setNote(null);
-    const r = await startFullBriefCheckout(postcode);
+    const r = await startFullBriefCheckout(postcode, outcode);
     if (r.status === "redirecting") return; // navigating to Stripe — keep the spinner
     if (r.status === "signin-required") { setAuthOpen(true); setBusy(false); return; }
     if (r.status === "already-owned") { navigate(`/brief/${encodeURIComponent(r.outcode || outcode)}`); return; }
@@ -589,7 +590,7 @@ function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
     if (busy) return;
     setBusy(true);
     setNote(null);
-    const r = await startFullBriefCheckout(postcode);
+    const r = await startFullBriefCheckout(postcode, outcode);
     if (r.status === "redirecting") return; // navigating to Stripe — keep the spinner
     if (r.status === "signin-required") { setAuthOpen(true); setBusy(false); return; }
     if (r.status === "already-owned") { window.location.href = `/brief/${encodeURIComponent(r.outcode || outcode)}`; return; }
@@ -3200,7 +3201,7 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
     if (busy) return;
     setBusy(true);
     setNote(null);
-    const r = await startFullBriefCheckout(postcode);
+    const r = await startFullBriefCheckout(postcode, outcode);
     if (r.status === "redirecting") return; // navigating to Stripe — keep the spinner
     if (r.status === "signin-required") { setAuthOpen(true); setBusy(false); return; }
     if (r.status === "already-owned") { navigate(`/brief/${encodeURIComponent(r.outcode || outcode)}`); return; }
@@ -3446,6 +3447,7 @@ export default function BriefPage() {
 
         // Signed in but email not confirmed: a clean 200 — show the verify-email state.
         if ("verifyEmailRequired" in json && json.verifyEmailRequired) {
+          track("verification_required_shown", { postcode: clean });
           setPayload(json as VerifyEmailResp);
           setStatus("done");
           return;
@@ -3462,6 +3464,7 @@ export default function BriefPage() {
           continue;
         }
 
+        track("brief_generated", { outcode: good.meta?.outcode, tier: good.meta?.tier });
         setPayload(good);
         setStatus("done");
         return;
