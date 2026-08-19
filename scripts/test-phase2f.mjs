@@ -24,7 +24,7 @@ import { buildPlanningActivitySection } from "../lib/brief/sections/planning-act
 import { buildDevelopmentTrackerSection } from "../lib/brief/sections/development-tracker.js";
 import { buildRentalDemandSection } from "../lib/brief/sections/rental-demand.js";
 import { fetchPlanning } from "../lib/brief/planning.js";
-import { fetchAmenities } from "../lib/brief/overpass.js";
+import { fetchPoiBundle } from "../lib/brief/poi-source.js";
 import { residentSentimentFor } from "../lib/brief/neighbourhood-sentiment.js";
 import { developmentSchemesFor } from "../lib/brief/development-schemes.js";
 
@@ -58,8 +58,8 @@ async function main() {
   check("no stats → UNAVAILABLE but still location-specific", exNull.state === "UNAVAILABLE" && exNull.data.paragraphs[0].includes("Hackney Central"));
 
   // ── Neighbourhood Profile (+ sentiment) — LIVE amenities/parks ──────────────
-  hr(); console.log("▶ Neighbourhood Profile — pure-function dimensions + curated sentiment (live Overpass)");
-  const amen = await fetchAmenities(E8);
+  hr(); console.log("▶ Neighbourhood Profile — pure-function dimensions + curated sentiment (local poi table)");
+  const amen = (await fetchPoiBundle(E8)).amenities;
   check("amenities+parks fetch ok", amen.ok === true);
   check("parks folded into amenities result", amen.groups.parks && amen.groups.parks.total >= 1);
   const stationsData = { stationsState: "found", nearest: { name: "Hackney Central", walkMins: 6 }, stations: [{ name: "Hackney Central", lines: ["Overground"], walkMins: 6, distanceMeters: 500 }, { name: "London Fields", lines: ["Overground"], walkMins: 12, distanceMeters: 1000 }] };
