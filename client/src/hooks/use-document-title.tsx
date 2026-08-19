@@ -3,7 +3,7 @@ import { useEffect } from "react";
 const SITE_NAME = "LuxProperty.ai";
 const BASE_URL = "https://www.luxproperty.ai";
 const DEFAULT_DESCRIPTION =
-  "AI-powered property intelligence for UK buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds — built on official HM Land Registry data.";
+  "Honest property intelligence for UK buyers. Enter any postcode or address and get a complete buyer intelligence brief in 60 seconds — built only on official UK data. No AI estimates. No portal prices.";
 
 /**
  * Sets <title>, <meta name="description">, <link rel="canonical">,
