@@ -46,9 +46,11 @@ export default function TermsPage() {
 
           <Section title="2. Description of service">
             <p>
-              LuxProperty.ai provides AI-assisted property reports based on
-              publicly available data from HM Land Registry and Postcodes.io. The Service
-              is provided for informational purposes only.
+              LuxProperty.ai provides property reports computed from official UK public
+              data — including HM Land Registry, Ofsted, police.uk, the Environment Agency,
+              DEFRA, Ofcom, ONS and Postcodes.io. Every figure is derived from those named
+              sources by fixed, stated rules; we do not generate AI estimates and we do not
+              use portal listings. The Service is provided for informational purposes only.
             </p>
             <p>
               The Service includes free and paid subscription tiers. Features available on
