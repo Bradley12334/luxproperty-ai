@@ -886,7 +886,7 @@ function ExecutiveSummarySection({ section }: { section: BriefSection }) {
 }
 
 // ── The rebuilt section: Prices, Trend & Negotiation ─────────────────────────
-function PricesSection({ section }: { section: BriefSection }) {
+export function PricesSection({ section }: { section: BriefSection }) {
   // Free view (step 2): the trend table is already server-trimmed to 1 year for EXP; add
   // the fade + count line. Entitled sees the full depth as today.
   const loc = useContext(BriefLocationContext);
@@ -964,33 +964,35 @@ function PricesSection({ section }: { section: BriefSection }) {
           </div>
         )}
 
-        {/* Too few sales to state a typical price. The recorded sales survive as
-            facts; the count and the SPREAD are stated so the list below cannot be
-            read as an implied average. marketOverview is null in this state. */}
-        {!mo && (
+        {/* EITHER the count-and-range variant OR the market overview — never both,
+            and never neither. `mo` is now guaranteed to be an object by
+            buildPricesSection, so nothing here can dereference null; which variant
+            shows is driven by mo.summaryWithheld, an explicit field, rather than by
+            the absence of data. The previous version rendered these as SIBLINGS and
+            white-screened every below-floor brief on mo.latestYear. */}
+        {mo.summaryWithheld ? (
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-            <Stat label="Recorded sales" value={String(section.data.totalTransactions ?? 0)} sub="in this district" />
+            <Stat label="Recorded sales" value={String(mo.totalTransactions ?? 0)} sub="in this district" />
             {priceRange && (
               <Stat label="Range of those sales" value={`${priceRange.low.formatted} – ${priceRange.high.formatted}`} sub="lowest to highest" />
             )}
+            <Stat label="Confidence" value={cap(mo.confidence.level)} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            <Stat label={`${mo.latestYear.year} median`} value={mo.latestYear.median.formatted} sub={`${mo.latestYear.count} sales`} />
+            {/* Label from the true data-window start (meta.window), NOT the visible trend's
+                first row — for a free viewer the trend is trimmed to 1yr, so trend.rows[0].year
+                was 2025 while windowMedian is the full-window (2016–2025) median. */}
+            <Stat label={`${win?.startYear ?? trend.rows[0].year}–${mo.latestYear.year} median`} value={mo.windowMedian.formatted} sub={`${mo.totalTransactions} sales`} />
+            <div className="space-y-1">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Year-on-year</div>
+              <YoYFigure pct={mo.yoyChange} />
+              <div className="text-xs text-muted-foreground">vs {mo.previousYear.year}</div>
+            </div>
+            <Stat label="Confidence" value={cap(mo.confidence.level)} />
           </div>
         )}
-
-        {/* Market overview */}
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-          <Stat label={`${mo.latestYear.year} median`} value={mo.latestYear.median.formatted} sub={`${mo.latestYear.count} sales`} />
-          {/* Label from the true data-window start (meta.window), NOT the visible trend's
-              first row — for a free viewer the trend is trimmed to 1yr, so trend.rows[0].year
-              was 2025 while windowMedian is the full-window (2016–2025) median. Entitled is
-              unchanged: win.startYear === trend.rows[0].year when the full trend is shown. */}
-          <Stat label={`${win?.startYear ?? trend.rows[0].year}–${mo.latestYear.year} median`} value={mo.windowMedian.formatted} sub={`${mo.totalTransactions} sales`} />
-          <div className="space-y-1">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Year-on-year</div>
-            <YoYFigure pct={mo.yoyChange} />
-            <div className="text-xs text-muted-foreground">vs {mo.previousYear.year}</div>
-          </div>
-          <Stat label="Confidence" value={cap(mo.confidence.level)} />
-        </div>
         <p className="mt-4 text-xs text-muted-foreground">{mo.confidence.note}</p>
       </div>
 
@@ -1174,7 +1176,7 @@ function SoldPriceRow({ item }: { item: SoldItem }) {
   );
 }
 
-function NearbySoldPricesSection({ section }: { section: BriefSection }) {
+export function NearbySoldPricesSection({ section }: { section: BriefSection }) {
   if (section.state === "UNAVAILABLE") {
     return (
       <Card className="p-6">
@@ -1280,7 +1282,7 @@ function StreetList({ rows }: { rows: StreetRow[] }) {
   );
 }
 
-function StreetRankingSection({ section }: { section: BriefSection }) {
+export function StreetRankingSection({ section }: { section: BriefSection }) {
   if (section.state === "UNAVAILABLE") {
     return (
       <Card className="p-6">
@@ -1352,7 +1354,7 @@ const TIER_DOT: Record<string, string> = {
   high: "#a855f7",
 };
 
-function SoldPricesMapSection({ section }: { section: BriefSection }) {
+export function SoldPricesMapSection({ section }: { section: BriefSection }) {
   if (section.state === "UNAVAILABLE") {
     return (
       <Card className="p-6">

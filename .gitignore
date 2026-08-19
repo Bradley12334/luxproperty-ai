@@ -10,3 +10,6 @@ data.db-wal
 
 # Claude Code local tooling (preview server config) — machine-local, not project state
 .claude/launch.json
+
+# esbuild bundle produced by scripts/test-client-render.mjs
+node_modules/.cache/
