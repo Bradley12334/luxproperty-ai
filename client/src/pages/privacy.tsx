@@ -29,7 +29,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-xs text-muted-foreground mb-10">
-            Last updated: 14 April 2026 · LuxProperty AI Ltd
+            Last updated: 21 August 2026 · LuxProperty AI Ltd
           </p>
 
           <div className="prose-like">
@@ -54,15 +54,22 @@ export default function PrivacyPage() {
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>
-                  <strong className="text-foreground">Search queries</strong> — postcode or address strings you enter
-                  into the search box. These are used to fetch data from HM Land Registry and
-                  Postcodes.io. They are processed in your browser and are not stored on our
-                  servers.
+                  <strong className="text-foreground">Search queries</strong> — the postcode or address you enter into
+                  the search box. This is sent to our servers, where your brief is built from
+                  official UK data sources; it is not processed only in your browser. We keep a
+                  record of the searches that produce a brief, in these categories: a usage
+                  record of which postcode district a brief was generated for and when (this is
+                  what enforces your monthly allowance), a purchase record if you buy a Full
+                  Brief for that district, any brief you choose to save to your portfolio, and
+                  — if you are not signed in — a short-lived cookie holding the postcode of your
+                  one free brief so it can be linked to an account if you sign up. We also keep
+                  the property data itself in a shared cache, which is keyed by postcode
+                  district and records nothing about who searched for it.
                 </li>
                 <li>
-                  <strong className="text-foreground">Price alert sign-ups</strong> — if you submit your email address
-                  for price alerts, we store that email and the associated postcode for the
-                  purpose of sending you alerts.
+                  <strong className="text-foreground">Account details</strong> — if you create an account, your name,
+                  email address and a securely hashed password. Your email address is also used
+                  to send service emails such as address verification and password resets.
                 </li>
                 <li>
                   <strong className="text-foreground">Payment data</strong> — if you subscribe to a paid plan, payment
@@ -70,9 +77,13 @@ export default function PrivacyPage() {
                   privacy policy applies to payment data.
                 </li>
                 <li>
-                  <strong className="text-foreground">Usage analytics</strong> — we may collect anonymised, aggregated
-                  usage data (page views, feature usage) via analytics tools. This data
-                  cannot be used to identify you individually.
+                  <strong className="text-foreground">Usage analytics and advertising tags</strong> — every page loads
+                  Google's tag, which runs both Google Analytics 4 and a Google Ads tag. These
+                  set identifiers in your browser and send them to Google along with your IP
+                  address and the pages you visit. This is not anonymous, aggregate-only data:
+                  those identifiers can be tied to a browser or device, and to a Google account
+                  where one is signed in. Our cookie banner controls Google's analytics storage
+                  only — declining it does not prevent the Google Ads tag from loading.
                 </li>
               </ul>
             </Section>
@@ -81,7 +92,7 @@ export default function PrivacyPage() {
               <p>We use the data we collect to:</p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>Generate property reports in response to your search queries</li>
-                <li>Send price alert notifications to your registered email address</li>
+                <li>Send service emails such as address verification and password resets</li>
                 <li>Process and manage your subscription (if applicable)</li>
                 <li>Improve the platform based on anonymised usage patterns</li>
                 <li>Comply with legal obligations</li>
@@ -130,16 +141,41 @@ export default function PrivacyPage() {
               <p>We use the following third-party services:</p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>
-                  <strong className="text-foreground">Stripe</strong> — payment processing. Stripe's privacy policy governs
-                  how your payment data is handled.
+                  <strong className="text-foreground">Supabase</strong> — our database. Your account record, purchases,
+                  saved briefs and usage records are stored there.
                 </li>
                 <li>
-                  <strong className="text-foreground">Vercel</strong> — website hosting. Vercel may log request metadata
-                  (IP address, user agent) as part of standard hosting operations.
+                  <strong className="text-foreground">Stripe</strong> — payment processing. We never see or store your
+                  card details; Stripe's privacy policy governs how your payment data is handled.
                 </li>
                 <li>
-                  <strong className="text-foreground">HM Land Registry API</strong> — data fetched directly from the
-                  official Land Registry API in response to your search queries.
+                  <strong className="text-foreground">Resend</strong> — delivery of service emails such as address
+                  verification and password resets. Your email address is shared with Resend in
+                  order to send them.
+                </li>
+                <li>
+                  <strong className="text-foreground">Google</strong> — Google Analytics 4 and Google Ads tags, loaded on
+                  every page. Google receives your IP address, the pages you visit, and the
+                  identifiers its tags set in your browser.
+                </li>
+                <li>
+                  <strong className="text-foreground">Vercel</strong> — website and API hosting. Vercel may log request
+                  metadata (IP address, user agent) as part of standard hosting operations.
+                </li>
+                <li>
+                  <strong className="text-foreground">Official UK data sources</strong> — briefs are built by querying
+                  public sources including HM Land Registry, Postcodes.io, the Environment
+                  Agency, data.police.uk, the ONS, VOA/DLUHC council tax data and
+                  planning.data.gov.uk. Most are queried by our servers; the valuation tool
+                  looks up Postcodes.io directly from your browser. They receive the postcode
+                  being looked up — and, where the request comes from your browser, your IP
+                  address — but nothing identifying you by name or account.
+                </li>
+                <li>
+                  <strong className="text-foreground">Content delivery networks</strong> — pages load fonts from Google
+                  Fonts and Fontshare, and the sold-prices map loads map tiles from CARTO.
+                  Because your browser requests these files directly, those providers receive
+                  your IP address.
                 </li>
               </ul>
             </Section>
@@ -166,9 +202,47 @@ export default function PrivacyPage() {
 
             <Section title="8. Data retention">
               <p>
-                We retain personal data only for as long as necessary to deliver the service
-                or as required by law. Price alert email addresses are retained until you
-                unsubscribe. Anonymous usage data may be retained indefinitely.
+                We keep personal data only for as long as we need it. How long that is depends
+                on the kind of data:
+              </p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li>
+                  <strong className="text-foreground">Account records</strong> — your name, email address and hashed
+                  password are kept for as long as your account is open. If you ask us to close
+                  it, we delete the account and the saved briefs and usage records linked to it
+                  {/* PROPOSED (business decision, not enforced in code): 30-day deletion SLA. */}
+                  {" "}within 30 days.
+                </li>
+                <li>
+                  <strong className="text-foreground">Purchase records</strong> — when you buy a Full Brief we keep the
+                  district, the Stripe payment reference and the amount paid. This record is
+                  what gives you permanent access to that brief, so we keep it for as long as
+                  your account is open. We retain the underlying transaction record
+                  {/* PROPOSED (business decision): 6 years, the usual UK tax/accounting window. */}
+                  {" "}for 6 years to meet UK tax and accounting requirements, even if you close
+                  your account.
+                </li>
+                <li>
+                  <strong className="text-foreground">Saved briefs</strong> — briefs you save to your portfolio are kept
+                  until you delete them, or until your account is deleted.
+                </li>
+                <li>
+                  <strong className="text-foreground">Abuse-prevention counters</strong> — to stop automated abuse of free
+                  briefs, we count generations against a one-way hash of your IP address. The IP
+                  address itself is never stored, and these counters are deleted automatically
+                  once they are more than two days old.
+                </li>
+                <li>
+                  <strong className="text-foreground">Cached property data</strong> — data we fetch from public sources is
+                  cached and treated as expired 7 days after it is fetched. This cache is keyed
+                  by postcode district and holds nothing about who searched for it. Expired
+                  entries stop being used immediately and are cleared out when we prune the
+                  cache.
+                </li>
+              </ul>
+              <p>
+                Analytics and advertising data collected by Google's tags is held by Google
+                under its own retention policies, which we do not control.
               </p>
             </Section>
 
