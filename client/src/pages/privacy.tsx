@@ -208,19 +208,20 @@ export default function PrivacyPage() {
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>
                   <strong className="text-foreground">Account records</strong> — your name, email address and hashed
-                  password are kept for as long as your account is open. If you ask us to close
-                  it, we delete the account and the saved briefs and usage records linked to it
-                  {/* PROPOSED (business decision, not enforced in code): 30-day deletion SLA. */}
-                  {" "}within 30 days.
+                  password are kept for as long as your account is open. There is no automatic
+                  deletion: closing an account is handled manually, on request. Email us at{" "}
+                  <a href="mailto:privacy@luxproperty.ai" className="text-primary underline-offset-2 hover:underline">
+                    privacy@luxproperty.ai
+                  </a>{" "}
+                  and we will delete the account along with the saved briefs and usage records
+                  linked to it.
                 </li>
                 <li>
                   <strong className="text-foreground">Purchase records</strong> — when you buy a Full Brief we keep the
                   district, the Stripe payment reference and the amount paid. This record is
                   what gives you permanent access to that brief, so we keep it for as long as
-                  your account is open. We retain the underlying transaction record
-                  {/* PROPOSED (business decision): 6 years, the usual UK tax/accounting window. */}
-                  {" "}for 6 years to meet UK tax and accounting requirements, even if you close
-                  your account.
+                  your account is open. We retain the underlying transaction record for 6 years
+                  to meet UK tax and accounting requirements, even if you close your account.
                 </li>
                 <li>
                   <strong className="text-foreground">Saved briefs</strong> — briefs you save to your portfolio are kept
