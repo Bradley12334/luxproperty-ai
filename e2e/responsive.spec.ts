@@ -68,11 +68,10 @@ test.describe("Responsive — Homepage", () => {
 // ── Pricing page responsive ───────────────────────────────────────────────────
 
 test.describe("Responsive — Pricing", () => {
-  test("pricing page renders all three plan cards", async ({ page }) => {
+  test("pricing page renders both plan cards", async ({ page }) => {
     await gotoPricing(page);
     await expect(page.getByTestId("card-pricing-explorer")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-professional")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-investor")).toBeVisible();
+    await expect(page.getByTestId("card-pricing-full brief")).toBeVisible();
   });
 
   test("no horizontal overflow on pricing page", async ({ page }) => {
@@ -85,13 +84,13 @@ test.describe("Responsive — Pricing", () => {
     ).toBeLessThanOrEqual(2);
   });
 
-  test("Professional CTA button is reachable on pricing page", async ({ page }) => {
+  test("Full Brief CTA button is reachable on pricing page", async ({ page }) => {
     await gotoPricing(page);
-    const proBtn = page.getByTestId("button-pricing-professional");
-    await expect(proBtn).toBeVisible();
+    const btn = page.getByTestId("button-pricing-full brief");
+    await expect(btn).toBeVisible();
     // Check it's within the viewport or scrollable to
-    const box = await proBtn.boundingBox();
-    expect(box, "Pro CTA should have a bounding box (be renderable)").toBeTruthy();
+    const box = await btn.boundingBox();
+    expect(box, "Full Brief CTA should have a bounding box (be renderable)").toBeTruthy();
   });
 });
 

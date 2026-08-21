@@ -637,13 +637,12 @@ function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
         {hasPC ? (
           <>
             Serious about <span className="font-medium text-foreground">{outcode}</span>? Unlock the full brief — every
-            section at Investor depth, saved to your account and yours to keep. Or go unlimited across every district with
-            Investor.
+            section at Investor depth, saved to your account and yours to keep.
           </>
         ) : (
           <>
             Unlock the full brief on any postcode — every section at Investor depth, saved to your account and yours to
-            keep. Or go unlimited across every district with Investor.
+            keep.
           </>
         )}
       </p>
@@ -670,9 +669,6 @@ function OverQuotaScreen({ resp }: { resp: QuotaExceededResp }) {
             ? `Permanent access to ${outcode} — revisit and regenerate it free, forever.`
             : "Permanent access to the postcode you buy — revisit and regenerate it free, forever."}
         </p>
-        <Link href="/pricing" className="text-sm text-primary underline-offset-4 hover:underline" data-testid="link-wall-investor">
-          See Investor — £39.99/mo, unlimited everything
-        </Link>
         {note && <p className="text-xs text-destructive" data-testid="text-wall-error">{note}</p>}
       </div>
 
@@ -3350,9 +3346,6 @@ function SaveBriefAffordance({ outcode, postcode, owned, tier }: { outcode: stri
           </Button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Link href="/pricing" className="text-xs text-primary underline-offset-4 hover:underline" data-testid="link-save-investor">
-            or go unlimited with Investor
-          </Link>
           {note && <p className="text-xs text-destructive" data-testid="text-save-error">{note}</p>}
         </div>
       </div>

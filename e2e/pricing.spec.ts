@@ -2,12 +2,15 @@
  * PRICING PAGE SMOKE TESTS
  * ─────────────────────────
  * Verifies the pricing page renders completely and correctly:
- *   - All three plan cards visible
+ *   - Both purchasable plan cards visible (Explorer, Full Brief)
  *   - Correct names and prices
  *   - CTA buttons present and have correct links
  *   - Feature comparison table renders
  *   - No broken placeholders
- *   - Investor wording audit: no over-inflated enterprise copy
+ *   - Retired/hidden tiers are not sold anywhere on the page
+ *
+ * NOTE ON TESTIDS: they derive from `tier.name.toLowerCase()`, so the Full Brief
+ * card is "card-pricing-full brief" — with a space. That is existing behaviour.
  */
 
 import { test, expect } from "@playwright/test";
@@ -30,56 +33,28 @@ test.describe("Pricing Page", () => {
     expect(realErrors).toHaveLength(0);
   });
 
-  test("all three plan cards are visible", async ({ page }) => {
+  test("both purchasable plan cards are visible", async ({ page }) => {
     await gotoPricing(page);
     await expect(page.getByTestId("card-pricing-explorer")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-professional")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-investor")).toBeVisible();
+    await expect(page.getByTestId("card-pricing-full brief")).toBeVisible();
   });
 
   test("plan names are correct", async ({ page }) => {
     await gotoPricing(page);
-    const explorer = page.getByTestId("card-pricing-explorer");
-    const pro = page.getByTestId("card-pricing-professional");
-    const investor = page.getByTestId("card-pricing-investor");
-
-    await expect(explorer).toContainText("Explorer");
-    await expect(pro).toContainText("Professional");
-    await expect(investor).toContainText("Investor");
+    await expect(page.getByTestId("card-pricing-explorer")).toContainText("Explorer");
+    await expect(page.getByTestId("card-pricing-full brief")).toContainText("Full Brief");
   });
 
   test("plan prices are displayed correctly", async ({ page }) => {
     await gotoPricing(page);
     await expect(page.getByTestId("card-pricing-explorer")).toContainText("Free");
-    await expect(page.getByTestId("card-pricing-professional")).toContainText("4.99");
-    await expect(page.getByTestId("card-pricing-investor")).toContainText("39.99");
+    await expect(page.getByTestId("card-pricing-full brief")).toContainText("149");
   });
 
-  test("CTA buttons are present on all plan cards", async ({ page }) => {
+  test("CTA buttons are present on both plan cards", async ({ page }) => {
     await gotoPricing(page);
     await expect(page.getByTestId("button-pricing-explorer")).toBeVisible();
-    await expect(page.getByTestId("button-pricing-professional")).toBeVisible();
-    await expect(page.getByTestId("button-pricing-investor")).toBeVisible();
-  });
-
-  test("Professional CTA links to Stripe checkout (opens new tab)", async ({ page, context }) => {
-    await gotoPricing(page);
-    const proBtn = page.getByTestId("button-pricing-professional");
-    await expect(proBtn).toBeVisible();
-
-    // The CTA uses window.open() — wait for a new page (tab) to open
-    const [newPage] = await Promise.all([
-      context.waitForEvent("page", { timeout: 10_000 }),
-      proBtn.click(),
-    ]);
-
-    const newUrl = newPage.url();
-    expect(
-      newUrl.includes("stripe") || newUrl.includes("buy.stripe"),
-      `Pro CTA should open Stripe checkout, got: ${newUrl}`
-    ).toBeTruthy();
-
-    await newPage.close();
+    await expect(page.getByTestId("button-pricing-full brief")).toBeVisible();
   });
 
   test("feature comparison table renders", async ({ page }) => {
@@ -109,31 +84,31 @@ test.describe("Pricing Page", () => {
     ).toBeLessThanOrEqual(1);
   });
 
-  test("Investor card does not use inflated enterprise language", async ({ page }) => {
-    await gotoPricing(page);
-    const investorCard = page.getByTestId("card-pricing-investor");
-    const text = await investorCard.innerText();
+  // ── Hidden-tier guards ──────────────────────────────────────────────────────
+  // Investor is no longer sold. Its entitlements, webhook path and Payment Link are
+  // all intact for grandfathered subscribers (covered by plan-gating.spec.ts) — it is
+  // only the customer-facing sell surface that is gone. These guard the regression.
 
-    // These phrases were flagged in the audit as over-inflated enterprise-only language
-    const overblownPhrases = [
-      "enterprise",
-      "dedicated account manager",
-      "custom pricing",
-      "priority support",
-    ];
-    for (const phrase of overblownPhrases) {
-      expect(
-        text.toLowerCase(),
-        `Investor card should not contain over-inflated phrase: "${phrase}"`
-      ).not.toContain(phrase.toLowerCase());
-    }
+  test("Investor tier is not offered on the pricing page", async ({ page }) => {
+    await gotoPricing(page);
+    await expect(page.getByTestId("card-pricing-investor")).toHaveCount(0);
+    await expect(page.getByTestId("button-pricing-investor")).toHaveCount(0);
+    await expect(page.getByTestId("button-get-investor")).toHaveCount(0);
   });
 
-  test("pricing page shows professional as 'Recommended' tier", async ({ page }) => {
+  test("no Investor pricing or checkout link anywhere on the pricing page", async ({ page }) => {
     await gotoPricing(page);
-    const proCard = page.getByTestId("card-pricing-professional");
-    // The Professional card should have a "Recommended" badge
-    await expect(proCard).toContainText("Recommended");
+    const body = await page.locator("body").innerText();
+    expect(body, "Investor monthly price should not appear").not.toContain("39.99");
+
+    const stripeLinks = await page.locator('a[href*="buy.stripe.com"]').count();
+    expect(stripeLinks, "no direct Stripe Payment Link should be reachable").toBe(0);
+  });
+
+  test("pricing page highlights Full Brief as the lead tier", async ({ page }) => {
+    await gotoPricing(page);
+    const fullBriefCard = page.getByTestId("card-pricing-full brief");
+    await expect(fullBriefCard).toContainText("Most buyers start here");
   });
 
   test("bottom CTAs on pricing page are visible", async ({ page }) => {
@@ -141,9 +116,9 @@ test.describe("Pricing Page", () => {
     // Scroll to bottom CTAs
     await page.evaluate(() => {
       document
-        .querySelector("[data-testid='button-start-professional']")
+        .querySelector("[data-testid='button-start-full-brief']")
         ?.scrollIntoView({ behavior: "instant" });
     });
-    await expect(page.getByTestId("button-start-professional")).toBeVisible();
+    await expect(page.getByTestId("button-start-full-brief")).toBeVisible();
   });
 });

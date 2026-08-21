@@ -29,18 +29,20 @@ const planDetails = {
     price: "Free",
     color: "text-muted-foreground",
     features: ["2 briefs per month", "Area screening brief — Good fit / Mixed / Limited fit", "Market overview (average price & YoY change)", "1-year price trend (Land Registry)", "Neighbourhood profile — schools, transport, walkability", "Flood risk & council tax band", "Named stations, schools & amenities"],
-    upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
-    upgradeTo: "Investor — £39.99/month",
-    upgradeDescription: "Want the full picture on one postcode? Run its brief and unlock it for £149 — yours permanently. Or go unlimited across every postcode with Investor: comparable sales, 10-year trends, sold-prices maps and a portfolio dashboard.",
+    // Investor is hidden from sale — no upgrade to offer. The render block is gated on
+    // upgradeUrl && upgradeTo, so nulling these hides it without touching the markup.
+    upgradeUrl: null,
+    upgradeTo: null,
+    upgradeDescription: null,
   },
   professional: {
     label: "Professional",
     price: "£4.99/month",
     color: "text-primary",
     features: ["Unlimited briefs", "Everything in Explorer", "5-year price trend — full Land Registry history", "Comparable sales & valuation range", "Pre-offer strategy — fair value range, opening range & seller pressure points", "Pre-offer questions — what to ask before committing", "Planning activity & risk flags", "Crime breakdown by category (police.uk)", "Broadband speed & fibre coverage (Ofcom)", "Rental market context — rents & demand signal", "Air quality index (DEFRA)", "Save & revisit briefs"],
-    upgradeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
-    upgradeTo: "Investor — £39.99/month",
-    upgradeDescription: "Add 10-year trend data, rental demand scores, a sold prices map, and a portfolio dashboard to compare multiple areas at once.",
+    upgradeUrl: null,
+    upgradeTo: null,
+    upgradeDescription: null,
   },
   investor: {
     label: "Investor",

@@ -1522,7 +1522,7 @@ export default function ValuationPage() {
         {
           "@type": "Question",
           "name": "Is the property valuation tool free to use?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Yes, the Explorer plan is free and includes access to valuation data. Professional (\u00a34.99/month) and Investor (\u00a339.99/month) plans unlock deeper comparables, deal quality scoring, and full market analysis." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes \u2014 the free Explorer plan includes access to valuation data, with no card required. The Full Brief is a one-off \u00a3149 for a single postcode and unlocks deeper comparables and full market analysis, owned permanently." }
         },
         {
           "@type": "Question",

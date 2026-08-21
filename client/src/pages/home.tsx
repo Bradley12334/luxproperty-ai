@@ -691,11 +691,11 @@ export default function Home() {
               Screen free. Own the brief that matters.
             </h2>
             <p className="text-[13px] text-foreground/50 mb-10 max-w-md">
-              Start free. Own the complete brief on the postcode that matters — £149, one-off. Or go unlimited with Investor.
+              Start free. Own the complete brief on the postcode that matters — £149, one-off, yours permanently.
             </p>
 
-            {/* Cards: Explorer and Investor sit slightly lower visually */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:items-end">
+            {/* Cards: Explorer sits slightly lower visually */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:items-end">
               {/* Explorer */}
               <div
                 className="flex flex-col p-5 rounded-xl border border-border/50 bg-card"
@@ -781,47 +781,10 @@ export default function Home() {
                 <p className="mt-2 text-[10px] text-foreground/30 text-center">One-off payment · No subscription · Owned forever</p>
               </div>
 
-              {/* Investor */}
-              <div
-                className="flex flex-col p-5 rounded-xl border border-border/50 bg-card"
-                data-testid="card-pricing-investor"
-              >
-                <h3 className="text-[12px] font-semibold text-foreground/70 uppercase tracking-[0.1em] mb-4">Investor</h3>
-                <div className="mb-1">
-                  <span className="font-serif text-2xl tracking-tight text-foreground">£39.99</span>
-                  <span className="text-[11px] text-foreground/40 ml-0.5">/month</span>
-                </div>
-                <p className="text-[11px] text-foreground/40 mb-5 leading-relaxed">
-                  For investors running due diligence across a shortlist. 10-year trends, rental demand scores, sold prices map, portfolio dashboard.
-                </p>
-                <ul className="space-y-1.5 mb-6 flex-1">
-                  {[
-                    "Everything in Full Brief — every postcode",
-                    "10-year price trend",
-                    "Rental demand score",
-                    "Sold prices map",
-                    "Portfolio dashboard",
-                    "Custom report branding",
-                  ].map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-[12px]">
-                      <Check className="h-3 w-3 text-primary/60 mt-0.5 shrink-0" />
-                      <span className="text-foreground/55">{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  variant="outline"
-                  className="w-full text-[12px] font-semibold border-border/60 text-foreground/60 hover:text-foreground"
-                  data-testid="button-pricing-investor"
-                  onClick={() => startCheckout("https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor")}
-                >
-                  Start Investor
-                </Button>
-              </div>
             </div>
 
             <p className="mt-6 text-center text-[11px] text-foreground/35">
-              No card to screen · Full Brief is one-off · Investor cancels anytime
+              No card to screen · Full Brief is one-off · Owned forever
             </p>
           </div>
         </section>

@@ -290,12 +290,12 @@ export default function PortfolioPage() {
             <div className="rounded-full bg-amber-50 dark:bg-amber-950/30 p-4 mx-auto mb-4 w-fit">
               <BarChart3 className="h-8 w-8 text-amber-600" />
             </div>
-            <h2 className="font-serif text-xl mb-2">Compare briefs across multiple areas</h2>
+            <h2 className="font-serif text-xl mb-2">Portfolio isn't part of your plan</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
-              The portfolio dashboard is part of the Investor plan. Save briefs, compare areas side by side, and keep track of every location you're seriously considering.
+              Every Full Brief you own is saved to your account permanently — open any of them from My briefs, and regenerate them free whenever you come back.
             </p>
-            <Link href="/pricing">
-              <Button size="sm" className="font-semibold">View Investor plan — £39.99/month</Button>
+            <Link href="/account">
+              <Button size="sm" className="font-semibold">Go to My briefs</Button>
             </Link>
           </div>
         </main>

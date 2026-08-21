@@ -37,18 +37,6 @@ const tiers = [
     stripeUrl: null, // a Full Brief is bought per-postcode from its brief, so route to the app first
     reassurance: "One-off payment. No subscription. Owned forever — revisit and regenerate free.",
   },
-  {
-    name: "Investor",
-    price: "£39.99",
-    period: "/month",
-    description: "For due diligence across a shortlist. Unlimited full briefs on every postcode, plus a portfolio dashboard, cross-area comparison, sold-prices maps and 10-year trends.",
-    badge: "For professionals",
-    style: "investor",
-    cta: "Get Investor — £39.99/month",
-    ctaVariant: "default" as const,
-    stripeUrl: "https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor",
-    reassurance: "Cancel anytime. Switch plans whenever you like.",
-  },
 ];
 
 interface FeatureRow {
@@ -119,7 +107,7 @@ const faqs = [
   },
   {
     q: "What if I'm evaluating multiple properties or areas?",
-    a: "Investor is designed for that — unlimited full briefs on every postcode, plus side-by-side comparison, yield tracking and a portfolio dashboard. Cancel anytime.",
+    a: "Screen as many as you like free, then buy a Full Brief for each postcode you get serious about. Each one is a one-off £149 and yours permanently — they stack up in your account under \"My briefs\".",
   },
   {
     q: "Do I keep a Full Brief if I never subscribe?",
@@ -222,7 +210,7 @@ function RealProductShowcase() {
 }
 
 export default function PricingPage() {
-  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 2 briefs/month. Full Brief £149 one-off. Investor at £39.99/month. No contracts, cancel anytime.");
+  useDocumentTitle("Pricing", "Compare LuxProperty.ai plans. Free Explorer tier with 2 briefs/month. Full Brief £149 one-off — one postcode, owned permanently. No subscription, no contracts.");
   const { startCheckout, authModal } = useCheckout();
   const [, navigate] = useLocation();
   return (
@@ -249,7 +237,7 @@ export default function PricingPage() {
         {/* Pricing Cards */}
         <section className="pb-10 sm:pb-14">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3 sm:items-end">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 sm:items-end">
               {tiers.map((tier) => {
                 const isInvestor = tier.style === "investor";
                 const isFullBrief = tier.style === "fullbrief";
@@ -445,14 +433,11 @@ export default function PricingPage() {
                     <th className="text-left font-medium text-muted-foreground py-3 pr-4 pl-4 sm:pl-0 w-[40%]">
                       Feature
                     </th>
-                    <th className="text-center font-medium text-muted-foreground py-3 px-2 w-[20%]">
+                    <th className="text-center font-medium text-muted-foreground py-3 px-2 w-[30%]">
                       Explorer
                     </th>
-                    <th className="text-center font-bold text-primary py-3 px-2 w-[20%]">
+                    <th className="text-center font-bold text-primary py-3 px-2 w-[30%]">
                       Full Brief
-                    </th>
-                    <th className="text-center font-medium text-amber-600 dark:text-amber-400 py-3 px-2 w-[20%]">
-                      Investor
                     </th>
                   </tr>
                 </thead>
@@ -469,16 +454,13 @@ export default function PricingPage() {
                       <td className="py-3 px-2 text-center bg-primary/[0.03] dark:bg-primary/[0.05]">
                         <CellValue value={row.fullBrief} col="fullbrief" />
                       </td>
-                      <td className="py-3 px-2 text-center bg-amber-500/[0.04] dark:bg-amber-500/[0.06]">
-                        <CellValue value={row.investor} col="investor" />
-                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <p className="mt-4 text-xs text-muted-foreground max-w-2xl">
-              The <span className="font-medium text-primary">Full Brief</span> unlocks every section at Investor depth for the <span className="font-medium">one postcode</span> you buy — yours permanently. <span className="font-medium text-amber-600 dark:text-amber-400">Investor</span> unlocks them for every postcode, plus unlimited briefs and the portfolio toolkit.
+              The <span className="font-medium text-primary">Full Brief</span> unlocks every section above for the <span className="font-medium">one postcode</span> you buy — yours permanently, with free regeneration whenever you come back to it.
             </p>
           </div>
         </section>
@@ -512,19 +494,6 @@ export default function PricingPage() {
                   No card to screen. Unlock the full brief for £149 when you're ready.
                 </span>
               </div>
-              <a
-                href="https://buy.stripe.com/8x200l2oKdP229WfJa6Na01?success_url=https%3A%2F%2Fwww.luxproperty.ai%2Fsuccess%3Fplan%3Dinvestor"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  startCheckout(e.currentTarget.href);
-                }}
-              >
-                <Button size="lg" variant="outline" className="text-sm px-8 w-full sm:w-auto" data-testid="button-get-investor">
-                  Or go unlimited — Investor
-                </Button>
-              </a>
             </div>
           </div>
         </section>

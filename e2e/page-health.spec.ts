@@ -41,8 +41,7 @@ test.describe("Page Health", () => {
       el?.scrollIntoView({ behavior: "instant" });
     });
     await expect(page.getByTestId("card-pricing-explorer")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-professional")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-investor")).toBeVisible();
+    await expect(page.getByTestId("card-pricing-full brief")).toBeVisible();
   });
 
   test("pricing page loads and shows plan cards", async ({ page }) => {
@@ -52,8 +51,7 @@ test.describe("Page Health", () => {
     await gotoPricing(page);
 
     await expect(page.getByTestId("card-pricing-explorer")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-professional")).toBeVisible();
-    await expect(page.getByTestId("card-pricing-investor")).toBeVisible();
+    await expect(page.getByTestId("card-pricing-full brief")).toBeVisible();
 
     await expectNoPageErrors(page, errors);
   });
@@ -65,13 +63,9 @@ test.describe("Page Health", () => {
     await expect(explorerCard).toContainText("Explorer");
     await expect(explorerCard).toContainText("Free");
 
-    const proCard = page.getByTestId("card-pricing-professional");
-    await expect(proCard).toContainText("Professional");
-    await expect(proCard).toContainText("4.99");
-
-    const investorCard = page.getByTestId("card-pricing-investor");
-    await expect(investorCard).toContainText("Investor");
-    await expect(investorCard).toContainText("39.99");
+    const fullBriefCard = page.getByTestId("card-pricing-full brief");
+    await expect(fullBriefCard).toContainText("Full Brief");
+    await expect(fullBriefCard).toContainText("149");
   });
 
   test("pricing page shows feature comparison table", async ({ page }) => {
