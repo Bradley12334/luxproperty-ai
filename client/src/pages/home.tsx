@@ -801,7 +801,6 @@ export default function Home() {
                     "Rental demand score",
                     "Sold prices map",
                     "Portfolio dashboard",
-                    "Custom report branding",
                   ].map((f) => (
                     <li key={f} className="flex items-start gap-2 text-[12px]">
                       <Check className="h-3 w-3 text-primary/60 mt-0.5 shrink-0" />

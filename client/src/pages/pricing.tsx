@@ -97,7 +97,6 @@ const features: FeatureRow[] = [
   // ── Investor only (across every postcode + the portfolio toolkit) ────────────
   { feature: "Unlimited full briefs — every postcode, not just one", explorer: false, fullBrief: false, investor: true },
   { feature: "Portfolio dashboard — save, compare, and track multiple areas", explorer: false, fullBrief: false, investor: true },
-  { feature: "Custom report branding — add your name and firm", explorer: false, fullBrief: false, investor: true },
 ];
 
 const faqs = [
