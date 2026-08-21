@@ -1,5 +1,5 @@
 -- subscription-lifecycle-migration.sql  (Step 1 of the subscription lifecycle work)
--- Applied: NOT YET — review, then run in Supabase Dashboard → SQL Editor
+-- Applied: 2026-08-21 via Supabase MCP (migration name: subscription_lifecycle_join_key_and_ledger)
 -- ─────────────────────────────────────────────────────────────────────────────
 -- THE PROBLEM THIS SOLVES
 --   Stripe's revocation events (customer.subscription.deleted / .updated,
